@@ -1,85 +1,248 @@
-<!-- <p align="center">
-  <img src="./frontend/public/sealchat-logo.svg" alt="SealChat Logo" width="150" />
-</p> -->
+## 📋 TODO / Roadmap
 
-<h1 align="center">SealChat</h1>
+> Progress is tracked using the following checklist.
 
-<p align="center">
-  A modern, secure, real-time chat application inspired by WhatsApp and Messenger.
-</p>
+### 🚀 Phase 1 — Project Setup
 
-# SealChat
-
-SealChat is a modern, secure, real-time chat application inspired by WhatsApp and Messenger, designed for fast, seamless communication with privacy at its core. SealChat offers end-to-end encryption, media sharing, voice & video calls, and Messenger-style friend requests.
-
----
-
-## 🚀 Features
-
-### 💬 Chat Features
-
-- 💬 Real-time one-on-one messaging & Group Chats
-- 🔐 End-to-End Encryption (E2EE) for all messages
-- 🎙️ Voice messages (record & play)
-- 🖼️ Share photos, videos, documents, and voice notes
-- 😀 Message reactions (❤️ 😂 👍 etc.)
-- ✏️ Message editing & deletion
-- 💬 Reply to messages
-- ✅ Message read receipts & delivery ticks
-
-### 🧑‍🤝‍🧑 Social & Contacts
-
-- 🤝 Messenger-style friend requests (accept/reject)
-- 🚫 Blocking and unblocking users
-- 🔎 Username-based search 
-- 🟢 Last seen and online/offline indicators
-
-### 📞 Calling Features
-
-- 📞 One-on-one audio calls
-- 🎥 One-on-one video calls
-
-### 📂 Media Features
-
-- 🗜️ Real-time image/video compression before upload
-- 👁️ View-once images/videos
-- 🎨 Stickers, GIFs, and emoji support
-
-### 🔐 Security Features
-
-- 🔐 End-to-End Encryption (E2EE) for messages and media
-- 🔒 Secure voice/video calls (WebRTC + DTLS)
-- 🔐 Key management for encrypted communications
-
-### 🛠 UI & Usability
-
-- 🌙 Dark mode & light mode
-- ✍️ Typing indicators
-- 🟢 Online/offline presence
-
-
-## 🏗 Tech Stack
-
-- 💻 **Frontend:** React
-- 🖥️ **Backend:** Node.js, Express
-- 🗄️ **Database:** MongoDB with Mongoose
-- 🔌 **Real-time:** Socket.IO, WebRTC
-- ☁️ **Storage:** Cloudinary, AWS S3 or equivalent
+* [ ] Initialize React + Bun + TypeScript
+* [ ] Configure Tailwind CSS
+* [ ] Setup ESLint, Prettier & Husky
+* [ ] Configure React Router
+* [ ] Configure Zustand
+* [ ] Configure TanStack Query
+* [ ] Configure Axios
+* [ ] Setup shadcn/ui
+* [ ] Configure Socket.IO client
+* [ ] Setup Express backend
+* [ ] Configure Prisma ORM
+* [ ] Setup PostgreSQL database
+* [ ] Docker development environment
+* [ ] Environment configuration
 
 ---
 
-## 📜 License
+### 👤 Authentication
 
-SealChat is open-source under the **MIT License**.
+* [ ] User registration
+* [ ] Login
+* [ ] Logout
+* [ ] Refresh tokens
+* [ ] JWT authentication
+* [ ] Password hashing
+* [ ] Email verification
+* [ ] Forgot password
+* [ ] Reset password
+* [ ] Change password
+* [ ] Multi-device login
+* [ ] Session management
 
 ---
 
-## 🌐 Project Status
+### 👥 User Profile
 
-SealChat is under active development. Features will be added iteratively based on roadmap priorities.
-
-Contributions, feedback, and suggestions are welcome!
+* [ ] Edit profile
+* [ ] Upload profile picture
+* [ ] Username support
+* [ ] Bio/About
+* [ ] Last seen
+* [ ] Online/Offline status
+* [ ] Privacy settings
+* [ ] Account settings
 
 ---
 
-> "Chat securely. Share freely. Seal it with SealChat."
+### 🤝 Friends & Contacts
+
+* [ ] User search
+* [ ] Friend requests
+* [ ] Accept request
+* [ ] Reject request
+* [ ] Remove friend
+* [ ] Block user
+* [ ] Unblock user
+* [ ] Mutual friends
+* [ ] Contact list
+
+---
+
+### 💬 Chat
+
+* [ ] One-to-one chat
+* [ ] Group chat
+* [ ] Real-time messaging
+* [ ] Typing indicator
+* [ ] Read receipts
+* [ ] Delivery status
+* [ ] Message reactions
+* [ ] Reply to messages
+* [ ] Forward messages
+* [ ] Edit messages
+* [ ] Delete for me
+* [ ] Delete for everyone
+* [ ] Pin messages
+* [ ] Star messages
+* [ ] Search messages
+* [ ] Unread message count
+* [ ] Infinite message scrolling
+* [ ] Message timestamps
+
+---
+
+### 📎 Media
+
+* [ ] Image upload
+* [ ] Video upload
+* [ ] Audio upload
+* [ ] Document upload
+* [ ] Drag & drop upload
+* [ ] Image compression
+* [ ] Video compression
+* [ ] Voice messages
+* [ ] View once media
+* [ ] Media gallery
+* [ ] Download files
+
+---
+
+### 😀 Rich Messaging
+
+* [ ] Emoji picker
+* [ ] GIF support
+* [ ] Stickers
+* [ ] Mentions (@user)
+* [ ] Hashtags
+* [ ] Link previews
+* [ ] Code block messages
+* [ ] Markdown support
+
+---
+
+### 👥 Groups
+
+* [ ] Create group
+* [ ] Group avatar
+* [ ] Group description
+* [ ] Add members
+* [ ] Remove members
+* [ ] Promote admins
+* [ ] Invite links
+* [ ] Leave group
+* [ ] Delete group
+
+---
+
+### 📞 Calls
+
+* [ ] Voice calls
+* [ ] Video calls
+* [ ] Screen sharing
+* [ ] Call history
+* [ ] Mute
+* [ ] Camera toggle
+* [ ] Call notifications
+
+---
+
+### 🔔 Notifications
+
+* [ ] Browser notifications
+* [ ] Sound notifications
+* [ ] Push notifications
+* [ ] Notification settings
+
+---
+
+### 🔐 Security
+
+* [ ] End-to-End Encryption
+* [ ] Device verification
+* [ ] Encrypted media
+* [ ] Secure key management
+* [ ] Two-factor authentication (2FA)
+* [ ] Login activity
+* [ ] Account recovery
+
+---
+
+### 🎨 UI / UX
+
+* [ ] Dark mode
+* [ ] Light mode
+* [ ] Responsive design
+* [ ] Accessibility improvements
+* [ ] Keyboard shortcuts
+* [ ] Animations
+* [ ] Loading skeletons
+* [ ] Error pages
+* [ ] Empty states
+
+---
+
+### ⚙️ Settings
+
+* [ ] Profile settings
+* [ ] Privacy settings
+* [ ] Notification settings
+* [ ] Appearance settings
+* [ ] Language selection
+
+---
+
+### 🛠 Admin
+
+* [ ] User management
+* [ ] Reported users
+* [ ] Analytics dashboard
+* [ ] Audit logs
+* [ ] System monitoring
+
+---
+
+### 🚀 Performance
+
+* [ ] Redis caching
+* [ ] Message pagination
+* [ ] Lazy loading
+* [ ] Image optimization
+* [ ] Code splitting
+* [ ] Virtualized chat list
+
+---
+
+### 🧪 Testing
+
+* [ ] Unit tests
+* [ ] Integration tests
+* [ ] API tests
+* [ ] End-to-end tests
+* [ ] Load testing
+
+---
+
+### 📦 Deployment
+
+* [ ] Docker
+* [ ] CI/CD pipeline
+* [ ] Production deployment
+* [ ] Monitoring
+* [ ] Logging
+* [ ] Backups
+* [ ] HTTPS
+* [ ] Domain configuration
+
+---
+
+### 🌟 Future Features
+
+* [ ] Communities
+* [ ] Channels
+* [ ] Stories / Status
+* [ ] Broadcast messages
+* [ ] Polls
+* [ ] Scheduled messages
+* [ ] Message translation
+* [ ] AI assistant
+* [ ] Desktop application
+* [ ] Mobile application (React Native)
+* [ ] Multi-device synchronization
+* [ ] End-to-end encrypted backups
