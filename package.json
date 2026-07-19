@@ -3,10 +3,20 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "seed": "bun run apps/api/src/seed.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }
