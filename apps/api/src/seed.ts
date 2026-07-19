@@ -1,5 +1,5 @@
+import "dotenv/config";
 import { prisma } from "@sealchat/db";
-
 
 async function main() {
   const users = await prisma.user.create({
