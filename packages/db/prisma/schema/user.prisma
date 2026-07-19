@@ -1,0 +1,17 @@
+
+model User {
+  id       String @id @default(uuid(7)) @db.Uuid()
+
+  email    String @unique @db.VarChar(320)
+  username String @unique @db.VarChar(30)
+
+  passwordHash String 
+
+  createdAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  isEmailVerified Boolean @default(false)
+
+  @@index([email])
+  @@index([username])
+}

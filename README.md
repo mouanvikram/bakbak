@@ -4,7 +4,7 @@
 
 ### 🚀 Phase 1 — Project Setup
 
-* [ ] Initialize React + Bun + TypeScript
+* [-] Initialize React + Bun + TypeScript
 * [ ] Configure Tailwind CSS
 * [ ] Setup ESLint, Prettier & Husky
 * [ ] Configure React Router
@@ -13,9 +13,9 @@
 * [ ] Configure Axios
 * [ ] Setup shadcn/ui
 * [ ] Configure Socket.IO client
-* [ ] Setup Express backend
-* [ ] Configure Prisma ORM
-* [ ] Setup PostgreSQL database
+* [-] Setup Express backend
+* [-] Configure Prisma ORM
+* [-] Setup PostgreSQL database
 * [ ] Docker development environment
 * [ ] Environment configuration
 
