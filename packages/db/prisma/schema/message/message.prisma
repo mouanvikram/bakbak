@@ -1,0 +1,20 @@
+enum MessageType{
+  Text
+  Image
+  Audio
+  Video
+  File
+  Sticker
+  Gif
+  Contact
+  Location
+  Call
+  System
+}
+
+model Message{
+    id String @id @default(uuid(7)) @db.Uuid()
+    type MessageType @default(Text)
+    text String?
+    call String?
+}
