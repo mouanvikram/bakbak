@@ -1,19 +1,14 @@
-import express from "express";
-import { type Request, type Response} from "express";
+import express, { type Request, type Response } from "express";
+import app from "./src/app";
+import { env } from "./lib/config";
 
-import dotenv from "dotenv";
-
-const app = express();
-dotenv.config();
-
-app.use(express.json());
-
-const PORT = process.env.PORT;
-
-app.get("/",function(req : Request, res: Response){
-    res.send("Hello World!");
+app.get("/", (_, res: Response) => {
+  return res.status(200).json({
+    message: "This path is listening at '/'",
+  });
 });
 
-app.listen(PORT,function(){
-    console.log("Server is listening on http://localhost:"+PORT);
+
+app.listen(env.PORT, () => {
+  console.log(`Server is listening at http://localhost:${env.PORT}`);
 });

@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "seed": "bun run apps/api/src/seed.ts"
+    "start": "bun run apps/api/index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
