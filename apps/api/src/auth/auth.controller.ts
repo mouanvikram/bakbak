@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import { prisma } from "@sealchat/db";
-import { loginSchema, signUpSchema } from "./schemas";
+import { loginSchema, signUpSchema } from "./auth.schema";
 import { comparePassword, hashedPassword } from "../../lib/bcrypt";
+import { signToken } from "../../lib/jwt";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -76,7 +77,14 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    return res.send("you have logged in succesfully");
+    const token = await signToken(user.id);
+
+    return res.status(200).json({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+    });
+    
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Internal Server Error" });
