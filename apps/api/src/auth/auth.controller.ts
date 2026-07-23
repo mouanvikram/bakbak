@@ -1,12 +1,12 @@
 import type { Request, Response } from "express";
 import { prisma } from "@sealchat/db";
 import { loginSchema, signUpSchema } from "./schemas";
-import { comparePassword, hashedPassword } from "../../lib/utils";
+import { comparePassword, hashedPassword } from "../../lib/bcrypt";
 
-export interface AuthRequest extends Request{
-    user?:{
-        userId: String,
-    }
+export interface AuthRequest extends Request {
+  user?: {
+    userId: string;
+  };
 }
 
 export const signUp = async (req: Request, res: Response) => {
@@ -15,12 +15,14 @@ export const signUp = async (req: Request, res: Response) => {
 
     const emailExists = await prisma.user.findUnique({
       where: {
-        email: email,
+        email,
       },
     });
 
     if (emailExists) {
-      res.send("Username already exists");
+      return res.status(409).json({
+        message: "Email already exists",
+      });
     }
 
     const userExists = await prisma.user.findUnique({
@@ -30,25 +32,27 @@ export const signUp = async (req: Request, res: Response) => {
     });
 
     if (userExists) {
-      res.send("User Email Already Exists....");
+      return res.status(409).json({
+        message: "Username already exists",
+      });
     }
 
-    const hashPassword = await hashedPassword(password);
+    const passwordHash = await hashedPassword(password);
 
     const user = await prisma.user.create({
       data: {
         username: username,
         email: email,
-        passwordHash: hashPassword,
+        passwordHash: passwordHash,
       },
     });
 
-    res.send({
-      user,
+    return res.status(201).json({
+      user: { id: user.id, username: user.username, email: user.email },
     });
   } catch (error) {
     console.log(error);
-    res.send("Something went wrong while signing up");
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -63,20 +67,18 @@ export const login = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      res.send("User does not exists. Please Sign Up first");
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const passwordMatch = await comparePassword(password, user?.passwordHash!);
 
     if (!passwordMatch) {
-      res.send("Password didn't not match");
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    res.send("you have logged in succesfully");
+    return res.send("you have logged in succesfully");
   } catch (error) {
     console.log(error);
-    res.send("Something went wrong while loging in");
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
-
