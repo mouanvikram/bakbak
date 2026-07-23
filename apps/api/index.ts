@@ -3,9 +3,7 @@ import app from "./src/app";
 import { env } from "./lib/config";
 
 app.get("/", (_, res: Response) => {
-  return res.status(200).json({
-    message: "This path is listening at '/'",
-  });
+  return res.send("Server is listening at '/' path")
 });
 
 
