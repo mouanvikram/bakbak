@@ -1,16 +1,10 @@
 import express from "express";
-import {type Express, type Request, type Response } from "express";
-import { signUp, login } from "./auth/auth.controller";
+import { type Express } from "express";
+import authRoutes from "./auth/auth.routes";
 
-
-const app:Express = express();
+const app: Express = express();
 app.use(express.json());
 
-// authorization routes
-app.post("/api/signup",signUp);
-app.post("/api/login",login);
-
-//
-
+app.use("/api/api", authRoutes);
 
 export default app;
