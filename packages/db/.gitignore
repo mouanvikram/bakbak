@@ -1,6 +1,7 @@
 # dependencies (bun install)
 node_modules
-
+# prisma generated files
+prisma/generated/
 # output
 out
 dist

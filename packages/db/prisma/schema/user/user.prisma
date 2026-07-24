@@ -10,7 +10,8 @@ model User {
   updateAt DateTime @updatedAt
 
   isEmailVerified Boolean @default(false)
-
+  verification EmailVerification?
+  
   @@index([email])
   @@index([username])
 }
