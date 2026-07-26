@@ -1,17 +1,16 @@
 model User {
-  id       String @id @default(uuid(7)) @db.Uuid()
+  id String @id @default(uuid(7)) @db.Uuid
 
-  email    String @unique @db.VarChar(320)
-  username String @unique @db.VarChar(30)
-
-  passwordHash String 
-
-  createdAt DateTime @default(now())
-  updateAt DateTime @updatedAt
+  email        String @unique @db.VarChar(320)
+  username     String @unique @db.VarChar(30)
+  passwordHash String
 
   isEmailVerified Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
   verification EmailVerification?
-  
-  @@index([email])
-  @@index([username])
+  profile      UserProfile?
+  refreshToken RefreshToken[]
 }

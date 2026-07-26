@@ -6,7 +6,8 @@
   "scripts": {
     "start": "bunx prisma studio",
     "migrate": "bunx prisma migrate dev",
-    "generate": "bunx prisma generate"
+    "generate": "bunx prisma generate",
+    "reset": "bunx prisma migreate reset"
   },
   "exports": {
     ".": "./src/prisma.ts"

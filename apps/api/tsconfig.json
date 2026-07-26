@@ -24,6 +24,15 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+
+    "paths": {
+      // "@/*": ["*"],
+      "@lib/":["./lib/*"],
+      "@emails/*": ["./lib/emails.template/*"],
+      "@logger": ["./lib/logger/index.ts"],
+      
+
+    }
   }
 }

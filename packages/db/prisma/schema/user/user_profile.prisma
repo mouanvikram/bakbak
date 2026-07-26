@@ -1,0 +1,16 @@
+model UserProfile {
+    userId String @id @db.Uuid
+
+    username    String @unique
+    displayName String?
+    firstName   String?
+    lastName    String?
+
+    avatar String?
+    bio    String?
+
+    isOnline  Boolean  @default(false)
+    lastSeenAt DateTime?
+
+    user User @relation(fields: [userId], references: [id],onDelete: Cascade)
+}

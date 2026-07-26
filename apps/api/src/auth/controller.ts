@@ -1,16 +1,14 @@
 import type { Request, Response } from "express";
 import { prisma } from "@sealchat/db";
-import { loginSchema, signUpSchema } from "./schema";
+import { loginSchema, signUpSchema } from "./validators";
 import { comparePassword, hashPassword } from "../../lib/bcrypt";
 import { signToken } from "../../lib/jwt";
 import { Resend } from "resend";
-import {
-  hashVerificaitonToken,
-  verificationEmail,
-} from "../../lib/verify.email.template";
+import { hashVerificaitonToken, verificationEmail } from "@emails/verify";
 import crypto from "crypto";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+// const authService = new UserService();
 
 export interface AuthRequest extends Request {
   user?: {
@@ -23,11 +21,7 @@ export const signUp = async (req: Request, res: Response) => {
   try {
     const { username, email, password } = signUpSchema.parse(req.body);
 
-    const emailExists = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
+    const emailExists = await authService.findByEmail(email);
 
     if (emailExists) {
       return res.status(409).json({
@@ -35,11 +29,7 @@ export const signUp = async (req: Request, res: Response) => {
       });
     }
 
-    const userExists = await prisma.user.findUnique({
-      where: {
-        username: username,
-      },
-    });
+    const userExists = await authService.findByUsername(username);
 
     if (userExists) {
       return res.status(409).json({
@@ -49,12 +39,10 @@ export const signUp = async (req: Request, res: Response) => {
 
     const passwordHash = await hashPassword(password);
 
-    const user = await prisma.user.create({
-      data: {
-        username: username,
-        email: email,
-        passwordHash: passwordHash,
-      },
+    const user = await authService.createUser({
+      username,
+      email,
+      passwordHash,
     });
 
     //sending the user an email for verification
@@ -149,8 +137,6 @@ export const login = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
-
 
 // GET    /api/auth/verify-email
 export const verifyEmail = async (req: Request, res: Response) => {
