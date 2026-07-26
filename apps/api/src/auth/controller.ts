@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "@sealchat/db";
-import { loginSchema, signUpSchema } from "./auth.schema";
+import { loginSchema, signUpSchema } from "./schema";
 import { comparePassword, hashPassword } from "../../lib/bcrypt";
 import { signToken } from "../../lib/jwt";
 import { Resend } from "resend";
@@ -18,6 +18,7 @@ export interface AuthRequest extends Request {
   };
 }
 
+// POST   /api/auth/signup
 export const signUp = async (req: Request, res: Response) => {
   try {
     const { username, email, password } = signUpSchema.parse(req.body);
@@ -107,6 +108,7 @@ export const signUp = async (req: Request, res: Response) => {
   }
 };
 
+// POST   /api/auth/login
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
@@ -148,50 +150,9 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
-  try {
-    const { email, oldPassword, newPassword } = req.body;
 
-    const user = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
 
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid username or password",
-      });
-    }
-
-    const passwordMatch = await comparePassword(oldPassword, user.passwordHash);
-    if (!passwordMatch) {
-      return res.status(401).json({
-        message: "Invalid username or password",
-      });
-    }
-
-    const newPasswordHash = await hashPassword(newPassword);
-    await prisma.user.update({
-      where: {
-        email,
-      },
-      data: {
-        passwordHash: newPasswordHash,
-      },
-    });
-
-    return res.status(200).json({
-      message: "Password changed successfully",
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: "Internal Server Error",
-    });
-  }
-};
-
+// GET    /api/auth/verify-email
 export const verifyEmail = async (req: Request, res: Response) => {
   try {
     const token = req.query.token;
@@ -246,6 +207,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
   }
 };
 
+// POST   /api/auth/resend-verification
 export const resendVerification = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
@@ -318,6 +280,51 @@ export const resendVerification = async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
 
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+};
+
+// POST   /api/auth/change-password
+export const changePassword = async (req: Request, res: Response) => {
+  try {
+    const { email, oldPassword, newPassword } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid username or password",
+      });
+    }
+
+    const passwordMatch = await comparePassword(oldPassword, user.passwordHash);
+    if (!passwordMatch) {
+      return res.status(401).json({
+        message: "Invalid username or password",
+      });
+    }
+
+    const newPasswordHash = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: {
+        email,
+      },
+      data: {
+        passwordHash: newPasswordHash,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    console.log(error);
     return res.status(500).json({
       message: "Internal Server Error",
     });

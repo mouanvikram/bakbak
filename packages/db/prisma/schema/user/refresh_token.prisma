@@ -1,0 +1,7 @@
+model RefreshToken{
+    id String @id @default(uuid()) @db.Uuid
+
+    tokenHash String
+    createdAt DateTime @default(now())
+    
+}
