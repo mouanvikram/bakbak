@@ -1,7 +1,7 @@
 import type { JwtService } from "./jwt.service";
 import type { PasswordService } from "./pwd.service";
 import type { UserRepository } from "../users/repository";
-import type { RegisterDto } from "./types";
+import type { LoginDto, RegisterDto } from "./types";
 import type { EmailService } from "./email.service";
 
 export class AuthService {
@@ -44,6 +44,7 @@ export class AuthService {
     return {
       data: {
         id: user.id,
+        username: user.username,
         email: user.email,
         createdAt: user.createdAt,
         isEmailVerified: user.isEmailVerified,
@@ -51,8 +52,10 @@ export class AuthService {
       token,
     };
   }
-  
-  login() {}
+
+  async login(dto: LoginDto) {
+    // return 
+  }
   logout() {
     // will be implemented later
   }

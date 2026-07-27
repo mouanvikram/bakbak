@@ -7,7 +7,6 @@ import { Resend } from "resend";
 import { hashVerificaitonToken, verificationEmail } from "@emails/verify";
 import crypto from "crypto";
 import { authService, userRepository } from "../services/service.container";
-import { email } from "zod";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -27,6 +26,13 @@ class AuthController {
       token: user.token,
     });
   }
+  async login(req: Request, res: Response) {
+    const user = await authService.login(req.body);
+    // return
+  }
+  async verifyEmail(req: Request, res: Response) {}
+  async resendVerification(req: Request, res: Response) {}
+  async changePassword(req: Request, res: Response) {}
 }
 
 // POST   /api/auth/signup
@@ -44,7 +50,7 @@ export const signUp = async (req: Request, res: Response) => {
 
     const passwordHash = await hashPassword(password);
 
-    const user = await authService.register({});
+    const user = await authService.register({username,email,password});
 
     //sending the user an email for verification
     const email_token = crypto.randomBytes(32).toHex();
@@ -53,7 +59,7 @@ export const signUp = async (req: Request, res: Response) => {
     //check if there were previous emails sent
     await prisma.emailVerification.deleteMany({
       where: {
-        userId: user.id,
+        // userId: user.id,
       },
     });
 
@@ -63,7 +69,7 @@ export const signUp = async (req: Request, res: Response) => {
 
     await prisma.emailVerification.create({
       data: {
-        userId: user.id,
+        userId: user.data.id,
         verificationHash: hashToken,
         expiresAt,
       },
@@ -80,7 +86,7 @@ export const signUp = async (req: Request, res: Response) => {
       from: "onboarding@resend.dev",
       to: "mouanvikram@gmail.com",
       subject: "Email Verification Link",
-      html: verificationEmail(verificationLink, user.username),
+      html: verificationEmail(verificationLink, user.data.username),
     });
 
     if (error) {
@@ -89,7 +95,11 @@ export const signUp = async (req: Request, res: Response) => {
     }
 
     return res.status(201).json({
-      user: { id: user.id, username: user.username, email: user.email },
+      user: {
+        id: user.data.id,
+        username: user.data.username,
+        email: user.data.email,
+      },
     });
   } catch (error) {
     console.log(error);
