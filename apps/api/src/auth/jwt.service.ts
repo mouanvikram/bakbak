@@ -1,6 +1,6 @@
 import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
 
-class JwtService {
+export class JwtService {
   constructor(private readonly secret: string) {}
   signJwt<T extends object>(payload: T, options?: SignOptions): string {
     return jwt.sign(payload, this.secret, options);
@@ -14,5 +14,3 @@ class JwtService {
   }
 }
 
-
-export default JwtService; 

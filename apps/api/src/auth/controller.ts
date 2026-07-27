@@ -6,9 +6,10 @@ import { signToken } from "../../lib/jwt";
 import { Resend } from "resend";
 import { hashVerificaitonToken, verificationEmail } from "@emails/verify";
 import crypto from "crypto";
+import { authService, userRepository } from "../services/service.container";
+import { email } from "zod";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
 
 export interface AuthRequest extends Request {
   user?: {
@@ -16,34 +17,34 @@ export interface AuthRequest extends Request {
   };
 }
 
+class AuthController {
+  async signUp(req: Request, res: Response) {
+    const user = await authService.register(req.body);
+
+    return res.status(201).json({
+      id: user.data.id,
+      email: user.data.email,
+      token: user.token,
+    });
+  }
+}
+
 // POST   /api/auth/signup
 export const signUp = async (req: Request, res: Response) => {
   try {
     const { username, email, password } = signUpSchema.parse(req.body);
 
-    const emailExists = await authService.findByEmail(email);
-
-    if (emailExists) {
-      return res.status(409).json({
-        message: "Email already exists",
-      });
-    }
-
-    const userExists = await authService.findByUsername(username);
+    const userExists = await userRepository.findFirst({ username, email });
 
     if (userExists) {
       return res.status(409).json({
-        message: "Username already exists",
+        message: "Email/Username already exists",
       });
     }
 
     const passwordHash = await hashPassword(password);
 
-    const user = await authService.createUser({
-      username,
-      email,
-      passwordHash,
-    });
+    const user = await authService.register({});
 
     //sending the user an email for verification
     const email_token = crypto.randomBytes(32).toHex();
