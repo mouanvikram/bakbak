@@ -1,12 +1,15 @@
 import { prisma, Prisma } from "@sealchat/db";
-class UserRepository {
+export class UserRepository {
   // will work every type id,email, username
   async findBy(where: Prisma.UserWhereUniqueInput) {
     return prisma.user.findUnique({
       where,
     });
   }
-
+  async findFirst(where: Prisma.UserWhereInput) {
+    return prisma.user.findFirst({ where });
+  }
+  
   async create(data: Prisma.UserCreateInput) {
     return prisma.user.create({
       data,
@@ -29,5 +32,3 @@ class UserRepository {
     });
   }
 }
-
-export const userRepository = new UserRepository();

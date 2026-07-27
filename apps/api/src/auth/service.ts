@@ -1,6 +1,7 @@
-import { prisma } from "@sealchat/db";
+import type { UserRepository } from "../users/repository";
 
-class AuthService {
+export class AuthService {
+  constructor(private readonly userRepository: UserRepository) {}
   register() {}
   login() {}
   logout() {}
@@ -10,5 +11,3 @@ class AuthService {
   forgotPassword() {}
   resetPassword() {}
 }
-
-export const authService = new AuthService();
