@@ -1,1 +1,2 @@
-console.log("Hello via Bun!");
+export { Prisma } from "./prisma/generated/prisma/client";
+export { prisma } from "./src/prisma";

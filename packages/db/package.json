@@ -10,7 +10,7 @@
     "reset": "bunx prisma migreate reset"
   },
   "exports": {
-    ".": "./src/prisma.ts"
+    ".": "./index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

@@ -8,7 +8,7 @@ import { hashVerificaitonToken, verificationEmail } from "@emails/verify";
 import crypto from "crypto";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-// const authService = new UserService();
+
 
 export interface AuthRequest extends Request {
   user?: {

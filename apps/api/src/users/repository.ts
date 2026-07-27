@@ -1,89 +1,33 @@
-import { prisma } from "@sealchat/db";
-
+import { prisma, Prisma } from "@sealchat/db";
 class UserRepository {
-  async findByEmail(email: string) {
+  // will work every type id,email, username
+  async findBy(where: Prisma.UserWhereUniqueInput) {
     return prisma.user.findUnique({
-      where: {
-        email,
-      },
+      where,
     });
   }
 
-  async findByUsername(username: string) {
-    return prisma.user.findUnique({
-      where: {
-        username,
-      },
-    });
-  }
-  async findById(id: string) {
-    return prisma.user.findUnique({
-      where: {
-        id,
-      },
-    });
-  }
-
-  async create(data: {
-    username: string;
-    email: string;
-    passwordHash: string;
-  }) {
+  async create(data: Prisma.UserCreateInput) {
     return prisma.user.create({
       data,
     });
   }
 
-  async updateById(
-    id: string,
-    data: Partial<{
-      email: string;
-      username: string;
-      isEmailVerified: boolean;
-      passwordHash: string;
-    }>,
+  async updateBy(
+    where: Prisma.UserWhereUniqueInput,
+    data: Prisma.UserUpdateInput,
   ) {
     return prisma.user.update({
-      where: {
-        id,
-      },
+      where,
       data,
     });
   }
-  async updateByEmail(
-    email: string,
-    data: Partial<{
-      email: string;
-      username: string;
-      isEmailVerified: boolean;
-      passwordHash: string;
-    }>,
-  ) {
-    return prisma.user.update({
-      where: {
-        email,
-      },
-      data,
-    });
-  }
-  
-  async deleteById(id: string) {
-    return prisma.user.delete({
-      where: { id },
-    });
-  }
 
-  async deleteByEmail(email: string) {
+  async deleteBy(where: Prisma.UserWhereUniqueInput) {
     return prisma.user.delete({
-      where: { email },
-    });
-  }
-
-  async deleteByUsername(username: string) {
-    return prisma.user.delete({
-      where: { username },
+      where,
     });
   }
 }
 
-export default UserRepository;
+export const userRepository = new UserRepository();
