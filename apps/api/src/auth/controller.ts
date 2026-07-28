@@ -16,7 +16,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-class AuthController {
+export class AuthController {
   async signUp(req: Request, res: Response) {
     const user = await authService.register(req.body);
 
@@ -24,6 +24,7 @@ class AuthController {
       id: user.data.id,
       email: user.data.email,
       token: user.token,
+      user: user.data.profile,
     });
   }
   async login(req: Request, res: Response) {

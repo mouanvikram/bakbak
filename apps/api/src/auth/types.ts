@@ -1,4 +1,9 @@
 export interface RegisterDto {
+  firstname?: string;
+  lastname?: string;
+  avatarUrl?: string;
+  bio?: string;
+  displayName?: string;
   username: string;
   email: string;
   password: string;
@@ -24,6 +29,8 @@ export interface ResetPasswordType {
 }
 
 export interface VerfiyEmailType {
-  id: string;
-  token: string;
+  id?: string;
+  email: string;
+  username?: string;
+  url: string;
 }

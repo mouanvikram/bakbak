@@ -3,6 +3,7 @@ import type { PasswordService } from "./pwd.service";
 import type { UserRepository } from "../users/repository";
 import type { LoginDto, RegisterDto } from "./types";
 import type { EmailService } from "./email.service";
+import { profile } from "node:console";
 
 export class AuthService {
   constructor(
@@ -30,6 +31,16 @@ export class AuthService {
       username: dto.username,
       email: dto.email,
       passwordHash: hashedPassword,
+      profile: {
+        create: {
+          firstName: dto.firstname,
+          lastName: dto.lastname,
+          avatar: dto.avatarUrl,
+          displayName: dto.displayName,
+          bio: dto.bio,
+          username: dto.username,
+        },
+      },
     });
 
     // generate jwt token
@@ -38,7 +49,13 @@ export class AuthService {
     });
 
     // send verification email
-    // const emailSent = await this.;
+    const url = "http://localhost:3000/verify-email?token=" + token;
+    
+    const emailSent = await this.emailService.sendVerificationEmail({
+      email: user.email,
+      username: user.username,
+      url,
+    });
 
     // return user
     return {
@@ -48,13 +65,14 @@ export class AuthService {
         email: user.email,
         createdAt: user.createdAt,
         isEmailVerified: user.isEmailVerified,
+        profile: user.profile,
       },
       token,
     };
   }
 
   async login(dto: LoginDto) {
-    // return 
+    // return
   }
   logout() {
     // will be implemented later

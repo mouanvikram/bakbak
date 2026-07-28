@@ -9,10 +9,13 @@ export class UserRepository {
   async findFirst(where: Prisma.UserWhereInput) {
     return prisma.user.findFirst({ where });
   }
-  
+
   async create(data: Prisma.UserCreateInput) {
     return prisma.user.create({
       data,
+      include: {
+        profile: true,
+      },
     });
   }
 
