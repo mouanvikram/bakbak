@@ -12,16 +12,20 @@ export class EmailService {
 
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     try {
-      const { data } = await resend.emails.send({
+      const { data, error } = await resend.emails.send({
         from: "onboarding@resend.dev",
-        to:"mouanvikram@gmail.com",
+        to: "mouanvikram@gmail.com",
         subject,
         html,
       });
 
+      logger.info(data);
+      logger.error(error);
       //   return data;
     } catch (error) {
       logger.error(error);
+
+      throw error;
     }
   }
   async sendVerificationEmail(dto: VerfiyEmailType) {

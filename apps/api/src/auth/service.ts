@@ -3,7 +3,6 @@ import type { PasswordService } from "./pwd.service";
 import type { UserRepository } from "../users/repository";
 import type { LoginDto, RegisterDto } from "./types";
 import type { EmailService } from "./email.service";
-import { profile } from "node:console";
 
 export class AuthService {
   constructor(
@@ -12,6 +11,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
   ) {}
+  
   async register(dto: RegisterDto) {
     //userRepository check if the user exists or not
     const userExists = await this.userRepository.findFirst({
@@ -50,7 +50,7 @@ export class AuthService {
 
     // send verification email
     const url = "http://localhost:3000/verify-email?token=" + token;
-    
+
     const emailSent = await this.emailService.sendVerificationEmail({
       email: user.email,
       username: user.username,
