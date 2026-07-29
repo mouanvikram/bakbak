@@ -11,7 +11,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
   ) {}
-  
+
   async register(dto: RegisterDto) {
     //userRepository check if the user exists or not
     const userExists = await this.userRepository.findFirst({
@@ -49,6 +49,7 @@ export class AuthService {
     });
 
     // send verification email
+    // URL service
     const url = "http://localhost:3000/verify-email?token=" + token;
 
     const emailSent = await this.emailService.sendVerificationEmail({

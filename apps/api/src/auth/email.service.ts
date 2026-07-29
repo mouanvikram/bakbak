@@ -1,5 +1,3 @@
-// import {ver}
-
 import { verificationEmail } from "@emails/verify";
 import type { VerfiyEmailType } from "./types";
 import { Resend } from "resend";
