@@ -12,7 +12,8 @@ const authController = new AuthController();
 router.post("/signup", authController.signUp);
 router.post("/login", authController.login);
 
-router.get("/verify-email", authController.verifyEmail);
+//convert to post method as we are going to need it only while verification.
+router.get("/verify-email/:token", authController.verifyEmail);
 router.post("/resend-verification", resendVerification);
 
 router.post("/change-password", changePassword);

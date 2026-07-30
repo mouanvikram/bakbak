@@ -19,102 +19,113 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     //userRepository check if the user exists or not
-    const userExists = await this.userRepository.findFirst({
-      username: dto.username,
-      email: dto.email,
-    });
+    try {
+      const userExists = await this.userRepository.findFirst({
+        username: dto.username,
+        email: dto.email,
+      });
 
-    if (userExists) {
-      throw new Error("Email/Username already exists");
+      if (userExists) {
+        throw new Error("Email/Username already exists");
+      }
+
+      // hash password service
+      const hashedPassword = await this.pwdService.hash(dto.password);
+
+      const token = crypto.randomBytes(32).toString("hex");
+      // send verification email
+      // URL service
+      const hasedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+      const url = `http://localhost:3000/api/auth/verify-email?token=${token}`;
+
+      // save the token in EmailVerification tble
+
+      // create user in the database
+      const user = await this.userRepository.create({
+        username: dto.username,
+        email: dto.email,
+        passwordHash: hashedPassword,
+        profile: {
+          create: {
+            firstName: dto.firstname,
+            lastName: dto.lastname,
+            avatar: dto.avatarUrl,
+            displayName: dto.displayName,
+            bio: dto.bio,
+            username: dto.username,
+          },
+        },
+        verification: {
+          create: {
+            verificationHash: hasedToken,
+            expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+          },
+        },
+      });
+
+      // send the mail to the user.
+      await this.emailService.sendVerificationEmail({
+        email: user.email,
+        username: user.username,
+        url,
+      });
+
+      // return user
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt,
+        isEmailVerified: user.isEmailVerified,
+        profile: user.profile,
+      };
+    } catch (error) {
+      throw new Error("something went wrong");
     }
-
-    // hash password service
-    const hashedPassword = await this.pwdService.hash(dto.password);
-
-    const token = crypto.randomBytes(32).toString("hex");
-    // send verification email
-    // URL service
-    const hasedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-    const url = `http://localhost:3000/api/auth/verify-email?token=${token}`;
-
-    // save the token in EmailVerification tble
-
-    // create user in the database
-    const user = await this.userRepository.create({
-      username: dto.username,
-      email: dto.email,
-      passwordHash: hashedPassword,
-      profile: {
-        create: {
-          firstName: dto.firstname,
-          lastName: dto.lastname,
-          avatar: dto.avatarUrl,
-          displayName: dto.displayName,
-          bio: dto.bio,
-          username: dto.username,
-        },
-      },
-      verification: {
-        create: {
-          verificationHash: hasedToken,
-          expiresAt: new Date(Date.now() + 1000 * 60 * 60),
-        },
-      },
-    });
-
-    // send the mail to the user.
-    await this.emailService.sendVerificationEmail({
-      email: user.email,
-      username: user.username,
-      url,
-    });
-
-    // return user
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      createdAt: user.createdAt,
-      isEmailVerified: user.isEmailVerified,
-      profile: user.profile,
-    };
   }
 
   async login(dto: LoginDto) {
-    const userExists = await this.userRepository.findFirst({
-      OR: [{ username: dto.identifier }, { email: dto.identifier }],
-    });
-    if (!userExists) {
-      throw new Error("Email/Username does not exits");
+    try {
+      const userExists = await this.userRepository.findFirst({
+        OR: [{ username: dto.identifier }, { email: dto.identifier }],
+      });
+      if (!userExists) {
+        throw new Error("Email/Username does not exits");
+      }
+
+      if (!userExists.isEmailVerified) {
+        throw new Error("Email is not verified");
+      }
+
+      // generate jwt token
+      const token = this.jwtService.signJwt(
+        {
+          sub: userExists.id,
+          username: userExists.username,
+        },
+        {
+          expiresIn: "15m",
+        },
+      );
+
+      return {
+        id: userExists.id,
+        token,
+      };
+    } catch (error) {
+      throw new Error("Something went wrong");
     }
-
-    if (!userExists.isEmailVerified) {
-      throw new Error("Email is not verified");
-    }
-
-    // generate jwt token
-    const token = this.jwtService.signJwt(
-      {
-        sub: userExists.id,
-        username: userExists.username,
-      },
-      {
-        expiresIn: "15m",
-      },
-    );
-
-    return {
-      id: userExists.id,
-      token,
-    };
   }
 
   async verifyEmail(dto: VerfiyEmailType) {
     try {
       const token = dto.token;
-
-      if (token !== "string") {
+      logger.debug(`we are at token = ${token}`);
+      if (typeof token !== "string") {
         logger.error("token is not typeof string");
         throw new Error("Invalid Token");
       }
@@ -130,8 +141,10 @@ export class AuthService {
           gt: new Date(),
         },
       });
+
       if (!emailVerification) {
-        throw new Error("User does not exits");
+        logger.error("Token does not exits");
+        throw new Error("token does not exits");
       }
 
       const user = await this.userRepository.updateBy(
@@ -142,6 +155,9 @@ export class AuthService {
           isEmailVerified: true,
         },
       );
+      await this.emailRepository.deleteAll({
+        userId: emailVerification.userId,
+      });
 
       return {
         email: user.email,
@@ -152,13 +168,14 @@ export class AuthService {
     }
   }
 
+  async resendVerificationEmail() {}
+
   logout() {
     // will be implemented later
   }
   refreshToken() {
     // will be implemented later
   }
-  resendVerificationEmail() {}
   forgotPassword() {}
   resetPassword() {}
 }

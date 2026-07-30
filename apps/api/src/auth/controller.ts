@@ -26,6 +26,7 @@ export class AuthController {
       user: user.profile,
     });
   }
+
   async login(req: Request, res: Response) {
     const user = await authService.login(req.body);
     return res.status(200).json({
@@ -33,25 +34,37 @@ export class AuthController {
       token: user.token,
     });
   }
-  
+
   async verifyEmail(req: Request, res: Response) {
-    const token = req.query.token;
+    const token = req.params.token;
     if (typeof token !== "string" || !token.trim()) {
       return res.status(400).json({
         message: "Verification token is required",
       });
     }
-    const verified = await authService.verifyEmail({
-      token,
-    });
+    const verified = await authService.verifyEmail({ token });
 
     return res.status(200).json({
       email: verified.email,
       message: "Email successfully verified",
     });
   }
-  async resendVerification(req: Request, res: Response) {}
-  async changePassword(req: Request, res: Response) {}
+
+  async resendVerification(req: Request, res: Response) {
+    // checks already verified email
+    //  if not verified send email
+    // check last sent one email - 15 mins
+  }
+
+  async resetPassword(req: Request, res: Response) {
+    // checks the token
+    // before here the request is at auth Middleware
+  }
+
+  async changePassword(req: Request, res: Response) {
+    // checks the token
+    // middleware of jwt token
+  }
 }
 
 // GET    /api/auth/verify-email
