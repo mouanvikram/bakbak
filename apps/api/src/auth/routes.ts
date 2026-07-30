@@ -12,7 +12,7 @@ const authController = new AuthController();
 router.post("/signup", authController.signUp);
 router.post("/login", authController.login);
 
-router.get("/verify-email", verifyEmail);
+router.get("/verify-email", authController.verifyEmail);
 router.post("/resend-verification", resendVerification);
 
 router.post("/change-password", changePassword);

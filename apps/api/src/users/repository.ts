@@ -7,7 +7,12 @@ export class UserRepository {
     });
   }
   async findFirst(where: Prisma.UserWhereInput) {
-    return prisma.user.findFirst({ where });
+    return prisma.user.findFirst({
+      where,
+      include: {
+        profile: true,
+      },
+    });
   }
 
   async create(data: Prisma.UserCreateInput) {

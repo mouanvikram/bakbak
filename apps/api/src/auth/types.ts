@@ -8,7 +8,11 @@ export interface RegisterDto {
   email: string;
   password: string;
 }
-
+export interface SendVerificationEmailDto{
+  email: string,
+  username?: string,
+  url: string,
+}
 export interface LoginDto {
   identifier: string;
   password: string;
@@ -29,8 +33,5 @@ export interface ResetPasswordType {
 }
 
 export interface VerfiyEmailType {
-  id?: string;
-  email: string;
-  username?: string;
-  url: string;
+  token: string
 }

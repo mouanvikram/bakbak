@@ -5,7 +5,7 @@ export  const hashVerificaitonToken = (token:string) =>{
 }
 
 
-export const verificationEmail = (verificationLink: string, userName: string) => `
+export const verificationEmail = (userName: string, verificationLink: string) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>

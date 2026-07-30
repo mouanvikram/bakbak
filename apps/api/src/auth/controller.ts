@@ -21,134 +21,38 @@ export class AuthController {
     const user = await authService.register(req.body);
 
     return res.status(201).json({
-      id: user.data.id,
-      email: user.data.email,
-      token: user.token,
-      user: user.data.profile,
+      id: user.id,
+      email: user.email,
+      user: user.profile,
     });
   }
   async login(req: Request, res: Response) {
     const user = await authService.login(req.body);
-    // return
+    return res.status(200).json({
+      id: user.id,
+      token: user.token,
+    });
   }
-  async verifyEmail(req: Request, res: Response) {}
+  
+  async verifyEmail(req: Request, res: Response) {
+    const token = req.query.token;
+    if (typeof token !== "string" || !token.trim()) {
+      return res.status(400).json({
+        message: "Verification token is required",
+      });
+    }
+    const verified = await authService.verifyEmail({
+      token,
+    });
+
+    return res.status(200).json({
+      email: verified.email,
+      message: "Email successfully verified",
+    });
+  }
   async resendVerification(req: Request, res: Response) {}
   async changePassword(req: Request, res: Response) {}
 }
-
-// POST   /api/auth/signup
-export const signUp = async (req: Request, res: Response) => {
-  try {
-    const { username, email, password } = signUpSchema.parse(req.body);
-
-    const userExists = await userRepository.findFirst({ username, email });
-
-    if (userExists) {
-      return res.status(409).json({
-        message: "Email/Username already exists",
-      });
-    }
-
-    const passwordHash = await hashPassword(password);
-
-    const user = await authService.register({username,email,password});
-
-    //sending the user an email for verification
-    const email_token = crypto.randomBytes(32).toHex();
-    const hashToken = hashVerificaitonToken(email_token);
-
-    //check if there were previous emails sent
-    await prisma.emailVerification.deleteMany({
-      where: {
-        // userId: user.id,
-      },
-    });
-
-    //set expiration at 15 mins.
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15); //15 minutes
-
-    await prisma.emailVerification.create({
-      data: {
-        userId: user.data.id,
-        verificationHash: hashToken,
-        expiresAt,
-      },
-    });
-
-    console.log("Email verification link sent");
-
-    const verificationLink =
-      `${process.env.FRONTEND_URL}/api/auth/verify-email?` +
-      new URLSearchParams({
-        token: email_token,
-      });
-    const { data, error } = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: "mouanvikram@gmail.com",
-      subject: "Email Verification Link",
-      html: verificationEmail(verificationLink, user.data.username),
-    });
-
-    if (error) {
-      throw error;
-      return;
-    }
-
-    return res.status(201).json({
-      user: {
-        id: user.data.id,
-        username: user.data.username,
-        email: user.data.email,
-      },
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
-// POST   /api/auth/login
-export const login = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = loginSchema.parse(req.body);
-
-    const user = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
-
-    if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
-
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        message: "Verify your email first.",
-      });
-    }
-
-    const passwordMatch = await comparePassword(password, user?.passwordHash!);
-
-    if (!passwordMatch) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
-
-    const token = await signToken(user.id);
-
-    return res.status(200).json({
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      isEmailVerified: user.isEmailVerified,
-      token,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-};
 
 // GET    /api/auth/verify-email
 export const verifyEmail = async (req: Request, res: Response) => {

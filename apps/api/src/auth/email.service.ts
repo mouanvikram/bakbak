@@ -1,5 +1,5 @@
 import { verificationEmail } from "@emails/verify";
-import type { VerfiyEmailType } from "./types";
+import type { SendVerificationEmailDto, VerfiyEmailType } from "./types";
 import { Resend } from "resend";
 import logger from "@logger";
 
@@ -26,7 +26,7 @@ export class EmailService {
       throw error;
     }
   }
-  async sendVerificationEmail(dto: VerfiyEmailType) {
+  async sendVerificationEmail(dto: SendVerificationEmailDto) {
     return this.sendEmail(
       dto.email,
       "Verify Your Email",

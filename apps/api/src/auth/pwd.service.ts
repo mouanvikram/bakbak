@@ -10,4 +10,5 @@ export class PasswordService {
   async verify(password: string, hash: string) {
     return Bun.password.verify(password, hash);
   }
+
 }
