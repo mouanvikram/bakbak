@@ -1,10 +1,3 @@
-import crypto from "crypto";
-
-export  const hashVerificaitonToken = (token:string) =>{
-    return crypto.createHash("sha256").update(token).digest("hex");
-}
-
-
 export const verificationEmail = (userName: string, verificationLink: string) => `
 <!DOCTYPE html>
 <html lang="en">

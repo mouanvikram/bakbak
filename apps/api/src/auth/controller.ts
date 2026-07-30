@@ -1,14 +1,6 @@
 import type { Request, Response } from "express";
-import { prisma } from "@sealchat/db";
-import { loginSchema, signUpSchema } from "./validators";
-import { comparePassword, hashPassword } from "../../lib/bcrypt";
-import { signToken } from "../../lib/jwt";
-import { Resend } from "resend";
-import { hashVerificaitonToken, verificationEmail } from "@emails/verify";
-import crypto from "crypto";
-import { authService, userRepository } from "../services/service.container";
+import { authService } from "../services/service.container";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export interface AuthRequest extends Request {
   user?: {

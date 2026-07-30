@@ -1,4 +1,4 @@
-import { verificationEmail } from "@emails/verify";
+import { verificationEmail } from "@lib/emails.template/verify-email";
 import type { SendVerificationEmailDto, VerfiyEmailType } from "./types";
 import { Resend } from "resend";
 import logger from "@logger";
