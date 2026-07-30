@@ -51,14 +51,14 @@ export class AuthController {
   }
 
   async resendVerification(req: Request, res: Response) {
-    // checks already verified email
-    //  if not verified send email
-    // check last sent one email - 15 mins
+    const response = await authService.resendVerificationEmail(req.body);
+    return res.status(200).json({
+      message: response.message,
+    });
   }
 
-  async resetPassword(req: Request, res: Response) {
-    // checks the token
-    // before here the request is at auth Middleware
+  async forgotPassword(req: Request, res: Response) {
+    // reset password is forgot token;
   }
 
   async changePassword(req: Request, res: Response) {
@@ -67,139 +67,8 @@ export class AuthController {
   }
 }
 
-// GET    /api/auth/verify-email
-export const verifyEmail = async (req: Request, res: Response) => {
-  try {
-    const token = req.query.token;
 
-    if (typeof token !== "string") {
-      return res.status(400).json({
-        message: "token invalid",
-      });
-    }
 
-    const hashedToken = hashVerificaitonToken(token);
-
-    const tokenExists = await prisma.emailVerification.findFirst({
-      where: {
-        verificationHash: hashedToken,
-        expiresAt: {
-          gt: new Date(),
-        },
-      },
-    });
-    if (!tokenExists) {
-      return res.status(400).json({
-        message: "Invalid Token",
-      });
-    }
-
-    //delete after verification
-    await prisma.emailVerification.deleteMany({
-      where: {
-        userId: tokenExists.userId,
-      },
-    });
-
-    const updatedUser = await prisma.user.update({
-      where: {
-        id: tokenExists.userId,
-      },
-      data: {
-        isEmailVerified: true,
-      },
-    });
-
-    return res.status(200).json({
-      email: updatedUser.email,
-      message: "Email got verified",
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: "Internal Server Error",
-    });
-  }
-};
-
-// POST   /api/auth/resend-verification
-export const resendVerification = async (req: Request, res: Response) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        message: "Email is required",
-      });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
-
-    // Don't reveal whether the email exists.
-    if (!user) {
-      return res.status(200).json({
-        message: "If an account exists, a verification email has been sent.",
-      });
-    }
-
-    if (user.isEmailVerified) {
-      return res.status(400).json({
-        message: "Email is already verified.",
-      });
-    }
-
-    await prisma.emailVerification.deleteMany({
-      where: {
-        userId: user.id,
-      },
-    });
-
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = hashVerificaitonToken(rawToken);
-
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
-
-    await prisma.emailVerification.create({
-      data: {
-        userId: user.id,
-        verificationHash: hashedToken,
-        expiresAt,
-      },
-    });
-
-    const verificationLink = `${process.env.FRONTEND_URL}/api/auth/verify-email?token=${rawToken}`;
-
-    const { error } = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: "mouanvikram@gmail.com",
-      subject: "Verify your email",
-      html: verificationEmail(verificationLink, user.username),
-    });
-
-    if (error) {
-      console.error(error);
-
-      return res.status(500).json({
-        message: "Failed to send verification email.",
-      });
-    }
-
-    return res.status(200).json({
-      message: "Verification email sent successfully.",
-    });
-  } catch (err) {
-    console.error(err);
-
-    return res.status(500).json({
-      message: "Internal Server Error",
-    });
-  }
-};
 
 // POST   /api/auth/change-password
 export const changePassword = async (req: Request, res: Response) => {

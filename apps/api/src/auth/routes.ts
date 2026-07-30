@@ -14,7 +14,7 @@ router.post("/login", authController.login);
 
 //convert to post method as we are going to need it only while verification.
 router.get("/verify-email/:token", authController.verifyEmail);
-router.post("/resend-verification", resendVerification);
+router.post("/resend-verification", authController.resendVerification);
 
 router.post("/change-password", changePassword);
 

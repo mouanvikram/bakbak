@@ -17,12 +17,11 @@ export class EmailService {
         html,
       });
 
+      // logger.info()
       logger.info(data);
-      logger.error(error);
       //   return data;
     } catch (error) {
       logger.error(error);
-
       throw error;
     }
   }

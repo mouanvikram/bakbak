@@ -40,7 +40,7 @@ export class AuthService {
         .update(token)
         .digest("hex");
 
-      const url = `http://localhost:3000/api/auth/verify-email?token=${token}`;
+      const url = `http://localhost:3000/api/auth/verify-email/${token}`;
 
       // save the token in EmailVerification tble
 
@@ -117,6 +117,7 @@ export class AuthService {
         token,
       };
     } catch (error) {
+      logger.error(error);
       throw new Error("Something went wrong");
     }
   }
@@ -124,7 +125,6 @@ export class AuthService {
   async verifyEmail(dto: VerfiyEmailType) {
     try {
       const token = dto.token;
-      logger.debug(`we are at token = ${token}`);
       if (typeof token !== "string") {
         logger.error("token is not typeof string");
         throw new Error("Invalid Token");
@@ -168,7 +168,52 @@ export class AuthService {
     }
   }
 
-  async resendVerificationEmail() {}
+  async resendVerificationEmail(dto: { email: string }) {
+    const email = dto.email;
+    if (!email) {
+      throw new Error("enter a valid email");
+    }
+
+    const user = await this.userRepository.findBy({
+      email,
+    });
+
+    if (!user) {
+      //we should return a success response.
+      // saying if a email exits. verification link has been sent to that email.
+      throw new Error("Email does not exits");
+    }
+
+    if (user.isEmailVerified) {
+      throw new Error("Email already verified");
+    }
+    await this.emailRepository.deleteAll({
+      userId: user.id,
+    });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    await this.emailRepository.create({
+      verificationHash: hashedToken,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      user: {
+        connect: {
+          id: user.id,
+        },
+      },
+    });
+
+    const url = `${process.env.FRONTEND_URL}/api/auth/verify-email/${token}`;
+    await this.emailService.sendVerificationEmail({
+      email,
+      url,
+    });
+
+    return {
+      message: "Email sent successfully",
+    };
+  }
 
   logout() {
     // will be implemented later
