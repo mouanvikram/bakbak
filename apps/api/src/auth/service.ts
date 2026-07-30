@@ -1,12 +1,19 @@
 import type { JwtService } from "./jwt.service";
 import type { PasswordService } from "./pwd.service";
 import type { UserRepository } from "../users/repository";
-import type { LoginDto, RegisterDto, VerfiyEmailType } from "./types";
+import type {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+  VerfiyEmailType,
+} from "./types";
 import type { EmailService } from "./email.service";
 import { prisma } from "@sealchat/db";
 import crypto from "crypto";
 import logger from "@logger";
 import type { EmailRepository } from "./email.repository";
+import { comparePassword, hashPassword } from "@lib/bcrypt";
+import { password } from "bun";
 
 export class AuthService {
   constructor(
@@ -99,6 +106,15 @@ export class AuthService {
 
       if (!userExists.isEmailVerified) {
         throw new Error("Email is not verified");
+      }
+
+      const matches = await this.pwdService.verify(
+        dto.password,
+        userExists.passwordHash,
+      );
+
+      if (!matches) {
+        throw new Error("Password is wrong");
       }
 
       // generate jwt token
@@ -221,6 +237,44 @@ export class AuthService {
   refreshToken() {
     // will be implemented later
   }
-  forgotPassword() {}
-  resetPassword() {}
+  forgotPassword() {
+    // change password on clicking forgot password.
+  }
+  async changePassword(dto: ChangePasswordDto) {
+    // change password while user is logged in.
+    // const {email,oldPassword, newPassword} = user
+    const userExists = await this.userRepository.findBy({
+      email: dto.email,
+    });
+    if (!userExists) {
+      throw new Error("Email/Username does not exits");
+    }
+
+    if (!userExists.isEmailVerified) {
+      throw new Error("Email is not verified");
+    }
+
+    const matches = await this.pwdService.verify(
+      dto.oldPassword,
+      userExists.passwordHash,
+    );
+
+    if (!matches) {
+      throw new Error("Credentials does not matches");
+    }
+
+    const newHash = await this.pwdService.hash(dto.newPassword);
+    const user = await this.userRepository.updateBy(
+      {
+        email: dto.email,
+      },
+      {
+        passwordHash: newHash,
+      },
+    );
+
+    return {
+      message: "Password changed successfully",
+    };
+  }
 }

@@ -29,7 +29,7 @@
 
     "paths": {
       // "@/*": ["*"],
-      "@lib/":["./lib/*"],
+      "@lib/*":["./lib/*"],
       "@emails/*": ["./lib/emails.template/*"],
       "@logger": ["./lib/logger/index.ts"],
       

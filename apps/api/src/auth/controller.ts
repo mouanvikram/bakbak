@@ -62,55 +62,13 @@ export class AuthController {
   }
 
   async changePassword(req: Request, res: Response) {
-    // checks the token
-    // middleware of jwt token
+    // authMiddleware verifies the request before sending it here.
+    const response = await authService.changePassword(req.body);
+
+    return res.status(200).json({
+      message: response.message,
+    });
   }
 }
 
 
-
-
-// POST   /api/auth/change-password
-export const changePassword = async (req: Request, res: Response) => {
-  try {
-    const { email, oldPassword, newPassword } = req.body;
-
-    const user = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid username or password",
-      });
-    }
-
-    const passwordMatch = await comparePassword(oldPassword, user.passwordHash);
-    if (!passwordMatch) {
-      return res.status(401).json({
-        message: "Invalid username or password",
-      });
-    }
-
-    const newPasswordHash = await hashPassword(newPassword);
-    await prisma.user.update({
-      where: {
-        email,
-      },
-      data: {
-        passwordHash: newPasswordHash,
-      },
-    });
-
-    return res.status(200).json({
-      message: "Password changed successfully",
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: "Internal Server Error",
-    });
-  }
-};
