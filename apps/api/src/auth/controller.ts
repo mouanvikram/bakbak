@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { authService } from "../services/service.container";
 
-
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
@@ -49,10 +48,6 @@ export class AuthController {
     });
   }
 
-  async forgotPassword(req: Request, res: Response) {
-    // reset password is forgot token;
-  }
-
   async changePassword(req: Request, res: Response) {
     // authMiddleware verifies the request before sending it here.
     const response = await authService.changePassword(req.body);
@@ -61,6 +56,39 @@ export class AuthController {
       message: response.message,
     });
   }
+
+  async forgotPassword(req: Request, res: Response) {
+    // reset password is forgot token;
+    await authService.forgotPassword(req.body);
+
+    return res.status(200).json({
+      message: "If an account exists, reset link is sent to the email.",
+    });
+  }
+
+  async resetPassword(req: Request, res: Response) {
+    // we are going to valid the password body and token from zod validations later on
+    const { token } = req.params;
+    const password = req.body.password;
+    if (typeof token !== "string") {
+      return res.status(400).json({
+        message: "Invalid token",
+      });
+    }
+
+    await authService.resetPassword({
+      token,
+      password,
+    });
+
+    return res.status(200).json({
+      message: "Password reset successful",
+    });
+  }
+
+  async logout(req: Request, res: Response) {}
+
+  async refreshToken(req: Request, res: Response) {}
+
+  async getProfile(req: Request, res: Response) {}
 }
-
-

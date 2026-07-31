@@ -10,7 +10,7 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 
-  verification EmailVerification?
+  verification VerificationToken[]
   profile      UserProfile?
   refreshToken RefreshToken[]
 }

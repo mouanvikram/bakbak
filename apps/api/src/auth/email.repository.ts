@@ -3,17 +3,17 @@ import { Prisma, prisma } from "@sealchat/db";
 export class EmailRepository {
   constructor() {}
 
-  async create(data: Prisma.EmailVerificationCreateInput) {
-    return await prisma.emailVerification.create({
+  async create(data: Prisma.VerificationTokenCreateInput) {
+    return await prisma.verificationToken.create({
       data,
     });
   }
-  async findBy(where: Prisma.EmailVerificationWhereInput) {
-    return await prisma.emailVerification.findFirst({ where });
+  async findBy(where: Prisma.VerificationTokenWhereInput) {
+    return await prisma.verificationToken.findFirst({ where });
   }
 
-  async deleteAll(where: Prisma.EmailVerificationWhereInput) {
-    return await prisma.emailVerification.deleteMany({
+  async deleteAll(where: Prisma.VerificationTokenWhereInput) {
+    return await prisma.verificationToken.deleteMany({
       where,
     });
   }

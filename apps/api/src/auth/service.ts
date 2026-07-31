@@ -8,12 +8,10 @@ import type {
   VerfiyEmailType,
 } from "./types";
 import type { EmailService } from "./email.service";
-import { prisma } from "@sealchat/db";
 import crypto from "crypto";
 import logger from "@logger";
 import type { EmailRepository } from "./email.repository";
-import { comparePassword, hashPassword } from "@lib/bcrypt";
-import { password } from "bun";
+import { VerificationTokenType } from "@sealchat/db";
 
 export class AuthService {
   constructor(
@@ -42,7 +40,7 @@ export class AuthService {
       const token = crypto.randomBytes(32).toString("hex");
       // send verification email
       // URL service
-      const hasedToken = crypto
+      const hashedToken = crypto
         .createHash("sha256")
         .update(token)
         .digest("hex");
@@ -68,7 +66,8 @@ export class AuthService {
         },
         verification: {
           create: {
-            verificationHash: hasedToken,
+            tokenHash: hashedToken,
+            type: VerificationTokenType.EMAIL_VERIFICATION,
             expiresAt: new Date(Date.now() + 1000 * 60 * 60),
           },
         },
@@ -152,7 +151,8 @@ export class AuthService {
         .digest("hex");
 
       const emailVerification = await this.emailRepository.findBy({
-        verificationHash: hashedToken,
+        tokenHash: hashedToken,
+        type: VerificationTokenType.EMAIL_VERIFICATION,
         expiresAt: {
           gt: new Date(),
         },
@@ -171,8 +171,10 @@ export class AuthService {
           isEmailVerified: true,
         },
       );
+
       await this.emailRepository.deleteAll({
         userId: emailVerification.userId,
+        type: VerificationTokenType.EMAIL_VERIFICATION,
       });
 
       return {
@@ -205,13 +207,15 @@ export class AuthService {
     }
     await this.emailRepository.deleteAll({
       userId: user.id,
+      type: VerificationTokenType.EMAIL_VERIFICATION,
     });
 
     const token = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     await this.emailRepository.create({
-      verificationHash: hashedToken,
+      tokenHash: hashedToken,
+      type: VerificationTokenType.EMAIL_VERIFICATION,
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       user: {
         connect: {
@@ -231,15 +235,6 @@ export class AuthService {
     };
   }
 
-  logout() {
-    // will be implemented later
-  }
-  refreshToken() {
-    // will be implemented later
-  }
-  forgotPassword() {
-    // change password on clicking forgot password.
-  }
   async changePassword(dto: ChangePasswordDto) {
     // change password while user is logged in.
     // const {email,oldPassword, newPassword} = user
@@ -275,6 +270,95 @@ export class AuthService {
 
     return {
       message: "Password changed successfully",
+    };
+  }
+
+  logout() {
+    // will be implemented later
+  }
+  refreshToken() {
+    // will be implemented later
+  }
+
+  async forgotPassword(dto: { email: string }) {
+    // change password on clicking forgot password.
+    const user = await this.userRepository.findBy({
+      email: dto.email,
+    });
+
+    if (!user) {
+      throw new Error("User account does not exits");
+    }
+
+    // delete all the tokens before it.
+    await this.emailRepository.deleteAll({
+      userId: user.id,
+      type: VerificationTokenType.PASSWORD_RESET,
+    });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    // register new token;
+    const email = await this.emailRepository.create({
+      tokenHash,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      type: VerificationTokenType.PASSWORD_RESET,
+      user: {
+        connect: {
+          id: user.id,
+        },
+      },
+    });
+
+    const url = `http://localhost:3000/api/auth/reset-password/${token}`;
+
+    await this.emailService.sendPasswordResetEmail({
+      email: user.email,
+      subject: "Reset Your Password",
+      resetPasswordUrl: url,
+    });
+
+    return {
+      message: "If account exists, a reset link is sent to email.",
+    };
+  }
+
+  async resetPassword(dto: { token: string; password: string }) {
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(dto.token)
+      .digest("hex");
+
+    const token = await this.emailRepository.findBy({
+      tokenHash,
+      type: VerificationTokenType.PASSWORD_RESET,
+      expiresAt: {
+        gt: new Date(),
+      },
+    });
+
+    if (!token) {
+      throw new Error("No token was found");
+    }
+
+    const passwordHash = await this.pwdService.hash(dto.password);
+
+    await this.userRepository.updateBy(
+      {
+        id: token.userId,
+      },
+      {
+        passwordHash,
+      },
+    );
+
+    await this.emailRepository.deleteAll({
+      id: token.id,
+    });
+
+    return {
+      message: "Password reset succeful",
     };
   }
 }
