@@ -6,6 +6,14 @@ export class UserRepository {
       where,
     });
   }
+  async getProfile<T extends Prisma.UserFindUniqueArgs>(
+    args: Prisma.SelectSubset<T, Prisma.UserFindUniqueArgs>,
+  ) {
+    return prisma.user.findUnique({
+      ...args,
+    });
+  }
+
   async findFirst(where: Prisma.UserWhereInput) {
     return prisma.user.findFirst({
       where,
@@ -36,6 +44,12 @@ export class UserRepository {
     });
   }
 
+  async updateProfile<T extends Prisma.UserUpdateArgs>(
+    args: Prisma.SelectSubset<T, Prisma.UserUpdateArgs>,
+  ) {
+    return prisma.user.update(args);
+  }
+  
   async deleteBy(where: Prisma.UserWhereUniqueInput) {
     return prisma.user.delete({
       where,

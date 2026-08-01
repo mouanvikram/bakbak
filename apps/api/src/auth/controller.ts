@@ -4,6 +4,8 @@ import { authService } from "../services/service.container";
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
+    username?: string;
+    role?: string;
   };
 }
 

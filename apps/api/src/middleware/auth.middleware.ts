@@ -11,13 +11,19 @@ export const authMiddleware = (
   try {
     const authHeaders = req.headers.authorization;
 
-    if (!authHeaders || !authHeaders.startsWith("Bearer")) {
+    if (!authHeaders || !authHeaders.startsWith("Bearer ")) {
       return res.status(401).json({
         error: "Invalid Request",
       });
     }
     const token = authHeaders.split(" ")[1];
-    const payload = jwtService.verifyJwt<AccessTokenPayload>(token as string);
+    if (!token) {
+      return res.status(401).json({
+        message: "Missing Token",
+      });
+    }
+    
+    const payload = jwtService.verifyJwt<AccessTokenPayload>(token);
 
     req.user = {
       userId: payload.sub,
@@ -25,6 +31,8 @@ export const authMiddleware = (
 
     next();
   } catch (error: any) {
-    throw new Error(error);
+    return res.status(401).json({
+      message: "Invalid or expired token",
+    });
   }
 };

@@ -20,6 +20,6 @@ export interface SearchUsersDto {
   query: string;
 }
 
-export interface GetProfileDto {
+export interface GetUserProfileDto {
   username: string;
 }

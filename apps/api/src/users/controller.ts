@@ -1,25 +1,21 @@
 import type { AuthRequest } from "../auth/controller";
 import { userService } from "../services/service.container";
-import type { Request, Response } from "express";
+import type { Response } from "express";
 
 export class UserController {
-  constructor() {}
-
-  async me(req: AuthRequest, res: Response) {
-    // const
+  async getMe(req: AuthRequest, res: Response) {
     const userId = req.user?.userId;
-
     if (!userId) {
       return res.status(400).json({
         error: "Enter a valid user id",
       });
     }
-    const response = await userService.getMe({
+    const profile = await userService.getMe({
       userId,
     });
 
     return res.status(200).json({
-      // userProfile: response.userProfile,
+      profile,
     });
   }
   async updateMe(req: AuthRequest, res: Response) {

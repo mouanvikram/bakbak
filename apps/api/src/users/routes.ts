@@ -1,21 +1,18 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { UserController } from "./controller";
 
 const router = express.Router();
-
+const userController = new UserController();
 router.use(authMiddleware);
-router.get("/me");
-router.patch("/me");
-router.patch("/me/avatar");
-router.delete("/me");
+router.get("/me", userController.getMe);
+router.patch("/me", userController.updateMe);
+router.patch("/me/avatar", userController.updateAvatar);
+router.delete("/me", userController.deleteMe);
 
-router.get(":username");
-router.get("/check-username?username=");
-router.get("/serach?q=");
-
-// //update profile pic
-// router.post("/me/avatar");
-// router.patch("/me/avatar");
+router.get(":username", userController.getProfile);
+router.get("/check-username", userController.checkUsername);
+router.get("/search", userController.searchUsers);
 
 // router.get("/:userId/presence")
 // router.get("/:userId/block");

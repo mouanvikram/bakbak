@@ -1,10 +1,10 @@
 import express from "express";
 import { type Express } from "express";
 import authRoutes from "./auth/routes";
-import chatRoutes from "./chat/routes";
 import userRoutes from "./users/routes";
-import friendRoutes from "./friends/routes";
-import messageRoutes from "./messages/routes";
+// import chatRoutes from "./chat/routes";
+// import friendRoutes from "./friends/routes";
+// import messageRoutes from "./messages/routes";
 
 const app: Express = express();
 app.use(express.json());
@@ -14,7 +14,7 @@ app.use("/api/auth", authRoutes);
 // 2. Users
 app.use("/users", userRoutes);
 // 2.1. Friends
-// app.use("/users", userRoutes);
+// app.use("/friends", friendRoutes);
 // 3. Messages
 // app.use("/api/messages", messageRoutes);
 // 4. Chats
