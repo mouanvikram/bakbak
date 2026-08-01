@@ -10,7 +10,12 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 
-  verification VerificationToken[]
-  profile      UserProfile?
-  refreshToken RefreshToken[]
+  verification     VerificationToken[]
+  profile          UserProfile?
+  refreshToken     RefreshToken[]
+  sentRequests     FriendRequest[]     @relation("FriendRequestSender")
+  receivedRequests FriendRequest[]     @relation("FriendRequestReceiver")
+
+  friendships1 Friendship[] @relation("FriendshipUser1")
+  friendships2 Friendship[] @relation("FriendshipUser2")
 }

@@ -1,5 +1,8 @@
 import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
-
+export interface AccessTokenPayload extends JwtPayload {
+  sub: string;
+  username: string;
+}
 export class JwtService {
   constructor(private readonly secret: string) {}
   signJwt<T extends object>(payload: T, options?: SignOptions): string {

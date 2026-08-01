@@ -1,4 +1,4 @@
-import type { JwtService } from "./jwt.service";
+import type { AccessTokenPayload, JwtService } from "./jwt.service";
 import type { PasswordService } from "./pwd.service";
 import type { UserRepository } from "../users/repository";
 import type {
@@ -117,7 +117,7 @@ export class AuthService {
       }
 
       // generate jwt token
-      const token = this.jwtService.signJwt(
+      const token = this.jwtService.signJwt<AccessTokenPayload>(
         {
           sub: userExists.id,
           username: userExists.username,

@@ -1,0 +1,35 @@
+enum FriendRequestStatus {
+    PENDING
+    ACCEPTED
+    REJECTED
+    CANCELLED
+}
+
+model FriendRequest {
+    id String @id @default(uuid()) @db.Uuid
+
+    senderId String @db.Uuid
+    sender   User   @relation("FriendRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+    receiverId String @db.Uuid
+    receiver   User   @relation("FriendRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+    status FriendRequestStatus @default(PENDING)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([senderId, receiverId])
+}
+
+model Friendship {
+    id      String @id @default(uuid()) @db.Uuid
+    user1Id String @db.Uuid
+    user2Id String @db.Uuid
+    user1   User   @relation("FriendshipUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+    user2   User   @relation("FriendshipUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+
+    @@index([user1Id, user2Id])
+}

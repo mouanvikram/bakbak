@@ -4,6 +4,7 @@ import { JwtService } from "../auth/jwt.service";
 import { PasswordService } from "../auth/pwd.service";
 import { AuthService } from "../auth/service";
 import { UserRepository } from "../users/repository";
+import { UserService } from "../users/service";
 
 export const userRepository = new UserRepository();
 export const pwdService = new PasswordService();
@@ -17,3 +18,4 @@ export const authService = new AuthService(
   emailService,
   emailRepository,
 );
+export const userService = new UserService(userRepository);
