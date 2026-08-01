@@ -2,6 +2,7 @@ import type { AuthRequest } from "../auth/controller";
 import type { NextFunction, Response } from "express";
 import { jwtService } from "../services/service.container";
 import type { AccessTokenPayload } from "../auth/jwt.service";
+import logger from "@lib/logger";
 
 export const authMiddleware = (
   req: AuthRequest,
@@ -22,7 +23,7 @@ export const authMiddleware = (
         message: "Missing Token",
       });
     }
-    
+
     const payload = jwtService.verifyJwt<AccessTokenPayload>(token);
 
     req.user = {
@@ -31,6 +32,7 @@ export const authMiddleware = (
 
     next();
   } catch (error: any) {
+    logger.error(error);
     return res.status(401).json({
       message: "Invalid or expired token",
     });

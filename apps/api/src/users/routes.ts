@@ -4,6 +4,7 @@ import { UserController } from "./controller";
 
 const router = express.Router();
 const userController = new UserController();
+
 router.use(authMiddleware);
 router.get("/me", userController.getMe);
 router.patch("/me", userController.updateMe);

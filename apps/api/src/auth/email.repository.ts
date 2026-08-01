@@ -8,6 +8,7 @@ export class EmailRepository {
       data,
     });
   }
+  
   async findBy(where: Prisma.VerificationTokenWhereInput) {
     return await prisma.verificationToken.findFirst({ where });
   }

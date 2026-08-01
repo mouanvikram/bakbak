@@ -8,6 +8,7 @@ import type {
   UpdateAvatarDto,
   UpdateProfileDto,
 } from "./types";
+import logger from "@lib/logger";
 
 export class UserService {
   constructor(private userRepository: UserRepository) {}
@@ -53,8 +54,8 @@ export class UserService {
       data: {
         profile: {
           update: {
-            firstname: dto.firstname,
-            lastName: dto.lastname,
+            firstName: dto.firstName,
+            lastName: dto.lastName,
             bio: dto.bio,
             displayName: dto.displayName,
           },
@@ -103,6 +104,11 @@ export class UserService {
   }
 
   async deleteMe(dto: MeDto) {
+    const user = await this.userRepository.findBy({ id: dto.userId });
+    if (!user) {
+      throw new Error("User not found");
+    }
+
     await this.userRepository.deleteBy({
       id: dto.userId,
     });
@@ -113,6 +119,51 @@ export class UserService {
   }
 
   async searchUsers(dto: SearchUsersDto) {}
-  async checkUsername(dto: CheckUsernameDto) {}
-  async getProfile(dto: GetUserProfileDto) {}
+
+  async checkUsername(dto: CheckUsernameDto) {
+    const available = await this.userRepository.findBy({
+      username: dto.username,
+    });
+
+    if (available) {
+      throw new Error("Username name is available");
+    }
+
+    return {
+      available: true,
+    };
+  }
+
+  async getProfile(dto: GetUserProfileDto) {
+    const otherUser = await this.userRepository.getProfile({
+      where: { username: dto.username },
+      select: {
+        username: true,
+        isEmailVerified: true,
+        profile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            bio: true,
+            displayName: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    if (!otherUser) {
+      throw new Error("Username does not exists");
+    }
+
+    return {
+      username: otherUser.username,
+      verified: otherUser.isEmailVerified,
+      firstName: otherUser.profile?.firstName,
+      lastName: otherUser.profile?.lastName,
+      bio: otherUser.profile?.bio,
+      avatar: otherUser.profile?.avatar,
+      displayName: otherUser.profile?.displayName,
+    };
+  }
 }

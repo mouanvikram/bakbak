@@ -18,8 +18,9 @@ export class UserController {
       profile,
     });
   }
+
   async updateMe(req: AuthRequest, res: Response) {
-    const { bio, firstname, lastname, displayName } = req.body;
+    const { bio, firstName, lastName, displayName } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -31,15 +32,16 @@ export class UserController {
     const response = await userService.updateMe({
       userId,
       bio,
-      firstname,
-      lastname,
+      firstName,
+      lastName,
       displayName,
     });
 
     return res.status(200).json({
-      success: "Profile Updated successfully",
+      response,
     });
   }
+
   async updateAvatar(req: AuthRequest, res: Response) {
     const { avatar } = req.body;
     const userId = req.user?.userId;
@@ -53,7 +55,12 @@ export class UserController {
       userId,
       avatar,
     });
+
+    return res.status(200).json({
+      response,
+    });
   }
+
   async deleteMe(req: AuthRequest, res: Response) {
     const userId = req.user?.userId;
 
@@ -62,7 +69,7 @@ export class UserController {
         error: "Enter a valid user id",
       });
     }
-    const response = await userService.deleteMe({
+    await userService.deleteMe({
       userId,
     });
 
@@ -76,6 +83,7 @@ export class UserController {
       query: req.body.query,
     });
   }
+
   async getProfile(req: AuthRequest, res: Response) {
     const { username } = req.params;
     if (typeof username !== "string" || !username) {
@@ -83,8 +91,13 @@ export class UserController {
         message: "invalid request",
       });
     }
-    const response = await userService.getProfile({ username });
+    const otherUserProfile = await userService.getProfile({ username });
+
+    return res.status(200).json({
+      otherUserProfile,
+    });
   }
+
   async checkUsername(req: AuthRequest, res: Response) {
     const { username } = req.params;
     if (typeof username !== "string" || !username) {
@@ -95,6 +108,10 @@ export class UserController {
 
     const response = await userService.checkUsername({
       username,
+    });
+
+    return res.status(200).json({
+      response,
     });
   }
 }

@@ -7,8 +7,8 @@ export interface MeDto extends AuthenticatedDto {}
 export interface UpdateProfileDto extends AuthenticatedDto {
   displayName?: string;
   bio?: string;
-  firstname?: string;
-  lastname?: string;
+  firstName?: string;
+  lastName?: string;
 }
 export interface UpdateAvatarDto extends AuthenticatedDto {
   avatar?: string;
