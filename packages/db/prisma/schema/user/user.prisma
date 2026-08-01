@@ -19,3 +19,20 @@ model User {
   friendships1 Friendship[] @relation("FriendshipUser1")
   friendships2 Friendship[] @relation("FriendshipUser2")
 }
+
+model UserProfile {
+    userId String @id @db.Uuid
+
+    username    String @unique
+    displayName String?
+    firstName   String?
+    lastName    String?
+
+    avatar String?
+    bio    String?
+
+    isOnline  Boolean  @default(false)
+    lastSeenAt DateTime?
+
+    user User @relation(fields: [userId], references: [id],onDelete: Cascade)
+}

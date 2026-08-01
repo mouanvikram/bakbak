@@ -1,3 +1,4 @@
+import logger from "@lib/logger";
 import type { AuthRequest } from "../auth/controller";
 import { userService } from "../services/service.container";
 import type { Response } from "express";
@@ -79,8 +80,18 @@ export class UserController {
   }
 
   async searchUsers(req: AuthRequest, res: Response) {
+    const { q } = req.query;
+    if (typeof q !== "string") {
+      return res.status(400).json({
+        message: "Query is required",
+      });
+    }
     const response = await userService.searchUsers({
-      query: req.body.query,
+      query: q,
+    });
+
+    return res.status(200).json({
+      users: response.users,
     });
   }
 
@@ -99,8 +110,11 @@ export class UserController {
   }
 
   async checkUsername(req: AuthRequest, res: Response) {
-    const { username } = req.params;
-    if (typeof username !== "string" || !username) {
+    const username = req.query.username;
+
+    console.log("Username is", username);
+    logger.info(username);
+    if (typeof username !== "string") {
       return res.status(400).json({
         message: "invalid request",
       });

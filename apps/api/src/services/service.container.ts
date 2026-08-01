@@ -3,6 +3,8 @@ import { EmailService } from "../auth/email.service";
 import { JwtService } from "../auth/jwt.service";
 import { PasswordService } from "../auth/pwd.service";
 import { AuthService } from "../auth/service";
+import { FriendController } from "../friends/controller";
+import { FriendService } from "../friends/service";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
 
@@ -19,3 +21,8 @@ export const authService = new AuthService(
   emailRepository,
 );
 export const userService = new UserService(userRepository);
+
+export const friendService = new FriendService();
+export const friendController: FriendController = new FriendController(
+  friendService,
+);

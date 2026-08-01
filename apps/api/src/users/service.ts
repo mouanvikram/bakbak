@@ -118,7 +118,14 @@ export class UserService {
     };
   }
 
-  async searchUsers(dto: SearchUsersDto) {}
+  async searchUsers(dto: SearchUsersDto) {
+    const query = dto.query;
+    const users = await this.userRepository.getUsers(query);
+
+    return {
+      users,
+    };
+  }
 
   async checkUsername(dto: CheckUsernameDto) {
     const available = await this.userRepository.findBy({
@@ -126,7 +133,7 @@ export class UserService {
     });
 
     if (available) {
-      throw new Error("Username name is available");
+      throw new Error("Username name is not available");
     }
 
     return {

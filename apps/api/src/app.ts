@@ -3,7 +3,7 @@ import { type Express } from "express";
 import authRoutes from "./auth/routes";
 import userRoutes from "./users/routes";
 // import chatRoutes from "./chat/routes";
-// import friendRoutes from "./friends/routes";
+import friendRoutes from "./friends/routes";
 // import messageRoutes from "./messages/routes";
 
 const app: Express = express();
@@ -14,7 +14,7 @@ app.use("/api/auth", authRoutes);
 // 2. Users
 app.use("/users", userRoutes);
 // 2.1. Friends
-// app.use("/friends", friendRoutes);
+app.use("/friends", friendRoutes);
 // 3. Messages
 // app.use("/api/messages", messageRoutes);
 // 4. Chats

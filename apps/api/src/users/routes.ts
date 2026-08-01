@@ -11,9 +11,9 @@ router.patch("/me", userController.updateMe);
 router.patch("/me/avatar", userController.updateAvatar);
 router.delete("/me", userController.deleteMe);
 
-router.get(":username", userController.getProfile);
 router.get("/check-username", userController.checkUsername);
 router.get("/search", userController.searchUsers);
+router.get("/:username", userController.getProfile);
 
 // router.get("/:userId/presence")
 // router.get("/:userId/block");
