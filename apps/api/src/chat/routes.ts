@@ -15,4 +15,5 @@ router.delete("/:chatId", chatController.deleteChat);
 // Participants
 router.post("/:chatId/members", chatController.addParticipant);
 router.delete("/:chatId/members/:userId", chatController.removeParticipant);
+
 export default router;
