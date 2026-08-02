@@ -1,14 +1,15 @@
-// createChat()
-// findChatById()
-// listChats()
-// updateChat()
-// deleteChat()
+import type { ChatRepository } from "./repository";
 
-// addParticipant()
-// removeParticipant()
+export class ChatService {
+  constructor(private readonly chatRepository: ChatRepository) {}
+  createChat = async () => {};
+  findChatById = async () => {};
+  listChats = async () => {};
+  updateChat = async () => {};
+  deleteChat = async () => {};
 
-// markAsRead()
+  addParticipant = async () => {};
+  removeParticipant = async () => {};
 
-// archiveChat()
-// pinChat()
-// muteChat()
+  markAsRead = async () => {};
+}

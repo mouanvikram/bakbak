@@ -1,5 +1,5 @@
 model User {
-  id String @id @default(uuid(7)) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
   email        String @unique @db.VarChar(320)
   username     String @unique @db.VarChar(30)
@@ -16,23 +16,27 @@ model User {
   sentRequests     FriendRequest[]     @relation("FriendRequestSender")
   receivedRequests FriendRequest[]     @relation("FriendRequestReceiver")
 
-  friendships1 Friendship[] @relation("FriendshipUser1")
-  friendships2 Friendship[] @relation("FriendshipUser2")
+  friendShips1 Friendship[] @relation("FriendshipUser1")
+  friendShips2 Friendship[] @relation("FriendshipUser2")
+
+  chats        ChatParticipant[]
+  createdChats Chat[]            @relation("CreatedChats")
+
+  messages Message[]
 }
 
 model UserProfile {
-    userId String @id @db.Uuid
+  userId String @id @db.Uuid
 
-    username    String @unique
-    displayName String?
-    firstName   String?
-    lastName    String?
+  displayName String?
+  firstName   String?
+  lastName    String?
 
-    avatar String?
-    bio    String?
+  avatar String?
+  bio    String?
 
-    isOnline  Boolean  @default(false)
-    lastSeenAt DateTime?
+  isOnline   Boolean   @default(false)
+  lastSeenAt DateTime?
 
-    user User @relation(fields: [userId], references: [id],onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

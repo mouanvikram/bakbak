@@ -2,7 +2,7 @@ import express from "express";
 import { type Express } from "express";
 import authRoutes from "./auth/routes";
 import userRoutes from "./users/routes";
-// import chatRoutes from "./chat/routes";
+import chatRoutes from "./chat/routes";
 import friendRoutes from "./friends/routes";
 // import messageRoutes from "./messages/routes";
 
@@ -18,7 +18,7 @@ app.use("/friends", friendRoutes);
 // 3. Messages
 // app.use("/api/messages", messageRoutes);
 // 4. Chats
-// app.use("/api/chats", chatRoutes);
+app.use("/chats", chatRoutes);
 // 5. WebSocket
 // 6. Attachments
 // 7. Notifications

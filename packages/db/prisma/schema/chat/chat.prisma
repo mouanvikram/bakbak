@@ -1,0 +1,44 @@
+enum ChatType {
+    DIRECT
+    GROUP
+}
+
+model Chat {
+    id            String            @id @default(uuid()) @db.Uuid
+    type          ChatType          @default(DIRECT)
+    directKey     String?           @unique //store id(a):id(b)
+    name          String?
+    avatar        String?
+    createdById   String?           @db.Uuid
+    createdBy     User?             @relation("CreatedChats", fields: [createdById], references: [id], onDelete: Cascade)
+    lastMessageAt DateTime?
+    participants  ChatParticipant[]
+    messages      Message[]
+    createdAt     DateTime          @default(now())
+    updatedAt     DateTime          @updatedAt
+}
+
+enum ParticipantRole {
+    MEMBER
+    ADMIN
+}
+
+model ChatParticipant {
+    id     String @id @default(uuid()) @db.Uuid
+    chatId String @db.Uuid
+    userId String @db.Uuid
+    chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    role              ParticipantRole @default(MEMBER)
+    joinedAt          DateTime        @default(now())
+    lastReadMessageId String?
+    mutedUntil        DateTime?
+    isPinned          Boolean         @default(false)
+    isArchived        Boolean         @default(false)
+    leftAt            DateTime?
+
+    @@unique([chatId, userId])
+    @@index([userId])
+    @@index([chatId])
+}

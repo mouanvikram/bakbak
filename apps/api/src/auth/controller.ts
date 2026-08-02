@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { authService } from "../services/service.container";
+import type { AuthService } from "./service";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -10,65 +11,67 @@ export interface AuthRequest extends Request {
 }
 
 export class AuthController {
-  async signUp(req: Request, res: Response) {
-    const user = await authService.register(req.body);
+  constructor(private readonly authService: AuthService) {}
+
+  signUp = async (req: Request, res: Response) => {
+    const user = await this.authService.register(req.body);
 
     return res.status(201).json({
       id: user.id,
       email: user.email,
       user: user.profile,
     });
-  }
+  };
 
-  async login(req: Request, res: Response) {
-    const user = await authService.login(req.body);
+  login = async (req: Request, res: Response) => {
+    const user = await this.authService.login(req.body);
     return res.status(200).json({
       id: user.id,
       token: user.token,
     });
-  }
+  };
 
-  async verifyEmail(req: Request, res: Response) {
+  verifyEmail = async (req: Request, res: Response) => {
     const token = req.params.token;
     if (typeof token !== "string" || !token.trim()) {
       return res.status(400).json({
         message: "Verification token is required",
       });
     }
-    const verified = await authService.verifyEmail({ token });
+    const verified = await this.authService.verifyEmail({ token });
 
     return res.status(200).json({
       email: verified.email,
       message: "Email successfully verified",
     });
-  }
+  };
 
-  async resendVerification(req: Request, res: Response) {
-    const response = await authService.resendVerificationEmail(req.body);
+  resendVerification = async (req: Request, res: Response) => {
+    const response = await this.authService.resendVerificationEmail(req.body);
     return res.status(200).json({
       message: response.message,
     });
-  }
+  };
 
-  async changePassword(req: Request, res: Response) {
+  changePassword = async (req: Request, res: Response) => {
     // authMiddleware verifies the request before sending it here.
-    const response = await authService.changePassword(req.body);
+    const response = await this.authService.changePassword(req.body);
 
     return res.status(200).json({
       message: response.message,
     });
-  }
+  };
 
-  async forgotPassword(req: Request, res: Response) {
+  forgotPassword = async (req: Request, res: Response) => {
     // reset password is forgot token;
-    await authService.forgotPassword(req.body);
+    await this.authService.forgotPassword(req.body);
 
     return res.status(200).json({
       message: "If an account exists, reset link is sent to the email.",
     });
-  }
+  };
 
-  async resetPassword(req: Request, res: Response) {
+  resetPassword = async (req: Request, res: Response) => {
     // we are going to valid the password body and token from zod validations later on
     const { token } = req.params;
     const password = req.body.password;
@@ -78,7 +81,7 @@ export class AuthController {
       });
     }
 
-    await authService.resetPassword({
+    await this.authService.resetPassword({
       token,
       password,
     });
@@ -86,11 +89,11 @@ export class AuthController {
     return res.status(200).json({
       message: "Password reset successful",
     });
-  }
+  };
 
-  async logout(req: Request, res: Response) {}
+  logout = async (req: Request, res: Response) => {};
 
-  async refreshToken(req: Request, res: Response) {}
+  refreshToken = async (req: Request, res: Response) => {};
 
-  async getProfile(req: Request, res: Response) {}
+  getProfile = async (req: Request, res: Response) => {};
 }

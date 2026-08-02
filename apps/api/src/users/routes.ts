@@ -1,9 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
-import { UserController } from "./controller";
-
+import { userController } from "../services/service.container";
 const router = express.Router();
-const userController = new UserController();
 
 router.use(authMiddleware);
 router.get("/me", userController.getMe);
