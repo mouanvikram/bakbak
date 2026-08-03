@@ -2,7 +2,11 @@ import type { ChatRepository } from "./repository";
 
 export class ChatService {
   constructor(private readonly chatRepository: ChatRepository) {}
-  createDirectChat = async () => {};
+  createDirectChat = async (
+    dto: CreateDirectChatDto
+  ) => {
+
+  };
   createGroupChat = async () => {};
   renameChat = async () => {};
   addParticipant = async () => {};

@@ -11,7 +11,7 @@ export interface AuthRequest extends Request {
 }
 
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   signUp = async (req: Request, res: Response) => {
     const user = await this.authService.register(req.body);
@@ -91,9 +91,9 @@ export class AuthController {
     });
   };
 
-  logout = async (req: Request, res: Response) => {};
+  logout = async (req: Request, res: Response) => { };
 
-  refreshToken = async (req: Request, res: Response) => {};
+  refreshToken = async (req: Request, res: Response) => { };
 
-  getProfile = async (req: Request, res: Response) => {};
+  getProfile = async (req: Request, res: Response) => { };
 }

@@ -3,29 +3,29 @@ import type { AuthRequest } from "../auth/controller";
 import type { ChatService } from "./service";
 
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService) { }
   createChat = async (req: AuthRequest, res: Response) => {
-    const response = await this.chatService.createChat();
+    // const response = await this.chatService.createChat();
 
     return res.status(200).json({
-      message: response,
+      // message: response,
     });
   };
   getChat = async (req: AuthRequest, res: Response) => {
     // const response = await this.chatService.
   };
   listChats = async (req: AuthRequest, res: Response) => {
-    const response = await this.chatService.listChats();
+    // const response = await this.chatService.listChats();
 
     return res.status(200).json({
-      response,
+      // response,
     });
   };
   updateChat = async (req: AuthRequest, res: Response) => {
-    const response = await this.chatService.updateChat();
+    // const response = await this.chatService.updateChat();
 
     return res.status(200).json({
-      response,
+      // response,
     });
   };
   deleteChat = async (req: AuthRequest, res: Response) => {
