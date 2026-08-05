@@ -4,8 +4,21 @@ import type { ChatService } from "./service";
 
 export class ChatController {
   constructor(private readonly chatService: ChatService) { }
+
+
   createChat = async (req: AuthRequest, res: Response) => {
-    // const response = await this.chatService.createChat();
+    const {chatType} = req.body.type;
+    
+    if(!chatType){
+      return res.status(400).json({
+        message:"invalid chat type",
+      })
+    }
+    const response = await this.chatService.createDirectChat(
+      {
+
+      }
+    );
 
     return res.status(200).json({
       // message: response,
