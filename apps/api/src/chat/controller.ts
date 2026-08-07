@@ -14,15 +14,28 @@ export class ChatController {
         message:"invalid chat type",
       })
     }
-    const response = await this.chatService.createDirectChat(
-      {
 
-      }
-    );
+    if(chatType == "direct"
+    ){
+
+      const response = await this.chatService.createDirectChat(
+        {
+          
+        }
+      );
+      return res.status(200).json({
+        message: response,
+      });
+      
+    }
+
+    const response = await this.chatService.createGroupChat();
+
 
     return res.status(200).json({
-      // message: response,
-    });
+      message: "Json group"
+    })
+
   };
   getChat = async (req: AuthRequest, res: Response) => {
     // const response = await this.chatService.
