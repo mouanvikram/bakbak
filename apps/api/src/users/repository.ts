@@ -55,6 +55,7 @@ export class UserRepository {
           }
         : undefined,
       select: {
+        id: true,
         username: true,
         profile: {
           select: {
@@ -62,6 +63,7 @@ export class UserRepository {
             lastName: true,
             bio: true,
             displayName: true,
+            avatar: true,
           },
         },
       },

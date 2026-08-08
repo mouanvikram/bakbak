@@ -1,31 +1,18 @@
 import express from "express";
+import { authMiddleware } from "../middleware/auth.middleware"; //modified
+import { messageController } from "../services/service.container"; //modified
 
 const router = express.Router();
-// // Send message
-// POST    /chats/:chatId/messages
 
-// // Get messages
-// GET     /chats/:chatId/messages
+router.use(authMiddleware); //modified
 
-// // Get one message
-// GET     /messages/:messageId
+router.get("/:messageId", messageController.getMessage); //modified
+router.patch("/:messageId", messageController.editMessage); //modified
+router.delete("/:messageId", messageController.deleteMessage); //modified
 
-// // Edit message
-// PATCH   /messages/:messageId
-
-// // Delete (soft delete)
-// DELETE  /messages/:messageId
-
-// // React
-// POST    /messages/:messageId/reactions
-
-// // Remove reaction
-// DELETE  /messages/:messageId/reactions
-
-// // Reply
-// POST    /messages/:messageId/reply
-
-// // Pin
-// PATCH   /messages/:messageId/pin
+router.post("/:messageId/reactions", messageController.notImplemented); //modified
+router.delete("/:messageId/reactions", messageController.notImplemented); //modified
+router.post("/:messageId/reply", messageController.notImplemented); //modified
+router.patch("/:messageId/pin", messageController.notImplemented); //modified
 
 export default router;

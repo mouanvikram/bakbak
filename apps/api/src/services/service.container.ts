@@ -10,6 +10,9 @@ import { ChatRepository } from "../chat/repository";
 import { FriendController } from "../friends/controller";
 import { FriendRepository } from "../friends/repository";
 import { FriendService } from "../friends/service";
+import { MessageController } from "../messages/controller"; //modified
+import { MessageRepository } from "../messages/repository"; //modified
+import { MessageService } from "../messages/service"; //modified
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
@@ -39,3 +42,8 @@ export const friendController = new FriendController(friendService);
 export const chatRepository = new ChatRepository();
 export const chatService = new ChatService(chatRepository);
 export const chatController = new ChatController(chatService);
+
+// message service //modified
+export const messageRepository = new MessageRepository(); //modified
+export const messageService = new MessageService(messageRepository); //modified
+export const messageController = new MessageController(messageService); //modified

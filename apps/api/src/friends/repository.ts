@@ -1,15 +1,50 @@
 import { prisma, Prisma } from "@sealchat/db";
 
+const friendUserSelect = {
+  id: true,
+  username: true,
+  profile: {
+    select: {
+      displayName: true,
+      firstName: true,
+      lastName: true,
+      avatar: true,
+      bio: true,
+    },
+  },
+} satisfies Prisma.UserSelect;
+
 export class FriendRepository {
   // Friend Requests State
   async findRequest(where: Prisma.FriendRequestWhereInput) {
-    return await prisma.friendRequest.findMany({ where });
+    return await prisma.friendRequest.findMany({
+      where,
+      include: {
+        sender: { select: friendUserSelect },
+        receiver: { select: friendUserSelect },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async findRequestById(id: string) {
+    return await prisma.friendRequest.findUnique({
+      where: { id },
+      include: {
+        sender: { select: friendUserSelect },
+        receiver: { select: friendUserSelect },
+      },
+    });
   }
 
   // requests
   async createRequest(data: Prisma.FriendRequestCreateInput) {
     return await prisma.friendRequest.create({
       data,
+      include: {
+        sender: { select: friendUserSelect },
+        receiver: { select: friendUserSelect },
+      },
     });
   }
 
@@ -20,6 +55,10 @@ export class FriendRepository {
     return await prisma.friendRequest.update({
       where,
       data,
+      include: {
+        sender: { select: friendUserSelect },
+        receiver: { select: friendUserSelect },
+      },
     });
   }
 
@@ -33,6 +72,11 @@ export class FriendRepository {
   async findFriends(where: Prisma.FriendshipWhereInput) {
     return await prisma.friendship.findMany({
       where,
+      include: {
+        user1: { select: friendUserSelect },
+        user2: { select: friendUserSelect },
+      },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -45,6 +89,10 @@ export class FriendRepository {
   async createFriendship(data: Prisma.FriendshipCreateInput) {
     return await prisma.friendship.create({
       data,
+      include: {
+        user1: { select: friendUserSelect },
+        user2: { select: friendUserSelect },
+      },
     });
   }
 

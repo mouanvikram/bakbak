@@ -42,6 +42,31 @@ export class FriendService {
   async acceptReqeust(dto: FriendRequestIdType) {
     const { id } = dto;
 
+    const existing = await this.friendRepository.findRequestById(id);
+    if (!existing) {
+      throw new Error("Friend request not found");
+    }
+
+    if (existing.status !== FriendRequestStatus.PENDING) {
+      throw new Error("Friend request is not pending");
+    }
+
+    const [user1Id, user2Id] = [existing.senderId, existing.receiverId].sort();
+
+    const alreadyFriends = await this.friendRepository.findFriendship({
+      OR: [
+        { user1Id, user2Id },
+        { user1Id: user2Id, user2Id: user1Id },
+      ],
+    });
+
+    if (!alreadyFriends) {
+      await this.friendRepository.createFriendship({
+        user1: { connect: { id: user1Id } },
+        user2: { connect: { id: user2Id } },
+      });
+    }
+
     const request = await this.friendRepository.updateRequest(
       {
         id,
@@ -71,9 +96,20 @@ export class FriendService {
 
   //friends
   async getFriends(id: string) {
-    const friends = await this.friendRepository.findFriends({ id });
+    const friendships = await this.friendRepository.findFriends({
+      OR: [{ user1Id: id }, { user2Id: id }],
+    });
 
-    return friends;
+    return friendships.map((friendship) => {
+      const friend =
+        friendship.user1Id === id ? friendship.user2 : friendship.user1;
+
+      return {
+        friendshipId: friendship.id,
+        createdAt: friendship.createdAt,
+        friend,
+      };
+    });
   }
 
   async removeFriend(id: string) {
@@ -82,10 +118,11 @@ export class FriendService {
     });
   }
 
-  // Requests
+  // Requests — outgoing = I sent, incoming = I received
   async getIncomingRequests(id: string) {
     const requests = await this.friendRepository.findRequest({
-      senderId: id,
+      receiverId: id,
+      status: FriendRequestStatus.PENDING,
     });
 
     return requests;
@@ -93,7 +130,8 @@ export class FriendService {
 
   async getOutgoingRequests(id: string) {
     const requests = await this.friendRepository.findRequest({
-      receiverId: id,
+      senderId: id,
+      status: FriendRequestStatus.PENDING,
     });
 
     return requests;

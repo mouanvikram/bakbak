@@ -17,6 +17,8 @@ export class UserService {
     const user = await this.userRepository.getProfile({
       where: { id: dto.userId },
       select: {
+        id: true,
+        email: true,
         username: true,
         isEmailVerified: true,
         profile: {
@@ -36,6 +38,8 @@ export class UserService {
     }
 
     return {
+      id: user.id,
+      email: user.email,
       username: user.username,
       verified: user.isEmailVerified,
       firstName: user.profile?.firstName,

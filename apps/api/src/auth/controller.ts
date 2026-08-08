@@ -27,6 +27,7 @@ export class AuthController {
     const user = await this.authService.login(req.body);
     return res.status(200).json({
       id: user.id,
+      username: user.username,
       token: user.token,
     });
   };

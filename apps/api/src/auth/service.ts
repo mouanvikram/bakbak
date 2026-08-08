@@ -60,8 +60,7 @@ export class AuthService {
             lastName: dto.lastname,
             avatar: dto.avatarUrl,
             displayName: dto.displayName,
-            bio: dto.bio,
-            username: dto.username,
+            bio: dto.bio, //modified
           },
         },
         verification: {
@@ -123,12 +122,14 @@ export class AuthService {
           username: userExists.username,
         },
         {
-          expiresIn: "15m",
+          // No refresh-token flow yet — longer-lived access token for the web app.
+          expiresIn: "7d",
         },
       );
 
       return {
         id: userExists.id,
+        username: userExists.username,
         token,
       };
     } catch (error) {

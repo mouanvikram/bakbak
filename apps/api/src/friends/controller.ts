@@ -99,8 +99,8 @@ export class FriendController {
       });
     }
 
-    const sent = await this.friendService.getIncomingRequests(id);
-    const received = await this.friendService.getOutgoingRequests(id);
+    const received = await this.friendService.getIncomingRequests(id);
+    const sent = await this.friendService.getOutgoingRequests(id);
 
     return res.status(200).json({
       sent,
