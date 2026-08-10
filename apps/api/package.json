@@ -29,6 +29,11 @@
     "jsonwebtoken": "^9.0.3",
     "pino": "^10.3.1",
     "resend": "^6.18.0",
+    "socket.io": "^4.8.3",
     "zod": "^4.4.3"
+  },
+  "optionalDependencies": {
+    "bufferutil": "^4.1.0",
+    "utf-8-validate": "^6.0.6"
   }
 }
