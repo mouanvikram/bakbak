@@ -4,7 +4,7 @@
 
 ### 🚀 Phase 1 — Project Setup
 
-* [-] Initialize React + Bun + TypeScript
+* [x] Initialize React + Bun + TypeScript
 * [ ] Configure Tailwind CSS
 * [ ] Setup ESLint, Prettier & Husky
 * [ ] Configure React Router
@@ -13,9 +13,9 @@
 * [ ] Configure Axios
 * [ ] Setup shadcn/ui
 * [ ] Configure Socket.IO client
-* [-] Setup Express backend
-* [-] Configure Prisma ORM
-* [-] Setup PostgreSQL database
+* [x] Setup Express backend
+* [x] Configure Prisma ORM
+* [x] Setup PostgreSQL database
 * [ ] Docker development environment
 * [ ] Environment configuration
 
@@ -23,40 +23,40 @@
 
 ### 👤 Authentication
 
-* [ ] User registration
-* [ ] Login
-* [ ] Logout
-* [ ] Refresh tokens
-* [ ] JWT authentication
-* [ ] Password hashing
-* [ ] Email verification
-* [ ] Forgot password
-* [ ] Reset password
-* [ ] Change password
-* [ ] Multi-device login
-* [ ] Session management
+* [x] User registration
+* [x] Login
+* [x] Logout
+* [x] Refresh tokens
+* [x] JWT authentication
+* [x] Password hashing
+* [x] Email verification
+* [x] Forgot password
+* [x] Reset password
+* [x] Change password
+* [x] Multi-device login
+* [x] Session management
 
 ---
 
 ### 👥 User Profile
 
-* [ ] Edit profile
-* [ ] Upload profile picture
-* [ ] Username support
-* [ ] Bio/About
-* [ ] Last seen
-* [ ] Online/Offline status
-* [ ] Privacy settings
-* [ ] Account settings
+* [x] Edit profile
+* [x] Upload profile picture
+* [x] Username support
+* [x] Bio/About
+* [x] Last seen
+* [x] Online/Offline status
+* [x] Privacy settings
+* [x] Account settings
 
 ---
 
 ### 🤝 Friends & Contacts
 
-* [ ] User search
-* [ ] Friend requests
-* [ ] Accept request
-* [ ] Reject request
+* [x] User search
+* [x] Friend requests
+* [x] Accept request
+* [x] Reject request
 * [ ] Remove friend
 * [ ] Block user
 * [ ] Unblock user
@@ -67,9 +67,9 @@
 
 ### 💬 Chat
 
-* [ ] One-to-one chat
-* [ ] Group chat
-* [ ] Real-time messaging
+* [x] One-to-one chat
+* [x] Group chat
+* [x] Real-time messaging
 * [ ] Typing indicator
 * [ ] Read receipts
 * [ ] Delivery status
@@ -119,11 +119,11 @@
 
 ### 👥 Groups
 
-* [ ] Create group
-* [ ] Group avatar
-* [ ] Group description
-* [ ] Add members
-* [ ] Remove members
+* [x] Create group
+* [x] Group avatar
+* [x] Group description
+* [x] Add members
+* [x] Remove members
 * [ ] Promote admins
 * [ ] Invite links
 * [ ] Leave group
