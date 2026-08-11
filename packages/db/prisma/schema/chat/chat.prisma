@@ -6,8 +6,9 @@ enum ChatType {
 model Chat {
     id            String            @id @default(uuid()) @db.Uuid
     type          ChatType          @default(DIRECT)
-    directKey     String?           @unique //store id(a):id(b)
+    directKey     String?           @unique
     name          String?
+    description   String?
     avatar        String?
     createdById   String?           @db.Uuid
     createdBy     User?             @relation("CreatedChats", fields: [createdById], references: [id], onDelete: Cascade)
@@ -32,11 +33,11 @@ model ChatParticipant {
 
     role              ParticipantRole @default(MEMBER)
     joinedAt          DateTime        @default(now())
-    lastReadMessageId String?
-    mutedUntil        DateTime?
-    isPinned          Boolean         @default(false)
-    isArchived        Boolean         @default(false)
-    leftAt            DateTime?
+    // lastReadMessageId String?
+    // mutedUntil        DateTime?
+    // isPinned          Boolean         @default(false)
+    // isArchived        Boolean         @default(false)
+    // leftAt            DateTime?
 
     @@unique([chatId, userId])
     @@index([userId])

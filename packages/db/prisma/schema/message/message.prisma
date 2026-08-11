@@ -21,6 +21,8 @@ model Message {
   chat     Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender   User   @relation(fields: [senderId], references: [id], onDelete: NoAction)
 
+  attachments Attachment[]
+
   deleted   Boolean   @default(false)
   deletedAt DateTime?
 

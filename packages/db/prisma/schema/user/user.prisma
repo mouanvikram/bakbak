@@ -19,10 +19,12 @@ model User {
   friendShips1 Friendship[] @relation("FriendshipUser1")
   friendShips2 Friendship[] @relation("FriendshipUser2")
 
+
   chats        ChatParticipant[]
   createdChats Chat[]            @relation("CreatedChats")
 
   messages Message[]
+
 }
 
 model UserProfile {
