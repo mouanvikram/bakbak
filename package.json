@@ -18,7 +18,5 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@types/jsonwebtoken": "^9.0.10",
-    "dotenv": "^17.4.2"
   }
 }
