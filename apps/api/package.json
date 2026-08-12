@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "bakbak-api",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -18,7 +18,7 @@
     "typescript-eslint": "^8.65.0"
   },
   "dependencies": {
-    "@sealchat/db": "workspace:*",
+    "@bakbak/db": "workspace:*",
     "@types/bcrypt": "^6.0.0",
     "@types/pino": "^7.0.5",
     "bcrypt": "^6.0.0",
