@@ -19,7 +19,7 @@ export function Input({
     <div className="flex w-full flex-col gap-2">
       <label
         htmlFor={name}
-        className="text-sm font-medium text-gray-800"
+        className="text-md font-semibold text-gray-900 "
       >
         {label}
       </label>
@@ -37,7 +37,7 @@ export function Input({
           type={type}
           placeholder={placeholder}
           className={`
-            h-10
+            h-12
             w-full
             rounded-lg
             border border-gray-200
