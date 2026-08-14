@@ -2,11 +2,11 @@ import { Link } from "react-router";
 import { Background } from "../../../components/ui/Background";
 import { Button } from "../../../components/ui/Button";
 import { Divider } from "../../../components/ui/Divider";
-import { Logo } from "../../../components/ui/Logo";
 import { Input } from "../../../components/ui/Input";
 import { ArrowLeft, ArrowRight, AtSign, Mail, User } from "lucide-react";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
 import { useState } from "react";
+import { Branding } from "../../../components/ui/Branding";
 
 export function SignupPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -17,14 +17,7 @@ export function SignupPage() {
         <div className="w-full max-w-md rounded-4xl border border-gray-50 bg-white p-10 shadow-xl">
           <div className="flex w-full flex-col gap-6">
             {/* Branding */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex flex-row items-center gap-5">
-                <Logo width={60} height={60} />
-                <h1 className="text-5xl font-bold">BakBak</h1>
-              </div>
-
-              <div className="text-gray-500">Chat more. Connect better.</div>
-            </div>
+            <Branding />
 
             {/* Heading */}
             {step !== 4 && (

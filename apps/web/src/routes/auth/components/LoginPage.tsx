@@ -6,6 +6,7 @@ import { Logo } from "../../../components/ui/Logo";
 import { Input } from "../../../components/ui/Input";
 import { Mail } from "lucide-react";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
+import { Branding } from "../../../components/ui/Branding";
 
 export function LoginPage() {
   return (
@@ -14,17 +15,7 @@ export function LoginPage() {
         <div className="w-full max-w-md rounded-4xl border border-gray-50 bg-white p-10 shadow-xl">
           <div className="flex w-full flex-col gap-6">
             {/* Branding */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center gap-5">
-                <Logo width={60} height={60} />
-
-                <div className="flex items-center">
-                  <h1 className="text-5xl leading-none font-bold">BakBak</h1>
-                </div>
-              </div>
-
-              <div className="text-gray-500">Chat more. Connect better.</div>
-            </div>
+            <Branding />
 
             {/* Heading */}
             <div className="flex w-full flex-col items-center justify-center">

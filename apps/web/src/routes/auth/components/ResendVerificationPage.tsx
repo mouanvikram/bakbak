@@ -1,12 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import {
-  CheckCircle2,
-  LoaderCircle,
-  LockKeyhole,
-  Mail,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, LoaderCircle, Mail, XCircle } from "lucide-react";
 
 import { Background } from "../../../components/ui/Background";
 import { Input } from "../../../components/ui/Input";
@@ -16,32 +10,30 @@ import { Branding } from "../../../components/ui/Branding";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export function ForgotPasswordPage() {
+export function ResendVerificationPage() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
 
   async function handleSubmit() {
-    const normalizedEmail = email.trim();
-
-    if (!normalizedEmail) {
+    if (!email.trim()) {
       return;
     }
 
     setStatus("loading");
 
     try {
-      const response = await fetch("/api/auth/forgot-password", {
+      const response = await fetch("/api/auth/resend-verification", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: normalizedEmail,
+          email: email.trim(),
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to request password reset");
+        throw new Error("Failed to resend verification email");
       }
 
       setStatus("success");
@@ -62,34 +54,40 @@ export function ForgotPasswordPage() {
             {status === "idle" && (
               <>
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#4C18EF]/10">
-                  <LockKeyhole
-                    size={42}
+                  <Mail
+                    size={40}
                     strokeWidth={1.8}
                     className="text-[#4C18EF]"
                   />
                 </div>
+
                 <div className="flex flex-col gap-2">
                   <h2 className="text-2xl font-semibold text-gray-900">
-                    Forgot your password?
+                    Resend verification email
                   </h2>
 
                   <p className="text-sm leading-6 text-gray-500">
-                    Enter the email address associated with your account and
-                    we'll send you a link to reset your password.
+                    Enter the email address associated with your BakBak account
+                    and we'll send you a new verification link.
                   </p>
                 </div>
+
                 <div className="w-full text-left">
                   <Input
                     label="Email"
                     name="email"
                     type="email"
                     placeholder="you@example.com"
-                    // value={email}
-                    // onChange={(event) => setEmail(event.target.value)}
+                    // onChange={(event : any) => setEmail(event.target.value)}
                     icon={<Mail size={18} />}
                   />
                 </div>
-                <Button value="Send Reset Link" onClick={handleSubmit} />
+
+                <Button
+                  value="Send Verification Email"
+                  onClick={handleSubmit}
+                />
+
                 <p className="text-sm text-gray-500">
                   Remember your password?{" "}
                   <Link
@@ -113,11 +111,12 @@ export function ForgotPasswordPage() {
 
                 <div className="flex flex-col gap-2">
                   <h2 className="text-2xl font-semibold text-gray-900">
-                    Sending reset link
+                    Sending verification email
                   </h2>
 
                   <p className="text-sm leading-6 text-gray-500">
-                    Please wait while we send the password reset link.
+                    Please wait while we send a new verification link to your
+                    email.
                   </p>
                 </div>
               </>
@@ -136,36 +135,40 @@ export function ForgotPasswordPage() {
 
                 <div className="flex flex-col gap-2">
                   <h2 className="text-2xl font-semibold text-gray-900">
-                    Check your inbox
+                    Verification email sent
                   </h2>
 
                   <p className="text-sm leading-6 text-gray-500">
-                    If an account exists for this email address, we've sent you
-                    a password reset link.
+                    We've sent a new verification link to:
+                  </p>
+
+                  <p className="font-medium text-gray-900">{email}</p>
+
+                  <p className="text-sm leading-6 text-gray-500">
+                    Check your inbox and click the link to verify your account.
                   </p>
                 </div>
 
-                <div className="w-full rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-gray-500">
-                  Check your spam or junk folder if you don't see the email.
+                <div className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                  Didn't receive it? Check your spam or junk folder.
                 </div>
 
-                <p className="text-sm text-gray-400">
-                  Didn't receive it?{" "}
+                <div className="flex w-full gap-3">
                   <button
                     type="button"
                     onClick={() => setStatus("idle")}
-                    className="cursor-pointer font-semibold text-[#4C18EF] hover:underline"
+                    className="flex h-11 flex-1 cursor-pointer items-center justify-center rounded-xl border border-gray-200 font-medium text-gray-700 transition hover:bg-gray-50"
                   >
-                    Try again
+                    Try Another Email
                   </button>
-                </p>
 
-                <Link
-                  to="/login"
-                  className="flex h-11 w-full items-center justify-center rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition hover:opacity-95 active:translate-y-px"
-                >
-                  Back to Login
-                </Link>
+                  <Link
+                    to="/login"
+                    className="flex h-11 flex-1 items-center justify-center rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] font-bold text-white transition hover:opacity-95"
+                  >
+                    Login
+                  </Link>
+                </div>
               </>
             )}
 
@@ -186,8 +189,8 @@ export function ForgotPasswordPage() {
                   </h2>
 
                   <p className="text-sm leading-6 text-gray-500">
-                    We couldn't process your request right now. Please try
-                    again.
+                    We couldn't send the verification email. Please check your
+                    email address and try again.
                   </p>
                 </div>
 
