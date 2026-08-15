@@ -19,12 +19,15 @@ model User {
   friendShips1 Friendship[] @relation("FriendshipUser1")
   friendShips2 Friendship[] @relation("FriendshipUser2")
 
-
   chats        ChatParticipant[]
   createdChats Chat[]            @relation("CreatedChats")
 
   messages Message[]
+}
 
+enum GenderType {
+  MALE
+  FEMALE
 }
 
 model UserProfile {
@@ -36,6 +39,8 @@ model UserProfile {
 
   avatar String?
   bio    String?
+  dob    String?
+  gender GenderType @default(MALE)
 
   isOnline   Boolean   @default(false)
   lastSeenAt DateTime?
