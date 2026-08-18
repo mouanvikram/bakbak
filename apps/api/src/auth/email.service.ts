@@ -7,7 +7,6 @@ import { resetPasswordEmail } from "@lib/emails.template/reset-password";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class EmailService {
-  constructor() {}
 
   async sendEmail(dto: {
     to: string;

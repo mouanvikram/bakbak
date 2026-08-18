@@ -1,100 +1,147 @@
-import type { Request, Response } from "express";
-import { authService } from "../services/service.container";
+import type { NextFunction, Request, Response } from "express";
 import type { AuthService } from "./service";
+import {
+	verifyEmailResponseSchema,
+	loginResponseSchema,
+	signUpResponseSchema,
+	type LoginResponseType,
+	type SignUpResponseType,
+} from "@bakbak/contracts";
+import { validate, validateResponse } from "../middleware/validate";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 export interface AuthRequest extends Request {
-  user?: {
-    userId: string;
-    username?: string;
-    role?: string;
-  };
+	user?: {
+		userId: string;
+		username?: string;
+		role?: string;
+	};
 }
 
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+	constructor(private readonly authService: AuthService) {}
 
-  signUp = async (req: Request, res: Response) => {
-    const user = await this.authService.register(req.body);
+	signUp = async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const response: SignUpResponseType = await this.authService.register(
+				req.body,
+			);
 
-    return res.status(201).json({
-      id: user.id,
-      email: user.email,
-      user: user.profile,
-    });
-  };
+			return res.status(HTTP_STATUS.CREATED).json({
+				message: response.message,
+			});
+		} catch (error) {
+			next(error);
+		}
+	};
 
-  login = async (req: Request, res: Response) => {
-    const user = await this.authService.login(req.body);
-    return res.status(200).json({
-      id: user.id,
-      username: user.username,
-      token: user.token,
-    });
-  };
+	login = async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const response: LoginResponseType = await this.authService.login(
+				req.body,
+			);
+			return res.status(200).json({
+				...response,
+			});
+		} catch (error) {
+			next(error);
+		}
+	};
 
-  verifyEmail = async (req: Request, res: Response) => {
-    const token = req.params.token;
-    if (typeof token !== "string" || !token.trim()) {
-      return res.status(400).json({
-        message: "Verification token is required",
-      });
-    }
-    const verified = await this.authService.verifyEmail({ token });
+	verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { token } = req.query;
+			if (typeof token !== "string" || !token.trim()) {
+				return res.status(400).json({
+					message: "Verification token is required",
+				});
+			}
+			const result = await this.authService.verifyEmail({ token });
 
-    return res.status(200).json({
-      email: verified.email,
-      message: "Email successfully verified",
-    });
-  };
+			return validateResponse(res, 200, verifyEmailResponseSchema, result);
+		} catch (error) {
+			next(error);
+		}
+	};
 
-  resendVerification = async (req: Request, res: Response) => {
-    const response = await this.authService.resendVerificationEmail(req.body);
-    return res.status(200).json({
-      message: response.message,
-    });
-  };
+	resendVerification = async (
+		req: Request,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const response = await this.authService.resendVerificationEmail(req.body);
+			return res.status(200).json({
+				message: response.message,
+			});
+		} catch (error) {
+			next(error);
+		}
+	};
 
-  changePassword = async (req: Request, res: Response) => {
-    // authMiddleware verifies the request before sending it here.
-    const response = await this.authService.changePassword(req.body);
+	changePassword = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			if (!req.user) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Authentication required",
+				);
+			}
+			const response = await this.authService.changePassword(
+				req.user?.userId,
+				req.body,
+			);
 
-    return res.status(200).json({
-      message: response.message,
-    });
-  };
+			return res.status(200).json({
+				message: response.message,
+			});
+		} catch (error) {
+			next(error);
+		}
+	};
 
-  forgotPassword = async (req: Request, res: Response) => {
-    // reset password is forgot token;
-    await this.authService.forgotPassword(req.body);
+	forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const response = await this.authService.forgotPassword(req.body);
 
-    return res.status(200).json({
-      message: "If an account exists, reset link is sent to the email.",
-    });
-  };
+			return res.status(200).json({
+				message: response.message,
+			});
+		} catch (error) {
+			next(error);
+		}
+	};
 
-  resetPassword = async (req: Request, res: Response) => {
-    // we are going to valid the password body and token from zod validations later on
-    const { token } = req.params;
-    const password = req.body.password;
-    if (typeof token !== "string") {
-      return res.status(400).json({
-        message: "Invalid token",
-      });
-    }
+	resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { token } = req.query;
+			const newPassword = req.body.newPassword;
 
-    await this.authService.resetPassword({
-      token,
-      password,
-    });
+			if (typeof token !== "string") {
+				return res.status(400).json({
+					message: "Invalid token",
+				});
+			}
 
-    return res.status(200).json({
-      message: "Password reset successful",
-    });
-  };
+			await this.authService.resetPassword({
+				token,
+				newPassword,
+			});
 
-  logout = async (req: Request, res: Response) => { };
+			return res.status(200).json({
+				message: "Password reset successful",
+			});
+		} catch (error) {
+			next(error);
+		}
+	};
 
-  refreshToken = async (req: Request, res: Response) => { };
+	logout = async (req: Request, res: Response, next: NextFunction) => {};
 
-  getProfile = async (req: Request, res: Response) => { };
+	refreshToken = async (req: Request, res: Response, next: NextFunction) => {};
 }

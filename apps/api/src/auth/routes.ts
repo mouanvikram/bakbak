@@ -1,20 +1,51 @@
 import { Router } from "express";
 import { authController } from "../services/service.container";
+import { validate } from "../middleware/validate";
+import {
+	changePasswordRequestSchema,
+	forgotPasswordRequestSchema,
+	loginRequestSchema,
+	resendVerificationRequestSchema,
+	resetPasswordRequestSchema,
+	signUpRequestSchema,
+	verifyEmailRequestSchema,
+} from "@bakbak/contracts";
+import { errorHandler } from "../middleware/error.middleware";
 const router = Router();
 
-router.post("/signup", authController.signUp);
-router.post("/login", authController.login);
-router.post("/verify-email/:token", authController.verifyEmail);
-router.post("/resend-verification", authController.resendVerification);
-router.post("/change-password", authController.changePassword);
+router.post("/signup", validate(signUpRequestSchema), authController.signUp);
+router.post("/login", validate(loginRequestSchema), authController.login);
+router.post(
+	"/verify-email",
+	validate(verifyEmailRequestSchema, "query"),
+	authController.verifyEmail,
+);
+router.post(
+	"/resend-verification",
+	validate(resendVerificationRequestSchema),
+	authController.resendVerification,
+);
+router.post(
+	"/change-password",
+	validate(changePasswordRequestSchema),
+	authController.changePassword,
+);
 
-// POST   /api/auth/forgot-password
-router.post("/forgot-password", authController.forgotPassword);
+router.post(
+	"/forgot-password",
+	validate(forgotPasswordRequestSchema),
+	authController.forgotPassword,
+);
 
-// POST   /api/auth/reset-password
-router.post("/reset-password/:token", authController.resetPassword);
+router.post(
+	"/reset-password",
+	validate(resetPasswordRequestSchema),
+	authController.resetPassword,
+);
 
-// POST   /api/auth/logout
-// POST   /api/auth/refresh-token
+router.post("/logout", authController.logout);
+router.post("/refresh-token", authController.refreshToken);
+
+router.use(errorHandler);
 
 export default router;

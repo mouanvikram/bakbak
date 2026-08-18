@@ -7,9 +7,56 @@ import { ArrowLeft, ArrowRight, AtSign, Mail, User } from "lucide-react";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
 import { useState } from "react";
 import { Branding } from "../../../components/ui/Branding";
+import { signup } from "@/api/auth.api";
 
+interface SignupFormData {
+  firstname: string;
+  lastname: string;
+  displayName: string;
+  dateOfBirth: string;
+  username: string;
+  email: string;
+  password: string;
+  bio: string;
+  avatarUrl: string;
+}
 export function SignupPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<SignupFormData>({
+    firstname: "",
+    lastname: "",
+    displayName: "",
+    dateOfBirth: "",
+    username: "",
+    email: "",
+    password: "",
+    bio: "",
+    avatarUrl: "",
+  });
+
+  function handleChange(
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) {
+    const { name, value } = event.target;
+    setUser((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  }
+
+  async function handleSignUp() {
+    setLoading(true);
+    try {
+      const response = await signup(user);
+      console.log(response);
+      setStep(4);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <Background>
@@ -95,18 +142,22 @@ export function SignupPage() {
                   <div className="grid w-full grid-cols-2 gap-3">
                     <Input
                       label="First Name"
-                      name="firstName"
+                      name="firstname"
                       type="text"
                       placeholder="First name"
                       icon={<User size={18} />}
+                      value={user.firstname}
+                      onChange={handleChange}
                     />
 
                     <Input
                       label="Last Name"
-                      name="lastName"
+                      name="lastname"
                       type="text"
                       placeholder="Last name"
                       icon={<User size={18} />}
+                      value={user.lastname}
+                      onChange={handleChange}
                     />
                   </div>
 
@@ -117,6 +168,8 @@ export function SignupPage() {
                     type="text"
                     placeholder="How should we call you?"
                     icon={<User size={18} />}
+                    value={user.displayName}
+                    onChange={handleChange}
                   />
 
                   {/* Date of Birth */}
@@ -158,6 +211,8 @@ export function SignupPage() {
                     type="text"
                     placeholder="username"
                     icon={<AtSign size={18} />}
+                    value={user.username}
+                    onChange={handleChange}
                   />
 
                   {/* Email */}
@@ -167,6 +222,8 @@ export function SignupPage() {
                     type="email"
                     placeholder="you@example.com"
                     icon={<Mail size={18} />}
+                    value={user.email}
+                    onChange={handleChange}
                   />
 
                   {/* Password */}
@@ -174,6 +231,8 @@ export function SignupPage() {
                     label="Password"
                     name="password"
                     placeholder="Create a password"
+                    value={user.password}
+                    onChange={handleChange}
                   />
 
                   <p className="-mt-2 text-xs text-gray-400">
@@ -248,6 +307,8 @@ export function SignupPage() {
                       maxLength={160}
                       placeholder="Tell us a little about yourself..."
                       className="w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10"
+                      value={user.bio}
+                      onChange={handleChange}
                     />
                   </div>
                   {/* Signup or go back */}
@@ -256,13 +317,18 @@ export function SignupPage() {
                       type="button"
                       onClick={() => setStep(2)}
                       className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]"
+                      disabled={loading}
                     >
                       <ArrowLeft size={18} />
                       Back
                     </button>
 
                     <div className="flex-1">
-                      <Button value="Sign Up" onClick={() => setStep(4)} />
+                      <Button
+                        value="Sign Up"
+                        onClick={handleSignUp}
+                        disabled={loading}
+                      />
                     </div>
                   </div>
                 </>

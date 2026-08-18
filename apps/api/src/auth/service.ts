@@ -2,364 +2,400 @@ import type { AccessTokenPayload, JwtService } from "./jwt.service";
 import type { PasswordService } from "./pwd.service";
 import type { UserRepository } from "../users/repository";
 import type {
-  ChangePasswordDto,
-  LoginDto,
-  RegisterDto,
-  VerfiyEmailType,
+	ChangePasswordDto,
+	LoginDto,
+	RegisterDto,
+	VerfiyEmailType,
 } from "./types";
 import type { EmailService } from "./email.service";
 import crypto from "crypto";
 import logger from "@logger";
 import type { EmailRepository } from "./email.repository";
-import { VerificationTokenType } from "@sealchat/db";
+import { VerificationTokenType } from "@bakbak/db";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import type {
+	ChangePasswordRequestType,
+	ForgotPasswordRequestType,
+	ForgotPasswordResponseType,
+	LoginRequestType,
+	LoginResponseType,
+	ResendVerificationRequestType,
+	ResendVerificationResponseType,
+	ResetPasswordRequestType,
+	SignUpRequestType,
+	SignUpResponseType,
+	VerifyEmailRequestType,
+} from "@bakbak/contracts";
 
 export class AuthService {
-  constructor(
-    private readonly userRepository: UserRepository,
-    private readonly pwdService: PasswordService,
-    private readonly jwtService: JwtService,
-    private readonly emailService: EmailService,
-    private readonly emailRepository: EmailRepository,
-  ) {}
+	constructor(
+		private readonly userRepository: UserRepository,
+		private readonly pwdService: PasswordService,
+		private readonly jwtService: JwtService,
+		private readonly emailService: EmailService,
+		private readonly emailRepository: EmailRepository,
+	) {}
 
-  async register(dto: RegisterDto) {
-    //userRepository check if the user exists or not
-    try {
-      const userExists = await this.userRepository.findFirst({
-        username: dto.username,
-        email: dto.email,
-      });
+	async checkUsernameAvailability(username: string) {
+		const user = await this.userRepository.findBy({
+			username,
+		});
+		if (user) {
+			throw new AppError(
+				HTTP_STATUS.CONFLICT,
+				ERROR_CODES.USERNAME_ALREADY_EXISTS,
+				"Username is already exists",
+			);
+		}
+		return {
+			available: true,
+		};
+	}
 
-      if (userExists) {
-        throw new Error("Email/Username already exists");
-      }
+	async register(dto: SignUpRequestType) {
+		//userRepository check if the user exists or not
+		const userExists = await this.userRepository.findFirst({
+			OR: [{ username: dto.username }, { email: dto.email }],
+		});
 
-      // hash password service
-      const hashedPassword = await this.pwdService.hash(dto.password);
+		if (userExists) {
+			throw new AppError(
+				HTTP_STATUS.CONFLICT,
+				ERROR_CODES.ACCOUNT_ALREADY_EXISTS,
+				"Username or email already in use",
+			);
+		}
 
-      const token = crypto.randomBytes(32).toString("hex");
-      // send verification email
-      // URL service
-      const hashedToken = crypto
-        .createHash("sha256")
-        .update(token)
-        .digest("hex");
+		// hash password service
+		const hashedPassword = await this.pwdService.hash(dto.password);
 
-      const url = `http://localhost:3000/api/auth/verify-email/${token}`;
+		const token = crypto.randomBytes(32).toString("hex");
+		// send verification email
+		// URL service
+		const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-      // save the token in EmailVerification tble
+		// create user in the database
+		const user = await this.userRepository.create({
+			username: dto.username,
+			email: dto.email,
+			passwordHash: hashedPassword,
+			profile: {
+				create: {
+					firstName: dto.firstname,
+					lastName: dto.lastname,
+					avatar: dto.avatarUrl,
+					displayName: dto.displayname,
+					bio: dto.bio, //modified
+				},
+			},
+			verification: {
+				create: {
+					tokenHash: hashedToken,
+					type: VerificationTokenType.EMAIL_VERIFICATION,
+					expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+				},
+			},
+		});
 
-      // create user in the database
-      const user = await this.userRepository.create({
-        username: dto.username,
-        email: dto.email,
-        passwordHash: hashedPassword,
-        profile: {
-          create: {
-            firstName: dto.firstname,
-            lastName: dto.lastname,
-            avatar: dto.avatarUrl,
-            displayName: dto.displayName,
-            bio: dto.bio, //modified
-          },
-        },
-        verification: {
-          create: {
-            tokenHash: hashedToken,
-            type: VerificationTokenType.EMAIL_VERIFICATION,
-            expiresAt: new Date(Date.now() + 1000 * 60 * 60),
-          },
-        },
-      });
+		const url = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
 
-      // send the mail to the user.
-      await this.emailService.sendVerificationEmail({
-        email: user.email,
-        username: user.username,
-        url,
-      });
+		// send the mail to the user.
+		await this.emailService.sendVerificationEmail({
+			email: user.email,
+			username: user.username,
+			url,
+		});
 
-      // return user
-      return {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        createdAt: user.createdAt,
-        isEmailVerified: user.isEmailVerified,
-        profile: user.profile,
-      };
-    } catch (error) {
-      throw new Error("something went wrong");
-    }
-  }
+		// return user
+		return {
+			message: "Verification email sent successfully",
+		} as SignUpResponseType;
+	}
 
-  async login(dto: LoginDto) {
-    try {
-      const userExists = await this.userRepository.findFirst({
-        OR: [{ username: dto.identifier }, { email: dto.identifier }],
-      });
-      if (!userExists) {
-        throw new Error("Email/Username does not exits");
-      }
+	async login(dto: LoginRequestType) {
+		const user = await this.userRepository.findFirst({
+			OR: [{ username: dto.identifier }, { email: dto.identifier }],
+		});
 
-      if (!userExists.isEmailVerified) {
-        throw new Error("Email is not verified");
-      }
+		if (!user) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_CREDENTIALS,
+				"Invalid credentials",
+			);
+		}
 
-      const matches = await this.pwdService.verify(
-        dto.password,
-        userExists.passwordHash,
-      );
+		// matching password
+		const matches = await this.pwdService.verify(
+			dto.password,
+			user.passwordHash,
+		);
 
-      if (!matches) {
-        throw new Error("Password is wrong");
-      }
+		if (!matches) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_CREDENTIALS,
+				"Invalid credentials",
+			);
+		}
 
-      // generate jwt token
-      const token = this.jwtService.signJwt<AccessTokenPayload>(
-        {
-          sub: userExists.id,
-          username: userExists.username,
-        },
-        {
-          // No refresh-token flow yet — longer-lived access token for the web app.
-          expiresIn: "7d",
-        },
-      );
+		if (!user.isEmailVerified) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.EMAIL_NOT_VERIFIED,
+				"Email address is not verified.",
+			);
+		}
 
-      return {
-        id: userExists.id,
-        username: userExists.username,
-        token,
-      };
-    } catch (error) {
-      logger.error(error);
-      throw new Error("Something went wrong");
-    }
-  }
+		// generate jwt token
+		const token = this.jwtService.signJwt<AccessTokenPayload>(
+			{
+				sub: user.id,
+				username: user.username,
+			},
+			{
+				expiresIn: "15m",
+			},
+		);
 
-  async verifyEmail(dto: VerfiyEmailType) {
-    try {
-      const token = dto.token;
-      if (typeof token !== "string") {
-        logger.error("token is not typeof string");
-        throw new Error("Invalid Token");
-      }
+		return {
+			accessToken: token,
+			user: {
+				id: user.id,
+				identifier: user.username,
+			},
+		} as LoginResponseType;
+	}
 
-      const hashedToken = crypto
-        .createHash("sha256")
-        .update(token)
-        .digest("hex");
+	async verifyEmail(dto: VerifyEmailRequestType) {
+		const token = dto.token;
 
-      const emailVerification = await this.emailRepository.findBy({
-        tokenHash: hashedToken,
-        type: VerificationTokenType.EMAIL_VERIFICATION,
-        expiresAt: {
-          gt: new Date(),
-        },
-      });
+		const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-      if (!emailVerification) {
-        logger.error("Token does not exits");
-        throw new Error("token does not exits");
-      }
+		const verification = await this.emailRepository.findBy({
+			tokenHash: hashedToken,
+			type: VerificationTokenType.EMAIL_VERIFICATION,
+			expiresAt: {
+				gt: new Date(),
+			},
+		});
 
-      const user = await this.userRepository.updateBy(
-        {
-          id: emailVerification?.userId,
-        },
-        {
-          isEmailVerified: true,
-        },
-      );
+		if (!verification) {
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.INVALID_OR_EXPIRED_VERIFICATION_TOKEN,
+				"Invalid or expired verification token",
+			);
+		}
 
-      await this.emailRepository.deleteAll({
-        userId: emailVerification.userId,
-        type: VerificationTokenType.EMAIL_VERIFICATION,
-      });
+		await this.userRepository.updateBy(
+			{
+				id: verification.userId,
+			},
+			{
+				isEmailVerified: true,
+			},
+		);
 
-      return {
-        email: user.email,
-      };
-    } catch (error) {
-      logger.error(error);
-      throw new Error("Internal Server error 500");
-    }
-  }
+		await this.emailRepository.deleteAll({
+			userId: verification.userId,
+			type: VerificationTokenType.EMAIL_VERIFICATION,
+		});
 
-  async resendVerificationEmail(dto: { email: string }) {
-    const email = dto.email;
-    if (!email) {
-      throw new Error("enter a valid email");
-    }
+		return {
+			message: "Email verified successfully",
+		};
+	}
 
-    const user = await this.userRepository.findBy({
-      email,
-    });
+	async resendVerificationEmail(dto: ResendVerificationRequestType) {
+		const email = dto.email;
 
-    if (!user) {
-      //we should return a success response.
-      // saying if a email exits. verification link has been sent to that email.
-      throw new Error("Email does not exits");
-    }
+		const user = await this.userRepository.findBy({
+			email,
+		});
 
-    if (user.isEmailVerified) {
-      throw new Error("Email already verified");
-    }
-    await this.emailRepository.deleteAll({
-      userId: user.id,
-      type: VerificationTokenType.EMAIL_VERIFICATION,
-    });
+		if (!user) {
+			return {
+				message: "If an account exists, a verification email has been sent.",
+			} as ResendVerificationResponseType;
+		}
 
-    const token = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+		if (user.isEmailVerified) {
+			return {
+				message: "If an account exists, a verification email has been sent.",
+			} as ResendVerificationResponseType;
+		}
 
-    await this.emailRepository.create({
-      tokenHash: hashedToken,
-      type: VerificationTokenType.EMAIL_VERIFICATION,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      user: {
-        connect: {
-          id: user.id,
-        },
-      },
-    });
+		await this.emailRepository.deleteAll({
+			userId: user.id,
+			type: VerificationTokenType.EMAIL_VERIFICATION,
+		});
 
-    const url = `${process.env.FRONTEND_URL}/api/auth/verify-email/${token}`;
-    await this.emailService.sendVerificationEmail({
-      email,
-      url,
-    });
+		const token = crypto.randomBytes(32).toString("hex");
+		const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-    return {
-      message: "Email sent successfully",
-    };
-  }
+		await this.emailRepository.create({
+			tokenHash: hashedToken,
+			type: VerificationTokenType.EMAIL_VERIFICATION,
+			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			user: {
+				connect: {
+					id: user.id,
+				},
+			},
+		});
 
-  async changePassword(dto: ChangePasswordDto) {
-    // change password while user is logged in.
-    // const {email,oldPassword, newPassword} = user
-    const userExists = await this.userRepository.findBy({
-      email: dto.email,
-    });
-    if (!userExists) {
-      throw new Error("Email/Username does not exits");
-    }
+		const url = `${process.env.FRONTEND_URL}/api/auth/verify-email?token=${token}`;
 
-    if (!userExists.isEmailVerified) {
-      throw new Error("Email is not verified");
-    }
+		await this.emailService.sendVerificationEmail({
+			email,
+			url,
+		});
 
-    const matches = await this.pwdService.verify(
-      dto.oldPassword,
-      userExists.passwordHash,
-    );
+		return {
+			message: "If an account exists, a verification email has been sent.",
+		} as ResendVerificationResponseType;
+	}
 
-    if (!matches) {
-      throw new Error("Credentials does not matches");
-    }
+	async changePassword(userId: string, dto: ChangePasswordRequestType) {
+		const user = await this.userRepository.findBy({
+			id: userId,
+		});
 
-    const newHash = await this.pwdService.hash(dto.newPassword);
-    const user = await this.userRepository.updateBy(
-      {
-        email: dto.email,
-      },
-      {
-        passwordHash: newHash,
-      },
-    );
+		if (!user) {
+			throw new AppError(
+				HTTP_STATUS.NOT_FOUND,
+				ERROR_CODES.USER_NOT_FOUND,
+				"User does not exist",
+			);
+		}
 
-    return {
-      message: "Password changed successfully",
-    };
-  }
+		if (!user.isEmailVerified) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.EMAIL_NOT_VERIFIED,
+				"Email is not verified",
+			);
+		}
 
-  logout() {
-    // will be implemented later
-  }
-  refreshToken() {
-    // will be implemented later
-  }
+		const matches = await this.pwdService.verify(
+			dto.currentPassword,
+			user.passwordHash,
+		);
 
-  async forgotPassword(dto: { email: string }) {
-    // change password on clicking forgot password.
-    const user = await this.userRepository.findBy({
-      email: dto.email,
-    });
+		if (!matches) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.EMAIL_NOT_VERIFIED,
+				"Credentials do not match",
+			);
+		}
 
-    if (!user) {
-      throw new Error("User account does not exits");
-    }
+		const newHash = await this.pwdService.hash(dto.newPassword);
+		await this.userRepository.updateBy(
+			{
+				id: user.id,
+			},
+			{
+				passwordHash: newHash,
+			},
+		);
 
-    // delete all the tokens before it.
-    await this.emailRepository.deleteAll({
-      userId: user.id,
-      type: VerificationTokenType.PASSWORD_RESET,
-    });
+		return {
+			message: "Password changed successfully",
+		};
+	}
 
-    const token = crypto.randomBytes(32).toString("hex");
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+	logout() {
+		// will be implemented later
+	}
+	refreshToken() {
+		// will be implemented later
+	}
 
-    // register new token;
-    const email = await this.emailRepository.create({
-      tokenHash,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      type: VerificationTokenType.PASSWORD_RESET,
-      user: {
-        connect: {
-          id: user.id,
-        },
-      },
-    });
+	async forgotPassword(dto: ForgotPasswordRequestType) {
+		// change password on clicking forgot password.
+		const user = await this.userRepository.findBy({
+			email: dto.email,
+		});
+		const genericResponse: ForgotPasswordResponseType = {
+			message: "If account exists, a reset link is sent to email.",
+		};
+		if (!user) {
+			return genericResponse;
+		}
 
-    const url = `http://localhost:3000/api/auth/reset-password/${token}`;
+		// delete all the tokens before it.
+		await this.emailRepository.deleteAll({
+			userId: user.id,
+			type: VerificationTokenType.PASSWORD_RESET,
+		});
 
-    await this.emailService.sendPasswordResetEmail({
-      email: user.email,
-      subject: "Reset Your Password",
-      resetPasswordUrl: url,
-    });
+		const token = crypto.randomBytes(32).toString("hex");
+		const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-    return {
-      message: "If account exists, a reset link is sent to email.",
-    };
-  }
+		// register new token;
+		await this.emailRepository.create({
+			tokenHash,
+			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			type: VerificationTokenType.PASSWORD_RESET,
+			user: {
+				connect: {
+					id: user.id,
+				},
+			},
+		});
 
-  async resetPassword(dto: { token: string; password: string }) {
-    const tokenHash = crypto
-      .createHash("sha256")
-      .update(dto.token)
-      .digest("hex");
+		const url = `${process.env.FRONTEND_URL}/api/auth/reset-password?token=${token}`;
 
-    const token = await this.emailRepository.findBy({
-      tokenHash,
-      type: VerificationTokenType.PASSWORD_RESET,
-      expiresAt: {
-        gt: new Date(),
-      },
-    });
+		await this.emailService.sendPasswordResetEmail({
+			email: user.email,
+			subject: "Reset Your Password",
+			resetPasswordUrl: url,
+		});
 
-    if (!token) {
-      throw new Error("No token was found");
-    }
+		return genericResponse;
+	}
 
-    const passwordHash = await this.pwdService.hash(dto.password);
+	async resetPassword(dto: ResetPasswordRequestType) {
+		const tokenHash = crypto
+			.createHash("sha256")
+			.update(dto.token)
+			.digest("hex");
 
-    await this.userRepository.updateBy(
-      {
-        id: token.userId,
-      },
-      {
-        passwordHash,
-      },
-    );
+		const token = await this.emailRepository.findBy({
+			tokenHash,
+			type: VerificationTokenType.PASSWORD_RESET,
+			expiresAt: {
+				gt: new Date(),
+			},
+		});
 
-    await this.emailRepository.deleteAll({
-      id: token.id,
-    });
+		if (!token) {
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.INVALID_OR_EXPIRED_RESET_TOKEN,
+				"Invalid or expired token",
+			);
+		}
 
-    return {
-      message: "Password reset succeful",
-    };
-  }
+		const passwordHash = await this.pwdService.hash(dto.newPassword);
+
+		await this.userRepository.updateBy(
+			{
+				id: token.userId,
+			},
+			{
+				passwordHash,
+			},
+		);
+
+		await this.emailRepository.deleteAll({
+			id: token.id,
+		});
+
+		return {
+			message: "Password reset successful",
+		};
+	}
 }

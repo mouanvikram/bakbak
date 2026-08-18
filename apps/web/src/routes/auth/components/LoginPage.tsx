@@ -1,14 +1,36 @@
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Background } from "../../../components/ui/Background";
 import { Button } from "../../../components/ui/Button";
 import { Divider } from "../../../components/ui/Divider";
-import { Logo } from "../../../components/ui/Logo";
 import { Input } from "../../../components/ui/Input";
 import { Mail } from "lucide-react";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
 import { Branding } from "../../../components/ui/Branding";
+import { useState } from "react";
+import { login } from "@/api/auth.api";
 
 export function LoginPage() {
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  async function handleLogin() {
+    setLoading(true);
+
+    try {
+      const response = await login({
+        identifier,
+        password,
+      });
+      console.log(response);
+      navigate("/chats");
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  }
   return (
     <Background>
       <div className="flex min-h-screen w-full items-start justify-center pt-20">
@@ -34,11 +56,19 @@ export function LoginPage() {
                 icon={<Mail />}
                 type="text"
                 placeholder="me@example.com"
+                value={identifier}
+                onChange={(event) => {
+                  setIdentifier(event.target.value);
+                }}
               />
               <PasswordInput
                 label="Password"
                 name="password"
                 placeholder="Enter your password"
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                }}
               />
             </div>
 
@@ -50,7 +80,11 @@ export function LoginPage() {
             </div>
 
             {/* Login */}
-            <Button value="Login" />
+            <Button
+              value={loading ? "Logging in ...." : "Login"}
+              disabled={loading}
+              onClick={handleLogin}
+            />
 
             {/* Divider */}
             <Divider />

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { string, z } from "zod";
 
 // login request and response
 export const loginRequestSchema = z.object({
@@ -47,7 +47,6 @@ export const signUpRequestSchema = z.object({
 });
 
 export const signUpResponseSchema = z.object({
-	email: z.email(),
 	message: z.string(),
 });
 
@@ -87,7 +86,6 @@ export type ResendVerificationResponseType = z.infer<
 
 export const changePasswordRequestSchema = z.object({
 	currentPassword: z.string().min(1),
-
 	newPassword: z
 		.string()
 		.min(12, "Password must be at least 12 characters")
@@ -128,7 +126,6 @@ export type ForgotPasswordResponseType = z.infer<
 >;
 
 // reset-password
-
 export const resetPasswordRequestSchema = z.object({
 	token: z.string().min(1, "Reset token is required"),
 

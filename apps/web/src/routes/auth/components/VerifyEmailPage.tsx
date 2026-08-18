@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { CheckCircle2, LoaderCircle, MailWarning, XCircle } from "lucide-react";
-import { Background } from "../../../components/ui/Background";
-import { Logo } from "../../../components/ui/Logo";
-import { Branding } from "../../../components/ui/Branding";
+import { Background } from "@/components/ui/Background";
+import { Branding } from "@/components/ui/Branding";
+import { verifyEmail } from "@/api/auth.api";
 
 type VerificationStatus = "verifying" | "success" | "expired" | "error";
 
@@ -20,32 +20,19 @@ export function VerifyEmailPage() {
       return;
     }
 
-    const verifyEmail = async () => {
+    const verify = async () => {
       try {
-        const response = await fetch(
-          `/api/auth/verify-email?token=${encodeURIComponent(token)}`,
-          {
-            method: "GET",
-          },
-        );
+        const response = await verifyEmail(token);
 
-        if (response.ok) {
-          setStatus("success");
-          return;
-        }
-
-        if (response.status === 410) {
-          setStatus("expired");
-          return;
-        }
-
-        setStatus("error");
-      } catch {
+        console.log(response);
+        setStatus("success");
+      } catch (error) {
+        console.log(error);
         setStatus("error");
       }
     };
 
-    verifyEmail();
+    verify();
   }, [searchParams]);
 
   return (

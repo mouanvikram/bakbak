@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun --hot run index.ts | bunx pino-pretty"
+    "start": "bun --hot run index.ts | bunx pino-pretty",
+    "test": "bun test --serial tests/"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -19,6 +20,7 @@
   },
   "dependencies": {
     "@bakbak/db": "workspace:*",
+    "@bakbak/contracts": "workspace:*",
     "@types/bcrypt": "^6.0.0",
     "@types/pino": "^7.0.5",
     "bcrypt": "^6.0.0",
