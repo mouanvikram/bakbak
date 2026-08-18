@@ -1,4 +1,9 @@
-import type { NextFunction, Request, Response } from "express";
+import {
+	response,
+	type NextFunction,
+	type Request,
+	type Response,
+} from "express";
 import type { AuthService } from "./service";
 import {
 	verifyEmailResponseSchema,
@@ -6,6 +11,10 @@ import {
 	signUpResponseSchema,
 	type LoginResponseType,
 	type SignUpResponseType,
+	resendVerificationResponseSchema,
+	changePasswordResponseSchema,
+	forgotPasswordResponseSchema,
+	resetPasswordResponseSchema,
 } from "@bakbak/contracts";
 import { validate, validateResponse } from "../middleware/validate";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
@@ -23,13 +32,14 @@ export class AuthController {
 
 	signUp = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const response: SignUpResponseType = await this.authService.register(
-				req.body,
-			);
+			const response = await this.authService.register(req.body);
 
-			return res.status(HTTP_STATUS.CREATED).json({
-				message: response.message,
-			});
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				signUpResponseSchema,
+				response,
+			);
 		} catch (error) {
 			next(error);
 		}
@@ -37,12 +47,13 @@ export class AuthController {
 
 	login = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const response: LoginResponseType = await this.authService.login(
-				req.body,
+			const response = await this.authService.login(req.body);
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				loginResponseSchema,
+				response,
 			);
-			return res.status(200).json({
-				...response,
-			});
 		} catch (error) {
 			next(error);
 		}
@@ -71,9 +82,12 @@ export class AuthController {
 	) => {
 		try {
 			const response = await this.authService.resendVerificationEmail(req.body);
-			return res.status(200).json({
-				message: response.message,
-			});
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				resendVerificationResponseSchema,
+				response,
+			);
 		} catch (error) {
 			next(error);
 		}
@@ -97,9 +111,12 @@ export class AuthController {
 				req.body,
 			);
 
-			return res.status(200).json({
-				message: response.message,
-			});
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				changePasswordResponseSchema,
+				response,
+			);
 		} catch (error) {
 			next(error);
 		}
@@ -109,9 +126,12 @@ export class AuthController {
 		try {
 			const response = await this.authService.forgotPassword(req.body);
 
-			return res.status(200).json({
-				message: response.message,
-			});
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				forgotPasswordResponseSchema,
+				response,
+			);
 		} catch (error) {
 			next(error);
 		}
@@ -128,14 +148,17 @@ export class AuthController {
 				});
 			}
 
-			await this.authService.resetPassword({
+			const response = await this.authService.resetPassword({
 				token,
 				newPassword,
 			});
 
-			return res.status(200).json({
-				message: "Password reset successful",
-			});
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				resetPasswordResponseSchema,
+				response,
+			);
 		} catch (error) {
 			next(error);
 		}

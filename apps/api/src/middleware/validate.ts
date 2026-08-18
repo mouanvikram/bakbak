@@ -24,7 +24,7 @@ export function validateResponse<T>(
 	res: Response,
 	status: number,
 	schema: ZodType<T>,
-	data: T,
+	data: unknown,
 ) {
 	const result = schema.safeParse(data);
 

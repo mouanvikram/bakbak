@@ -1,15 +1,8 @@
 import type { AccessTokenPayload, JwtService } from "./jwt.service";
 import type { PasswordService } from "./pwd.service";
 import type { UserRepository } from "../users/repository";
-import type {
-	ChangePasswordDto,
-	LoginDto,
-	RegisterDto,
-	VerfiyEmailType,
-} from "./types";
 import type { EmailService } from "./email.service";
 import crypto from "crypto";
-import logger from "@logger";
 import type { EmailRepository } from "./email.repository";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
@@ -52,7 +45,7 @@ export class AuthService {
 		};
 	}
 
-	async register(dto: SignUpRequestType) {
+	async register(dto: SignUpRequestType): Promise<SignUpResponseType> {
 		//userRepository check if the user exists or not
 		const userExists = await this.userRepository.findFirst({
 			OR: [{ username: dto.username }, { email: dto.email }],
@@ -309,6 +302,7 @@ export class AuthService {
 	logout() {
 		// will be implemented later
 	}
+
 	refreshToken() {
 		// will be implemented later
 	}
