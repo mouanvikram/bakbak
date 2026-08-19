@@ -8,6 +8,7 @@ import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import type {
 	ChangePasswordRequestType,
+	ChangePasswordResponseType,
 	ForgotPasswordRequestType,
 	ForgotPasswordResponseType,
 	LoginRequestType,
@@ -15,9 +16,11 @@ import type {
 	ResendVerificationRequestType,
 	ResendVerificationResponseType,
 	ResetPasswordRequestType,
+	ResetPasswordResponseType,
 	SignUpRequestType,
 	SignUpResponseType,
 	VerifyEmailRequestType,
+	VerifyEmailResponseType,
 } from "@bakbak/contracts";
 
 export class AuthService {
@@ -28,22 +31,6 @@ export class AuthService {
 		private readonly emailService: EmailService,
 		private readonly emailRepository: EmailRepository,
 	) {}
-
-	async checkUsernameAvailability(username: string) {
-		const user = await this.userRepository.findBy({
-			username,
-		});
-		if (user) {
-			throw new AppError(
-				HTTP_STATUS.CONFLICT,
-				ERROR_CODES.USERNAME_ALREADY_EXISTS,
-				"Username is already exists",
-			);
-		}
-		return {
-			available: true,
-		};
-	}
 
 	async register(dto: SignUpRequestType): Promise<SignUpResponseType> {
 		//userRepository check if the user exists or not
@@ -105,7 +92,7 @@ export class AuthService {
 		} as SignUpResponseType;
 	}
 
-	async login(dto: LoginRequestType) {
+	async login(dto: LoginRequestType): Promise<LoginResponseType> {
 		const user = await this.userRepository.findFirst({
 			OR: [{ username: dto.identifier }, { email: dto.identifier }],
 		});
@@ -160,7 +147,9 @@ export class AuthService {
 		} as LoginResponseType;
 	}
 
-	async verifyEmail(dto: VerifyEmailRequestType) {
+	async verifyEmail(
+		dto: VerifyEmailRequestType,
+	): Promise<VerifyEmailResponseType> {
 		const token = dto.token;
 
 		const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
@@ -200,7 +189,9 @@ export class AuthService {
 		};
 	}
 
-	async resendVerificationEmail(dto: ResendVerificationRequestType) {
+	async resendVerificationEmail(
+		dto: ResendVerificationRequestType,
+	): Promise<ResendVerificationResponseType> {
 		const email = dto.email;
 
 		const user = await this.userRepository.findBy({
@@ -250,7 +241,10 @@ export class AuthService {
 		} as ResendVerificationResponseType;
 	}
 
-	async changePassword(userId: string, dto: ChangePasswordRequestType) {
+	async changePassword(
+		userId: string,
+		dto: ChangePasswordRequestType,
+	): Promise<ChangePasswordResponseType> {
 		const user = await this.userRepository.findBy({
 			id: userId,
 		});
@@ -307,7 +301,9 @@ export class AuthService {
 		// will be implemented later
 	}
 
-	async forgotPassword(dto: ForgotPasswordRequestType) {
+	async forgotPassword(
+		dto: ForgotPasswordRequestType,
+	): Promise<ForgotPasswordResponseType> {
 		// change password on clicking forgot password.
 		const user = await this.userRepository.findBy({
 			email: dto.email,
@@ -351,7 +347,9 @@ export class AuthService {
 		return genericResponse;
 	}
 
-	async resetPassword(dto: ResetPasswordRequestType) {
+	async resetPassword(
+		dto: ResetPasswordRequestType,
+	): Promise<ResetPasswordResponseType> {
 		const tokenHash = crypto
 			.createHash("sha256")
 			.update(dto.token)
