@@ -112,7 +112,18 @@ export const updateChatResponseSchema = chatResponseSchema;
 export type UpdateChatRequestType = z.infer<typeof updateChatRequestSchema>;
 export type UpdateChatResponseType = z.infer<typeof updateChatResponseSchema>;
 
-export const deleteChatResponseSchema = chatResponseSchema;
+export const deleteChatResponseSchema = z.object({
+	id: z.uuid(),
+	type: z.enum(["DIRECT", "GROUP"]),
+	directKey: z.string().nullish(),
+	name: z.string().nullish(),
+	description: z.string().nullish(),
+	avatar: z.string().nullish(),
+	createdById: z.string().nullish(),
+	lastMessageAt: z.string().nullish(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+});
 
 export type DeleteChatResponseType = z.infer<typeof deleteChatResponseSchema>;
 

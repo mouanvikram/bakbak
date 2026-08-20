@@ -1,6 +1,15 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import type { FriendService } from "./service";
+import { validateResponse } from "../middleware/validate";
+import {
+	acceptFriendRequestResponseSchema,
+	cancelFriendRequestResponseSchema,
+	getFriendsResponseSchema,
+	getPendingRequestsResponseSchema,
+	rejectFriendRequestResponseSchema,
+	sendFriendRequestResponseSchema,
+} from "@bakbak/contracts";
 
 export class FriendController {
   constructor(private readonly friendService: FriendService) {}
@@ -18,15 +27,17 @@ export class FriendController {
         message: "Invalid Id",
       });
     }
-    console.log(senderId,receiverId);
     const response = await this.friendService.sendRequest({
       senderId,
       receiverId,
     });
 
-    return res.status(200).json({
+    return validateResponse(
+      res,
+      200,
+      sendFriendRequestResponseSchema,
       response,
-    });
+    );
   };
 
   cancelRequest = async (req: AuthRequest, res: Response) => {
@@ -40,9 +51,12 @@ export class FriendController {
       id: requestId,
     });
 
-    return res.status(200).json({
+    return validateResponse(
+      res,
+      200,
+      cancelFriendRequestResponseSchema,
       response,
-    });
+    );
   };
 
   acceptRequest = async (req: AuthRequest, res: Response) => {
@@ -56,9 +70,12 @@ export class FriendController {
       id: requestId,
     });
 
-    return res.status(200).json({
+    return validateResponse(
+      res,
+      200,
+      acceptFriendRequestResponseSchema,
       response,
-    });
+    );
   };
 
   rejectRequest = async (req: AuthRequest, res: Response) => {
@@ -72,9 +89,12 @@ export class FriendController {
       id: requestId,
     });
 
-    return res.status(200).json({
+    return validateResponse(
+      res,
+      200,
+      rejectFriendRequestResponseSchema,
       response,
-    });
+    );
   };
 
   getFriends = async (req: AuthRequest, res: Response) => {
@@ -86,8 +106,8 @@ export class FriendController {
     }
     const response = await this.friendService.getFriends(id);
 
-    return res.status(200).json({
-      response,
+    return validateResponse(res, 200, getFriendsResponseSchema, {
+      friendships: response,
     });
   };
 
@@ -102,7 +122,7 @@ export class FriendController {
     const received = await this.friendService.getIncomingRequests(id);
     const sent = await this.friendService.getOutgoingRequests(id);
 
-    return res.status(200).json({
+    return validateResponse(res, 200, getPendingRequestsResponseSchema, {
       sent,
       received,
     });

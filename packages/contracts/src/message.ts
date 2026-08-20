@@ -1,4 +1,7 @@
 import { z } from "zod";
+import {
+	chatParticipantSchema,
+} from "./chat";
 
 export const messageSenderSchema = z.object({
 	id: z.uuid(),
@@ -96,6 +99,10 @@ export const markChatReadRequestSchema = z.object({
 });
 
 export type MarkChatReadRequestType = z.infer<typeof markChatReadRequestSchema>;
+
+export const markChatReadResponseSchema = chatParticipantSchema;
+
+export type MarkChatReadResponseType = z.infer<typeof markChatReadResponseSchema>;
 
 export const searchMessagesResponseSchema = z.object({
 	messages: z.array(messageResponseSchema),

@@ -2,6 +2,16 @@ import logger from "@lib/logger";
 import type { AuthRequest } from "../auth/controller";
 import type { Response } from "express";
 import type { UserService } from "./service";
+import { validateResponse } from "../middleware/validate";
+import {
+	checkUsernameResponseSchema,
+	deleteMeResponseSchema,
+	getMeResponseSchema,
+	getProfileResponseSchema,
+	searchUsersResponseSchema,
+	updateAvatarResponseSchema,
+	updateProfileResponseSchema,
+} from "@bakbak/contracts";
 
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -17,7 +27,7 @@ export class UserController {
       userId,
     });
 
-    return res.status(200).json({
+    return validateResponse(res, 200, getMeResponseSchema, {
       profile,
     });
   };
@@ -40,9 +50,7 @@ export class UserController {
       displayName,
     });
 
-    return res.status(200).json({
-      response,
-    });
+    return validateResponse(res, 200, updateProfileResponseSchema, response);
   };
 
   updateAvatar = async (req: AuthRequest, res: Response) => {
@@ -59,9 +67,7 @@ export class UserController {
       avatar,
     });
 
-    return res.status(200).json({
-      response,
-    });
+    return validateResponse(res, 200, updateAvatarResponseSchema, response);
   };
 
   deleteMe = async (req: AuthRequest, res: Response) => {
@@ -76,7 +82,7 @@ export class UserController {
       userId,
     });
 
-    return res.status(200).json({
+    return validateResponse(res, 200, deleteMeResponseSchema, {
       message: "Account Deleted successfully",
     });
   };
@@ -92,9 +98,7 @@ export class UserController {
       query: q,
     });
 
-    return res.status(200).json({
-      users: response.users,
-    });
+    return validateResponse(res, 200, searchUsersResponseSchema, response);
   };
 
   getProfile = async (req: AuthRequest, res: Response) => {
@@ -106,8 +110,9 @@ export class UserController {
     }
     const otherUserProfile = await this.userService.getProfile({ username });
 
-    return res.status(200).json({
-      otherUserProfile,
+    return validateResponse(res, 200, getProfileResponseSchema, {
+      ...otherUserProfile,
+      username,
     });
   };
 
@@ -126,8 +131,6 @@ export class UserController {
       username,
     });
 
-    return res.status(200).json({
-      response,
-    });
+    return validateResponse(res, 200, checkUsernameResponseSchema, response);
   };
 }

@@ -1,17 +1,46 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { userController } from "../services/service.container";
+import { validate } from "../middleware/validate";
+import {
+	checkUsernameRequestSchema,
+	getProfileRequestSchema,
+	searchUsersRequestSchema,
+	updateAvatarRequestSchema,
+	updateProfileRequestSchema,
+} from "@bakbak/contracts";
+
 const router = express.Router();
 
 router.use(authMiddleware);
 router.get("/me", userController.getMe);
-router.patch("/me", userController.updateMe);
-router.patch("/me/avatar", userController.updateAvatar);
+router.patch(
+	"/me",
+	validate(updateProfileRequestSchema),
+	userController.updateMe,
+);
+router.patch(
+	"/me/avatar",
+	validate(updateAvatarRequestSchema),
+	userController.updateAvatar,
+);
 router.delete("/me", userController.deleteMe);
 
-router.get("/check-username", userController.checkUsername);
-router.get("/search", userController.searchUsers);
-router.get("/:username", userController.getProfile);
+router.get(
+	"/check-username",
+	validate(checkUsernameRequestSchema, "query"),
+	userController.checkUsername,
+);
+router.get(
+	"/search",
+	validate(searchUsersRequestSchema, "query"),
+	userController.searchUsers,
+);
+router.get(
+	"/:username",
+	validate(getProfileRequestSchema, "params"),
+	userController.getProfile,
+);
 
 // router.get("/:userId/presence")
 // router.get("/:userId/block");

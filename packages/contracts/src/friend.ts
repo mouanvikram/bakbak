@@ -30,7 +30,7 @@ export type FriendRequestResponseType = z.infer<
 >;
 
 export const friendshipResponseSchema = z.object({
-	id: z.uuid(),
+	friendshipId: z.uuid(),
 	createdAt: z.string(),
 	friend: friendUserSchema,
 });

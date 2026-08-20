@@ -1,18 +1,33 @@
 import express from "express";
-import { authMiddleware } from "../middleware/auth.middleware"; //modified
-import { messageController } from "../services/service.container"; //modified
+import { authMiddleware } from "../middleware/auth.middleware";
+import { messageController } from "../services/service.container";
+import { validate } from "../middleware/validate";
+import { editMessageRequestSchema, getMessageRequestSchema } from "@bakbak/contracts";
 
 const router = express.Router();
 
-router.use(authMiddleware); //modified
+router.use(authMiddleware);
 
-router.get("/:messageId", messageController.getMessage); //modified
-router.patch("/:messageId", messageController.editMessage); //modified
-router.delete("/:messageId", messageController.deleteMessage); //modified
+router.get(
+	"/:messageId",
+	validate(getMessageRequestSchema, "params"),
+	messageController.getMessage,
+);
+router.patch(
+	"/:messageId",
+	validate(getMessageRequestSchema, "params"),
+	validate(editMessageRequestSchema),
+	messageController.editMessage,
+);
+router.delete(
+	"/:messageId",
+	validate(getMessageRequestSchema, "params"),
+	messageController.deleteMessage,
+);
 
-router.post("/:messageId/reactions", messageController.notImplemented); //modified
-router.delete("/:messageId/reactions", messageController.notImplemented); //modified
-router.post("/:messageId/reply", messageController.notImplemented); //modified
-router.patch("/:messageId/pin", messageController.notImplemented); //modified
+router.post("/:messageId/reactions", messageController.notImplemented);
+router.delete("/:messageId/reactions", messageController.notImplemented);
+router.post("/:messageId/reply", messageController.notImplemented);
+router.patch("/:messageId/pin", messageController.notImplemented);
 
 export default router;
