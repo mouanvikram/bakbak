@@ -8,6 +8,14 @@ import { ForgotPasswordPage } from "./routes/auth/components/ForgotPasswordPage"
 import { ResetPasswordPage } from "./routes/auth/components/ResetPasswordPage";
 
 import AppLayout from "./components/layout/AppLayout";
+import { AccountPage } from "./settings/AccountPage";
+import { SecurityPrivacyPage } from "./settings/SecurityPrivacyPage";
+import { NotificationsPage } from "./settings/NotificationsPage";
+import { AppearancePage } from "./settings/AppearancePage";
+import { ChatSettingsPage } from "./settings/ChatSettingsPage";
+import { DevicesPage } from "./settings/DevicesPage";
+import { HelpSupportPage } from "./settings/HelpSupportPage";
+import { AboutBakbakPage } from "./settings/AboutBakbakPage";
 
 function App() {
   return (
@@ -38,19 +46,17 @@ function App() {
 
           {/* Settings */}
           <Route path="/settings">
-            {/* <Route index element={<p>Settings Page</p>} /> */}
-            <Route index element={<p>Account Page</p>} />
+            <Route index element={<AccountPage />} />
             <Route
               path="security_privacy"
-              element={<p>Security & Privacy Page</p>}
+              element={<SecurityPrivacyPage />}
             />
-            <Route path="notifications" element={<p>Notifications Page</p>} />
-            <Route path="appearance" element={<p>Appearance Page</p>} />
-            <Route path="chat_settings" element={<p>Chat Settings Page</p>} />
-            {/* <Route path="data_storage" element={<p>Data & Storage Page</p>} /> */}
-            <Route path="devices" element={<p>Devices Page</p>} />
-            <Route path="help_support" element={<p>Help & Support Page</p>} />
-            <Route path="about_bakbak" element={<p>About BakBak Page</p>} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="appearance" element={<AppearancePage />} />
+            <Route path="chat_settings" element={<ChatSettingsPage />} />
+            <Route path="devices" element={<DevicesPage />} />
+            <Route path="help_support" element={<HelpSupportPage />} />
+            <Route path="about_bakbak" element={<AboutBakbakPage />} />
           </Route>
 
           {/* Chat */}
