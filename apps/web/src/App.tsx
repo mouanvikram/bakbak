@@ -8,14 +8,14 @@ import { ForgotPasswordPage } from "./routes/auth/components/ForgotPasswordPage"
 import { ResetPasswordPage } from "./routes/auth/components/ResetPasswordPage";
 
 import AppLayout from "./components/layout/AppLayout";
-import { AccountPage } from "./settings/AccountPage";
-import { SecurityPrivacyPage } from "./settings/SecurityPrivacyPage";
-import { NotificationsPage } from "./settings/NotificationsPage";
-import { AppearancePage } from "./settings/AppearancePage";
-import { ChatSettingsPage } from "./settings/ChatSettingsPage";
-import { DevicesPage } from "./settings/DevicesPage";
-import { HelpSupportPage } from "./settings/HelpSupportPage";
-import { AboutBakbakPage } from "./settings/AboutBakbakPage";
+import { AccountPage } from "./routes/settings/AccountPage";
+import { SecurityPrivacyPage } from "./routes/settings/SecurityPrivacyPage";
+import { NotificationsPage } from "./routes/settings/NotificationsPage";
+import { AppearancePage } from "./routes/settings/AppearancePage";
+import { ChatSettingsPage } from "./routes/settings/ChatSettingsPage";
+import { DevicesPage } from "./routes/settings/DevicesPage";
+import { HelpSupportPage } from "./routes/settings/HelpSupportPage";
+import { AboutBakbakPage } from "./routes/settings/AboutBakbakPage";
 
 function App() {
   return (

@@ -43,8 +43,12 @@ export const updateProfileResponseSchema = z.object({
 	displayName: z.string().nullish(),
 });
 
-export type UpdateProfileRequestType = z.infer<typeof updateProfileRequestSchema>;
-export type UpdateProfileResponseType = z.infer<typeof updateProfileResponseSchema>;
+export type UpdateProfileRequestType = z.infer<
+	typeof updateProfileRequestSchema
+>;
+export type UpdateProfileResponseType = z.infer<
+	typeof updateProfileResponseSchema
+>;
 
 // update avatar
 
@@ -57,10 +61,11 @@ export const updateAvatarResponseSchema = z.object({
 });
 
 export type UpdateAvatarRequestType = z.infer<typeof updateAvatarRequestSchema>;
-export type UpdateAvatarResponseType = z.infer<typeof updateAvatarResponseSchema>;
+export type UpdateAvatarResponseType = z.infer<
+	typeof updateAvatarResponseSchema
+>;
 
 // delete me
-
 export const deleteMeResponseSchema = z.object({
 	message: z.string(),
 });
@@ -77,7 +82,9 @@ export const checkUsernameResponseSchema = z.object({
 	available: z.boolean(),
 });
 
-export type CheckUsernameRequestType = z.infer<typeof checkUsernameRequestSchema>;
+export type CheckUsernameRequestType = z.infer<
+	typeof checkUsernameRequestSchema
+>;
 export type CheckUsernameResponseType = z.infer<
 	typeof checkUsernameResponseSchema
 >;
