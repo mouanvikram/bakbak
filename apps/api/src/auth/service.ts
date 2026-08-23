@@ -249,7 +249,7 @@ export class AuthService {
 		dto: ChangePasswordRequestType,
 	): Promise<ChangePasswordResponseType> {
 		const user = await this.userRepository.findBy({
-			id: dto.userId,
+			id: userId,
 		});
 
 		if (!user) {

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authController } from "../services/service.container";
-import { validate } from "../middleware/validate";
+import { validate, validateUserId } from "../middleware/validate";
 import {
 	changePasswordRequestSchema,
 	forgotPasswordRequestSchema,
@@ -8,6 +8,7 @@ import {
 	resendVerificationRequestSchema,
 	resetPasswordBodySchema,
 	signUpRequestSchema,
+	userIdSchema,
 	verifyEmailRequestSchema,
 } from "@bakbak/contracts";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -30,6 +31,7 @@ router.post(
 	"/change-password",
 	validate(changePasswordRequestSchema),
 	authMiddleware,
+	validateUserId(),
 	authController.changePassword,
 );
 

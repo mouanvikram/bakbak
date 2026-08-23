@@ -27,12 +27,6 @@ export const authMiddleware = (
 
 		const payload = jwtService.verifyJwt<AccessTokenPayload>(token);
 
-		if (!userIdSchema.safeParse(payload.sub)) {
-			return res.status(404).json({
-				message: "Invalid userId",
-			});
-		}
-
 		req.user = {
 			userId: payload.sub,
 		};

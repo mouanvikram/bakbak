@@ -103,8 +103,9 @@ export const userIdSchema = z.object({
 	userId: z.uuid(),
 });
 export type UserIdType = z.infer<typeof userIdSchema>;
-export type ChangePasswordRequestType = UserIdType &
-	z.infer<typeof changePasswordRequestSchema>;
+export type ChangePasswordRequestType = z.infer<
+	typeof changePasswordRequestSchema
+>;
 
 export type ChangePasswordResponseType = z.infer<
 	typeof changePasswordResponseSchema

@@ -107,10 +107,10 @@ export class AuthController {
 				);
 			}
 
-		const response = await this.authService.changePassword(
-			req.user?.userId,
-			req.body,
-		);
+			const response = await this.authService.changePassword(
+				req.user?.userId,
+				req.body,
+			);
 
 			return validateResponse(
 				res,
