@@ -551,13 +551,13 @@ describe("Auth Endpoints", () => {
 	});
 
 	test("POST /api/v1/auth/change-password - should fail for non-existent user", async () => {
-		const token = authHeader(`user-${Date.now()}`, "testuser");
+		const header = authHeader(`user-${Date.now()}`, "testuser");
 
 		const res = await fetch(`${baseUrl()}/api/v1/auth/change-password`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...authHeader(`user-${Date.now()}`, "testuser"),
+				...header,
 			},
 			body: JSON.stringify({
 				currentPassword: "TestPass123!",

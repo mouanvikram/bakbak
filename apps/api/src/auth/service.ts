@@ -20,9 +20,11 @@ import type {
 	ResetPasswordResponseType,
 	SignUpRequestType,
 	SignUpResponseType,
+	UserIdType,
 	VerifyEmailRequestType,
 	VerifyEmailResponseType,
 } from "@bakbak/contracts";
+import { z } from "zod";
 
 export class AuthService {
 	constructor(
@@ -247,7 +249,7 @@ export class AuthService {
 		dto: ChangePasswordRequestType,
 	): Promise<ChangePasswordResponseType> {
 		const user = await this.userRepository.findBy({
-			id: userId,
+			id: dto.userId,
 		});
 
 		if (!user) {

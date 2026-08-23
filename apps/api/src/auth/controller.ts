@@ -106,10 +106,11 @@ export class AuthController {
 					"Authentication required",
 				);
 			}
-			const response = await this.authService.changePassword(
-				req.user?.userId,
-				req.body,
-			);
+
+		const response = await this.authService.changePassword(
+			req.user?.userId,
+			req.body,
+		);
 
 			return validateResponse(
 				res,

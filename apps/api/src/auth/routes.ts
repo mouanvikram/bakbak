@@ -10,6 +10,7 @@ import {
 	signUpRequestSchema,
 	verifyEmailRequestSchema,
 } from "@bakbak/contracts";
+import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.post(
 router.post(
 	"/change-password",
 	validate(changePasswordRequestSchema),
+	authMiddleware,
 	authController.changePassword,
 );
 

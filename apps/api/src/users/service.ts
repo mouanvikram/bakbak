@@ -1,12 +1,13 @@
 import type { UserRepository } from "./repository";
 import type {
-  CheckUsernameDto,
-  GetUserProfileDto,
-  MeDto,
-  SearchUsersDto,
-  UpdateAvatarDto,
-  UpdateProfileDto,
-} from "./types";
+	AuthenticatedDto,
+	CheckUsernameDto,
+	GetUserProfileDto,
+	MeDto,
+	SearchUsersDto,
+	UpdateAvatarDto,
+	UpdateProfileDto,
+} from "@bakbak/contracts";
 import logger from "@lib/logger";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 

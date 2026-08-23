@@ -1,4 +1,4 @@
-import { MessageType } from "@bakbak/db";
+import { MessageType } from "@bakbak/contracts";
 import type { Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import type { MessageService } from "./service";

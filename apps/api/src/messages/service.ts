@@ -1,6 +1,6 @@
-import { MessageType, Prisma } from "@bakbak/db"; //modified
+import { MessageType } from "@bakbak/contracts";
+import { Prisma } from "@bakbak/db"; //modified
 import type { MessageRepository } from "./repository";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import type {
 	ChatMessagesDto,
 	EditMessageDto,
@@ -8,7 +8,8 @@ import type {
 	MessageIdDto,
 	SearchMessagesDto,
 	SendMessageDto,
-} from "./types"; //modified
+} from "@bakbak/contracts";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 const messageUserSelect = {
 	//modified

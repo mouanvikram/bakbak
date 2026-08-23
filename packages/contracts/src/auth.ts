@@ -1,4 +1,4 @@
-import { string, z } from "zod";
+import { z } from "zod";
 
 // login request and response
 export const loginRequestSchema = z.object({
@@ -99,10 +99,12 @@ export const changePasswordRequestSchema = z.object({
 export const changePasswordResponseSchema = z.object({
 	message: z.string(),
 });
-
-export type ChangePasswordRequestType = z.infer<
-	typeof changePasswordRequestSchema
->;
+export const userIdSchema = z.object({
+	userId: z.uuid(),
+});
+export type UserIdType = z.infer<typeof userIdSchema>;
+export type ChangePasswordRequestType = UserIdType &
+	z.infer<typeof changePasswordRequestSchema>;
 
 export type ChangePasswordResponseType = z.infer<
 	typeof changePasswordResponseSchema

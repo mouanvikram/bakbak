@@ -1,6 +1,5 @@
 import { ChatType, ParticipantRole, Prisma } from "@bakbak/db"; //modified
 import type { ChatRepository } from "./repository";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import type {
 	ChatIdDto,
 	CreateDirectChatDto,
@@ -8,7 +7,8 @@ import type {
 	ListChatsDto,
 	ParticipantDto,
 	UpdateChatDto,
-} from "./types";
+} from "@bakbak/contracts";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 const chatUserSelect = {
 	id: true,

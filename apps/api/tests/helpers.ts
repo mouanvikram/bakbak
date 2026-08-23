@@ -7,10 +7,15 @@ import {
 
 export function authHeader(userId: string, username: string) {
 	const jwtService = new JwtService(process.env.JWT_SECRET!);
-	const token = jwtService.signJwt<AccessTokenPayload>({
-		sub: userId,
-		username,
-	});
+	const token = jwtService.signJwt<AccessTokenPayload>(
+		{
+			sub: userId,
+			username,
+		},
+		{
+			expiresIn: "15m",
+		},
+	);
 	return { Authorization: `Bearer ${token}` };
 }
 

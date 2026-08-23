@@ -10,11 +10,12 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 			},
 		});
 	}
+	console.log(err.code, err.message);
 
 	return res.status(500).json({
 		error: {
-			code: "INTERNAL_ERROR",
-			message: "Something went wrong",
+			code: err.code,
+			message: err.message,
 		},
 	});
 };

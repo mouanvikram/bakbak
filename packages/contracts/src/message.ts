@@ -3,6 +3,19 @@ import {
 	chatParticipantSchema,
 } from "./chat";
 
+export enum MessageType {
+	TEXT = "TEXT",
+	IMAGE = "IMAGE",
+	VIDEO = "VIDEO",
+	AUDIO = "AUDIO",
+	FILE = "FILE",
+	STICKER = "STICKER",
+	LOCATION = "LOCATION",
+	CONTACT = "CONTACT",
+	CALL = "CALL",
+	SYSTEM = "SYSTEM",
+}
+
 export const messageSenderSchema = z.object({
 	id: z.uuid(),
 	username: z.string(),
@@ -117,3 +130,32 @@ export const getUnreadCountResponseSchema = z.object({
 export type GetUnreadCountResponseType = z.infer<
 	typeof getUnreadCountResponseSchema
 >;
+
+export interface ChatMessagesDto {
+	currentUserId: string;
+	chatId: string;
+	limit?: number;
+	cursor?: string;
+}
+
+export interface SendMessageDto extends ChatMessagesDto {
+	text?: string;
+	type: MessageType;
+}
+
+export interface MessageIdDto {
+	currentUserId: string;
+	messageId: string;
+}
+
+export interface EditMessageDto extends MessageIdDto {
+	text: string;
+}
+
+export interface MarkChatReadDto extends ChatMessagesDto {
+	messageId?: string;
+}
+
+export interface SearchMessagesDto extends ChatMessagesDto {
+	query: string;
+}

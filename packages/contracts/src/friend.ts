@@ -82,3 +82,12 @@ export const getPendingRequestsResponseSchema = z.object({
 export type GetPendingRequestsResponseType = z.infer<
 	typeof getPendingRequestsResponseSchema
 >;
+
+export interface FriendRequestType {
+	senderId: string;
+	receiverId: string;
+}
+
+export interface FriendRequestIdType {
+	id: string;
+}

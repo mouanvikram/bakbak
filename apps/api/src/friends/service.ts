@@ -1,6 +1,6 @@
 import { FriendRequestStatus } from "@bakbak/db";
 import type { FriendRepository } from "./repository";
-import type { FriendRequestIdType, FriendRequestType } from "./types";
+import type { FriendRequestIdType, FriendRequestType } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 export class FriendService {
