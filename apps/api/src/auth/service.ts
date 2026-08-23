@@ -201,13 +201,13 @@ export class AuthService {
 
 		if (!user) {
 			return {
-				message: "If an account exists, a verification email has been sent.",
+				message: "If an account exists, reset link is sent to the email.",
 			} as ResendVerificationResponseType;
 		}
 
 		if (user.isEmailVerified) {
 			return {
-				message: "If an account exists, a verification email has been sent.",
+				message: "If an account exists, reset link is sent to the email.",
 			} as ResendVerificationResponseType;
 		}
 
@@ -239,7 +239,8 @@ export class AuthService {
 		});
 
 		return {
-			message: "If an account exists, a verification email has been sent.",
+			message:
+				"If an account exists, verification link has been sent to the email.",
 		} as ResendVerificationResponseType;
 	}
 

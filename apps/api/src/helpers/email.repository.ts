@@ -1,21 +1,21 @@
-import { Prisma, prisma } from "@sealchat/db";
+import { Prisma, prisma } from "@bakbak/db";
 
 export class EmailRepository {
-  constructor() {}
+	constructor() {}
 
-  async create(data: Prisma.VerificationTokenCreateInput) {
-    return await prisma.verificationToken.create({
-      data,
-    });
-  }
-  
-  async findBy(where: Prisma.VerificationTokenWhereInput) {
-    return await prisma.verificationToken.findFirst({ where });
-  }
+	async create(data: Prisma.VerificationTokenCreateInput) {
+		return await prisma.verificationToken.create({
+			data,
+		});
+	}
 
-  async deleteAll(where: Prisma.VerificationTokenWhereInput) {
-    return await prisma.verificationToken.deleteMany({
-      where,
-    });
-  }
+	async findBy(where: Prisma.VerificationTokenWhereInput) {
+		return await prisma.verificationToken.findFirst({ where });
+	}
+
+	async deleteAll(where: Prisma.VerificationTokenWhereInput) {
+		return await prisma.verificationToken.deleteMany({
+			where,
+		});
+	}
 }

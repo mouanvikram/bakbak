@@ -1,4 +1,3 @@
-import { email } from "zod";
 import type { UserRepository } from "./repository";
 import type {
   CheckUsernameDto,
@@ -9,6 +8,7 @@ import type {
   UpdateProfileDto,
 } from "./types";
 import logger from "@lib/logger";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 export class UserService {
   constructor(private userRepository: UserRepository) {}
@@ -34,7 +34,11 @@ export class UserService {
     });
 
     if (!user) {
-      throw new Error("Invalid credentials");
+      throw new AppError(
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_CODES.UNAUTHORIZED,
+        "Authentication required",
+      );
     }
 
     return {
@@ -110,7 +114,11 @@ export class UserService {
   async deleteMe(dto: MeDto) {
     const user = await this.userRepository.findBy({ id: dto.userId });
     if (!user) {
-      throw new Error("User not found");
+      throw new AppError(
+        HTTP_STATUS.NOT_FOUND,
+        ERROR_CODES.USER_NOT_FOUND,
+        "User not found",
+      );
     }
 
     await this.userRepository.deleteBy({
@@ -137,7 +145,11 @@ export class UserService {
     });
 
     if (available) {
-      throw new Error("Username name is not available");
+      throw new AppError(
+        HTTP_STATUS.CONFLICT,
+        ERROR_CODES.CONFLICT,
+        "Username is not available",
+      );
     }
 
     return {
@@ -164,7 +176,11 @@ export class UserService {
     });
 
     if (!otherUser) {
-      throw new Error("Username does not exists");
+      throw new AppError(
+        HTTP_STATUS.NOT_FOUND,
+        ERROR_CODES.USER_NOT_FOUND,
+        "User not found",
+      );
     }
 
     return {

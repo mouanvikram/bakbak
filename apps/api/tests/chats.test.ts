@@ -1,8 +1,17 @@
+import "./setup";
 import { mock } from "bun:test";
-import { beforeAll, afterAll, beforeEach, afterEach, describe, test, expect } from "bun:test";
+import {
+	beforeAll,
+	afterAll,
+	beforeEach,
+	afterEach,
+	describe,
+	test,
+	expect,
+} from "bun:test";
 import { createServer } from "node:http";
 import app from "../src/app";
-import { prisma } from "@sealchat/db";
+import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
@@ -16,7 +25,9 @@ import {
 mock.module("resend", () => ({
 	Resend: class {
 		emails = {
-			send: mock(() => Promise.resolve({ data: { id: "test-email-id" }, error: null })),
+			send: mock(() =>
+				Promise.resolve({ data: { id: "test-email-id" }, error: null }),
+			),
 		};
 	},
 }));
@@ -74,7 +85,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "DIRECT",
@@ -83,10 +94,10 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("type", "DIRECT");
-		expect(data.response).toHaveProperty("id");
-		expect(data.response.participants).toHaveLength(2);
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("type", "DIRECT");
+		expect(data).toHaveProperty("id");
+		expect(data.participants).toHaveLength(2);
 	});
 
 	test("POST /chats/ - should create direct chat with receiverId alias", async () => {
@@ -94,7 +105,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "DIRECT",
@@ -103,8 +114,8 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("type", "DIRECT");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("type", "DIRECT");
 	});
 
 	test("POST /chats/ - should create direct chat with userId alias", async () => {
@@ -112,7 +123,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "DIRECT",
@@ -121,8 +132,8 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("type", "DIRECT");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("type", "DIRECT");
 	});
 
 	test("POST /chats/ - should reuse existing direct chat (idempotent)", async () => {
@@ -132,7 +143,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "DIRECT",
@@ -141,8 +152,8 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("type", "DIRECT");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("type", "DIRECT");
 	});
 
 	test("POST /chats/ - should create group chat", async () => {
@@ -150,7 +161,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "GROUP",
@@ -161,11 +172,14 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("type", "GROUP");
-		expect(data.response).toHaveProperty("name", "Test Group");
-		expect(data.response).toHaveProperty("avatar", "https://example.com/group-avatar.png");
-		expect(data.response.participants).toHaveLength(3);
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("type", "GROUP");
+		expect(data).toHaveProperty("name", "Test Group");
+		expect(data).toHaveProperty(
+			"avatar",
+			"https://example.com/group-avatar.png",
+		);
+		expect(data.participants).toHaveLength(3);
 	});
 
 	test("POST /chats/ - should create group chat with memberIds alias", async () => {
@@ -173,7 +187,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "GROUP",
@@ -183,8 +197,8 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("type", "GROUP");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("type", "GROUP");
 	});
 
 	test("POST /chats/ - should fail creating group chat without name", async () => {
@@ -192,7 +206,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "GROUP",
@@ -201,7 +215,7 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Group name and participant ids are required");
 	});
 
@@ -210,7 +224,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "GROUP",
@@ -219,7 +233,7 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Group name and participant ids are required");
 	});
 
@@ -228,7 +242,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "DIRECT",
@@ -236,7 +250,7 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Participant id is required");
 	});
 
@@ -245,7 +259,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "INVALID",
@@ -254,7 +268,7 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Invalid chat type");
 	});
 
@@ -263,7 +277,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "DIRECT",
@@ -271,8 +285,8 @@ describe("Chats Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -294,10 +308,10 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
-		expect(Array.isArray(data.response)).toBe(true);
-		expect(data.response.length).toBeGreaterThan(0);
+		const data = (await res.json()) as any;
+		expect(data.chats).toBeDefined();
+		expect(Array.isArray(data.chats)).toBe(true);
+		expect(data.chats.length).toBeGreaterThan(0);
 	});
 
 	test("GET /chats/ - should return empty array for user with no chats", async () => {
@@ -306,10 +320,10 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
-		expect(Array.isArray(data.response)).toBe(true);
-		expect(data.response.length).toBe(0);
+		const data = (await res.json()) as any;
+		expect(data.chats).toBeDefined();
+		expect(Array.isArray(data.chats)).toBe(true);
+		expect(data.chats.length).toBe(0);
 	});
 
 	test("GET /chats/ - should fail without auth", async () => {
@@ -326,18 +340,18 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("id", chat.id);
-		expect(data.response).toHaveProperty("type", "DIRECT");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("id", chat.id);
+		expect(data).toHaveProperty("type", "DIRECT");
 	});
 
-	test("GET /chats/:chatId - should return 500 for non-existent chat", async () => {
+	test("GET /chats/:chatId - should return 404 for non-existent chat", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/chats/nonexistent-chat-id`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -348,8 +362,8 @@ describe("Chats Endpoints", () => {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -366,14 +380,14 @@ describe("Chats Endpoints", () => {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ name: "Updated Group Name" }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("name", "Updated Group Name");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("name", "Updated Group Name");
 	});
 
 	test("PATCH /chats/:chatId - should update group chat avatar", async () => {
@@ -383,14 +397,14 @@ describe("Chats Endpoints", () => {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ avatar: "https://example.com/new-avatar.png" }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("avatar", "https://example.com/new-avatar.png");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("avatar", "https://example.com/new-avatar.png");
 	});
 
 	test("PATCH /chats/:chatId - should fail updating direct chat", async () => {
@@ -400,13 +414,13 @@ describe("Chats Endpoints", () => {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ name: "New Name" }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -417,13 +431,13 @@ describe("Chats Endpoints", () => {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userB.id, userB.username),
+				...(await authHeader(userB.id, userB.username)),
 			},
 			body: JSON.stringify({ name: "Hacked Name" }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -434,13 +448,13 @@ describe("Chats Endpoints", () => {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ name: "   " }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -463,10 +477,12 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
+		const data = (await res.json()) as any;
+		expect(data).toBeDefined();
 
-		const deletedChat = await prisma.chat.findUnique({ where: { id: chat.id } });
+		const deletedChat = await prisma.chat.findUnique({
+			where: { id: chat.id },
+		});
 		expect(deletedChat).toBeNull();
 	});
 
@@ -479,7 +495,7 @@ describe("Chats Endpoints", () => {
 		});
 
 		expect(res.status).toBe(500);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -491,8 +507,8 @@ describe("Chats Endpoints", () => {
 			headers: await authHeader(userB.id, userB.username),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -511,15 +527,15 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ participantId: userC.id }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("userId", userC.id);
-		expect(data.response).toHaveProperty("role", "MEMBER");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("userId", userC.id);
+		expect(data).toHaveProperty("role", "MEMBER");
 	});
 
 	test("POST /chats/:chatId/members - should fail adding member to direct chat", async () => {
@@ -529,13 +545,13 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ participantId: userC.id }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -546,13 +562,13 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userB.id, userB.username),
+				...(await authHeader(userB.id, userB.username)),
 			},
 			body: JSON.stringify({ participantId: userC.id }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -569,48 +585,60 @@ describe("Chats Endpoints", () => {
 	test("DELETE /chats/:chatId/members/:userId - should remove participant from group chat", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members/${userC.id}`, {
-			method: "DELETE",
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/members/${userC.id}`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("userId", userC.id);
-		expect(data.response).toHaveProperty("leftAt");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("userId", userC.id);
+		expect(data).toHaveProperty("leftAt");
 	});
 
 	test("DELETE /chats/:chatId/members/:userId - should allow self-removal", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members/${userB.id}`, {
-			method: "DELETE",
-			headers: await authHeader(userB.id, userB.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/members/${userB.id}`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userB.id, userB.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("userId", userB.id);
-		expect(data.response).toHaveProperty("leftAt");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("userId", userB.id);
+		expect(data).toHaveProperty("leftAt");
 	});
 
 	test("DELETE /chats/:chatId/members/:userId - should fail removing from direct chat", async () => {
 		const chat = await createTestDirectChat(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members/${userB.id}`, {
-			method: "DELETE",
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/members/${userB.id}`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
 	test("DELETE /chats/:chatId/members/:userId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/some-chat-id/members/some-user-id`, {
-			method: "DELETE",
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/some-chat-id/members/some-user-id`,
+			{
+				method: "DELETE",
+			},
+		);
 
 		expect(res.status).toBe(401);
 	});

@@ -1,15 +1,20 @@
+import "./setup";
 import { mock } from "bun:test";
-import { beforeAll, afterAll, beforeEach, afterEach, describe, test, expect } from "bun:test";
+import {
+	beforeAll,
+	afterAll,
+	beforeEach,
+	afterEach,
+	describe,
+	test,
+	expect,
+} from "bun:test";
 import { createServer } from "node:http";
 import app from "../src/app";
-import { prisma } from "@sealchat/db";
+import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
-	createTestDirectChat,
-	createTestGroupChat,
-	sendFriendRequest,
-	createTestMessage,
 	authHeader,
 	isDatabaseAvailable,
 } from "./helpers";
@@ -17,7 +22,9 @@ import {
 mock.module("resend", () => ({
 	Resend: class {
 		emails = {
-			send: mock(() => Promise.resolve({ data: { id: "test-email-id" }, error: null })),
+			send: mock(() =>
+				Promise.resolve({ data: { id: "test-email-id" }, error: null }),
+			),
 		};
 	},
 }));
@@ -66,7 +73,7 @@ describe("Users Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.profile).toHaveProperty("id", testUser.id);
 		expect(data.profile).toHaveProperty("email", testUser.email);
 		expect(data.profile).toHaveProperty("username", testUser.username);
@@ -82,7 +89,7 @@ describe("Users Endpoints", () => {
 		const res = await fetch(`${baseUrl()}/api/v1/users/me`);
 
 		expect(res.status).toBe(401);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message || data.error).toBeDefined();
 	});
 
@@ -92,7 +99,7 @@ describe("Users Endpoints", () => {
 		});
 
 		expect(res.status).toBe(401);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message || data.error).toBeDefined();
 	});
 
@@ -101,7 +108,7 @@ describe("Users Endpoints", () => {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(testUser.id, testUser.username),
+				...(await authHeader(testUser.id, testUser.username)),
 			},
 			body: JSON.stringify({
 				bio: "Updated bio",
@@ -112,11 +119,11 @@ describe("Users Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("firstName", "Jane");
-		expect(data.response).toHaveProperty("lastName", "Smith");
-		expect(data.response).toHaveProperty("displayName", "Jane Smith");
-		expect(data.response).toHaveProperty("bio", "Updated bio");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("firstName", "Jane");
+		expect(data).toHaveProperty("lastName", "Smith");
+		expect(data).toHaveProperty("displayName", "Jane Smith");
+		expect(data).toHaveProperty("bio", "Updated bio");
 	});
 
 	test("PATCH /users/me - should fail without auth", async () => {
@@ -134,14 +141,14 @@ describe("Users Endpoints", () => {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(testUser.id, testUser.username),
+				...(await authHeader(testUser.id, testUser.username)),
 			},
 			body: JSON.stringify({ avatar: "https://example.com/new-avatar.png" }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("avatar", "https://example.com/new-avatar.png");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("avatar", "https://example.com/new-avatar.png");
 	});
 
 	test("PATCH /users/me/avatar - should fail without auth", async () => {
@@ -161,7 +168,7 @@ describe("Users Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Account Deleted successfully");
 
 		const user = await prisma.user.findUnique({ where: { id: testUser.id } });
@@ -178,13 +185,16 @@ describe("Users Endpoints", () => {
 
 	test("GET /users/check-username - should return available for unused username", async () => {
 		const username = `check-${Date.now()}`;
-		const res = await fetch(`${baseUrl()}/api/v1/users/check-username?username=${username}`, {
-			headers: await authHeader(testUser.id, testUser.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/users/check-username?username=${username}`,
+			{
+				headers: await authHeader(testUser.id, testUser.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("available", true);
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("available", true);
 	});
 
 	test("GET /users/check-username - should return not available for used username", async () => {
@@ -192,11 +202,11 @@ describe("Users Endpoints", () => {
 			`${baseUrl()}/api/v1/users/check-username?username=${encodeURIComponent(testUser.username)}`,
 			{
 				headers: await authHeader(testUser.id, testUser.username),
-			}
+			},
 		);
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(409);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -206,7 +216,7 @@ describe("Users Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("invalid request");
 	});
 
@@ -222,11 +232,11 @@ describe("Users Endpoints", () => {
 			`${baseUrl()}/api/v1/users/search?q=${encodeURIComponent(uniqueName)}`,
 			{
 				headers: await authHeader(testUser.id, testUser.username),
-			}
+			},
 		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.users).toBeDefined();
 		expect(Array.isArray(data.users)).toBe(true);
 		expect(data.users.length).toBeGreaterThan(0);
@@ -238,11 +248,11 @@ describe("Users Endpoints", () => {
 			`${baseUrl()}/api/v1/users/search?q=${encodeURIComponent("nonexistent-user-xyz-12345")}`,
 			{
 				headers: await authHeader(testUser.id, testUser.username),
-			}
+			},
 		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.users).toBeDefined();
 		expect(Array.isArray(data.users)).toBe(true);
 		expect(data.users.length).toBe(0);
@@ -255,31 +265,39 @@ describe("Users Endpoints", () => {
 	});
 
 	test("GET /users/:username - should return user profile by username", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/users/${encodeURIComponent(testUser.username)}`, {
-			headers: await authHeader(testUser.id, testUser.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/users/${encodeURIComponent(testUser.username)}`,
+			{
+				headers: await authHeader(testUser.id, testUser.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.otherUserProfile).toHaveProperty("username", testUser.username);
-		expect(data.otherUserProfile).toHaveProperty("verified", testUser.isEmailVerified);
-		expect(data.otherUserProfile).toHaveProperty("firstName", "Test");
-		expect(data.otherUserProfile).toHaveProperty("lastName", "User");
-		expect(data.otherUserProfile).toHaveProperty("displayName", "Test User");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("username", testUser.username);
+		expect(data).toHaveProperty("verified", testUser.isEmailVerified);
+		expect(data).toHaveProperty("firstName", "Test");
+		expect(data).toHaveProperty("lastName", "User");
+		expect(data).toHaveProperty("displayName", "Test User");
 	});
 
-	test("GET /users/:username - should return 500 for non-existent username", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/users/nonexistent-user-xyz-12345`, {
-			headers: await authHeader(testUser.id, testUser.username),
-		});
+	test("GET /users/:username - should return 404 for non-existent username", async () => {
+		const res = await fetch(
+			`${baseUrl()}/api/v1/users/nonexistent-user-xyz-12345`,
+			{
+				headers: await authHeader(testUser.id, testUser.username),
+			},
+		);
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
 	test("GET /users/:username - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/users/${encodeURIComponent(testUser.username)}`);
+		const res = await fetch(
+			`${baseUrl()}/api/v1/users/${encodeURIComponent(testUser.username)}`,
+		);
 
 		expect(res.status).toBe(401);
 	});

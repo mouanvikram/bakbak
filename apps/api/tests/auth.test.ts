@@ -1,9 +1,17 @@
 import "./setup";
 import { mock } from "bun:test";
-import { beforeAll, afterAll, beforeEach, afterEach, describe, test, expect } from "bun:test";
+import {
+	beforeAll,
+	afterAll,
+	beforeEach,
+	afterEach,
+	describe,
+	test,
+	expect,
+} from "bun:test";
 import { createServer } from "node:http";
 import app from "../src/app";
-import { prisma } from "@sealchat/db";
+import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
@@ -15,7 +23,9 @@ import {
 mock.module("resend", () => ({
 	Resend: class {
 		emails = {
-			send: mock(() => Promise.resolve({ data: { id: "test-email-id" }, error: null })),
+			send: mock(() =>
+				Promise.resolve({ data: { id: "test-email-id" }, error: null }),
+			),
 		};
 	},
 }));
@@ -154,7 +164,9 @@ describe("Auth Endpoints", () => {
 	});
 
 	test("POST /api/v1/auth/signup - should fail with duplicate email", async () => {
-		const user = await createTestUser({ email: `dup-${Date.now()}@example.com` });
+		const user = await createTestUser({
+			email: `dup-${Date.now()}@example.com`,
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
@@ -355,16 +367,21 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email?token=${token}`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/verify-email?token=${token}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 
 		expect(res.status).toBe(200);
 		const data = (await res.json()) as any;
 		expect(data.message).toBe("Email verified successfully");
 
-		const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
+		const updatedUser = await prisma.user.findUnique({
+			where: { id: user.id },
+		});
 		expect(updatedUser?.isEmailVerified).toBe(true);
 	});
 
@@ -380,10 +397,13 @@ describe("Auth Endpoints", () => {
 	});
 
 	test("POST /api/v1/auth/verify-email - should fail with invalid token", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email?token=invalid-token-12345`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/verify-email?token=invalid-token-12345`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
@@ -410,10 +430,13 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email?token=${token}`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/verify-email?token=${token}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
@@ -476,11 +499,11 @@ describe("Auth Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(user.id, user.username),
+				...(await authHeader(user.id, user.username)),
 			},
 			body: JSON.stringify({
 				currentPassword: "TestPass123!",
-				newPassword: "NewPass123!",
+				newPassword: "NewwPass123!",
 			}),
 		});
 
@@ -495,7 +518,7 @@ describe("Auth Endpoints", () => {
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				currentPassword: "TestPass123!",
-				newPassword: "NewPass123!",
+				newPassword: "NewwPass123!",
 			}),
 		});
 
@@ -514,11 +537,11 @@ describe("Auth Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(user.id, user.username),
+				...(await authHeader(user.id, user.username)),
 			},
 			body: JSON.stringify({
 				currentPassword: "WrongPass123!",
-				newPassword: "NewPass123!",
+				newPassword: "NewwPass123!",
 			}),
 		});
 
@@ -538,7 +561,7 @@ describe("Auth Endpoints", () => {
 			},
 			body: JSON.stringify({
 				currentPassword: "TestPass123!",
-				newPassword: "NewPass123!",
+				newPassword: "NewwPass123!",
 			}),
 		});
 
@@ -561,7 +584,9 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(200);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe("If an account exists, reset link is sent to the email.");
+		expect(data.message).toBe(
+			"If an account exists, reset link is sent to the email.",
+		);
 
 		const token = await prisma.verificationToken.findFirst({
 			where: { userId: user.id, type: "PASSWORD_RESET" },
@@ -601,27 +626,38 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password?token=${token}`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ newPassword: "NewResetPass123!" }),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/reset-password?token=${token}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ newPassword: "NewResetPass123!" }),
+			},
+		);
 
 		expect(res.status).toBe(200);
 		const data = (await res.json()) as any;
 		expect(data.message).toBe("Password reset successful");
 
-		const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
-		const valid = await Bun.password.verify("NewResetPass123!", updatedUser!.passwordHash);
+		const updatedUser = await prisma.user.findUnique({
+			where: { id: user.id },
+		});
+		const valid = await Bun.password.verify(
+			"NewResetPass123!",
+			updatedUser!.passwordHash,
+		);
 		expect(valid).toBe(true);
 	});
 
 	test("POST /api/v1/auth/reset-password - should fail with invalid token", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password?token=invalid-token-123`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ newPassword: "NewResetPass123!" }),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/reset-password?token=invalid-token-123`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ newPassword: "NewResetPass123!" }),
+			},
+		);
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
@@ -648,11 +684,14 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password?token=${token}`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ newPassword: "NewResetPass123!" }),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/reset-password?token=${token}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ newPassword: "NewResetPass123!" }),
+			},
+		);
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
@@ -679,11 +718,14 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password?token=${token}`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({}),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/reset-password?token=${token}`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({}),
+			},
+		);
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;

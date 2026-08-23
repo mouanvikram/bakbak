@@ -1,8 +1,17 @@
+import "./setup";
 import { mock } from "bun:test";
-import { beforeAll, afterAll, beforeEach, afterEach, describe, test, expect } from "bun:test";
+import {
+	beforeAll,
+	afterAll,
+	beforeEach,
+	afterEach,
+	describe,
+	test,
+	expect,
+} from "bun:test";
 import { createServer } from "node:http";
 import app from "../src/app";
-import { prisma } from "@sealchat/db";
+import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
@@ -16,7 +25,9 @@ import {
 mock.module("resend", () => ({
 	Resend: class {
 		emails = {
-			send: mock(() => Promise.resolve({ data: { id: "test-email-id" }, error: null })),
+			send: mock(() =>
+				Promise.resolve({ data: { id: "test-email-id" }, error: null }),
+			),
 		};
 	},
 }));
@@ -29,7 +40,7 @@ describe("Messages Endpoints", () => {
 	let userA: Awaited<ReturnType<typeof createTestUser>>;
 	let userB: Awaited<ReturnType<typeof createTestUser>>;
 	let userC: Awaited<ReturnType<typeof createTestUser>>;
-	let chat: Awaited<ReturnType<ReturnType<typeof createTestGroupChat>>>;
+	let chat: Awaited<ReturnType<typeof createTestGroupChat>>;
 
 	beforeAll(async () => {
 		if (!DB_AVAILABLE) {
@@ -76,7 +87,7 @@ describe("Messages Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "TEXT",
@@ -85,12 +96,12 @@ describe("Messages Endpoints", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("type", "TEXT");
-		expect(data.response).toHaveProperty("text", "Hello everyone!");
-		expect(data.response).toHaveProperty("senderId", userA.id);
-		expect(data.response).toHaveProperty("chatId", chat.id);
-		expect(data.response).toHaveProperty("id");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("type", "TEXT");
+		expect(data).toHaveProperty("text", "Hello everyone!");
+		expect(data).toHaveProperty("senderId", userA.id);
+		expect(data).toHaveProperty("chatId", chat.id);
+		expect(data).toHaveProperty("id");
 	});
 
 	test("POST /chats/:chatId/messages - should send image message without text", async () => {
@@ -98,7 +109,7 @@ describe("Messages Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "IMAGE",
@@ -106,9 +117,9 @@ describe("Messages Endpoints", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("type", "IMAGE");
-		expect(data.response.senderId).toBe(userA.id);
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("type", "IMAGE");
+		expect(data.senderId).toBe(userA.id);
 	});
 
 	test("POST /chats/:chatId/messages - should fail with empty text for TEXT type", async () => {
@@ -116,7 +127,7 @@ describe("Messages Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "TEXT",
@@ -124,8 +135,8 @@ describe("Messages Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -134,7 +145,7 @@ describe("Messages Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "INVALID_TYPE",
@@ -143,7 +154,7 @@ describe("Messages Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Invalid request");
 	});
 
@@ -157,7 +168,7 @@ describe("Messages Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(outsideUser.id, outsideUser.username),
+				...(await authHeader(outsideUser.id, outsideUser.username)),
 			},
 			body: JSON.stringify({
 				type: "TEXT",
@@ -165,8 +176,8 @@ describe("Messages Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -189,24 +200,27 @@ describe("Messages Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
-		expect(Array.isArray(data.response)).toBe(true);
-		expect(data.response.length).toBe(2);
+		const data = (await res.json()) as any;
+		expect(data.messages).toBeDefined();
+		expect(Array.isArray(data.messages)).toBe(true);
+		expect(data.messages.length).toBe(2);
 	});
 
 	test("GET /chats/:chatId/messages - should return empty array for chat with no messages", async () => {
 		const emptyChat = await createTestGroupChat(userA.id, [userB.id]);
 
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${emptyChat.id}/messages`, {
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${emptyChat.id}/messages`,
+			{
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
-		expect(Array.isArray(data.response)).toBe(true);
-		expect(data.response.length).toBe(0);
+		const data = (await res.json()) as any;
+		expect(data.messages).toBeDefined();
+		expect(Array.isArray(data.messages)).toBe(true);
+		expect(data.messages.length).toBe(0);
 	});
 
 	test("GET /chats/:chatId/messages - should fail for non-participant", async () => {
@@ -219,8 +233,8 @@ describe("Messages Endpoints", () => {
 			headers: await authHeader(outsideUser.id, outsideUser.username),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -239,14 +253,14 @@ describe("Messages Endpoints", () => {
 			`${baseUrl()}/api/v1/chats/${chat.id}/messages/search?q=hello`,
 			{
 				headers: await authHeader(userA.id, userA.username),
-			}
+			},
 		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
-		expect(Array.isArray(data.response)).toBe(true);
-		expect(data.response.length).toBe(2);
+		const data = (await res.json()) as any;
+		expect(data.messages).toBeDefined();
+		expect(Array.isArray(data.messages)).toBe(true);
+		expect(data.messages.length).toBe(2);
 	});
 
 	test("GET /chats/:chatId/messages/search - should be case insensitive", async () => {
@@ -256,26 +270,31 @@ describe("Messages Endpoints", () => {
 			`${baseUrl()}/api/v1/chats/${chat.id}/messages/search?q=uppercase`,
 			{
 				headers: await authHeader(userA.id, userA.username),
-			}
+			},
 		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveLength(1);
+		const data = (await res.json()) as any;
+		expect(data.messages).toHaveLength(1);
 	});
 
 	test("GET /chats/:chatId/messages/search - should fail without query param", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/search`, {
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/search`,
+			{
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Invalid request");
 	});
 
 	test("GET /chats/:chatId/messages/search - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/search?q=hello`);
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/search?q=hello`,
+		);
 
 		expect(res.status).toBe(401);
 	});
@@ -283,135 +302,171 @@ describe("Messages Endpoints", () => {
 	test("GET /chats/:chatId/messages/unread - should return unread count", async () => {
 		await createTestMessage(chat.id, userB.id, { text: "Message for A" });
 
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/unread`, {
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/unread`,
+			{
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.count).toBeDefined();
 		expect(typeof data.count).toBe("number");
 	});
 
 	test("GET /chats/:chatId/messages/unread - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/unread`);
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/unread`,
+		);
 
 		expect(res.status).toBe(401);
 	});
 
 	test("POST /chats/:chatId/messages/read - should mark chat as read", async () => {
-		const message = await createTestMessage(chat.id, userB.id, { text: "Read this" });
-
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
-			},
-			body: JSON.stringify({ messageId: message.id }),
+		const message = await createTestMessage(chat.id, userB.id, {
+			text: "Read this",
 		});
 
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(await authHeader(userA.id, userA.username)),
+				},
+				body: JSON.stringify({ messageId: message.id }),
+			},
+		);
+
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
-		expect(data.response).toHaveProperty("lastReadMessageId", message.id);
+		const data = (await res.json()) as any;
+		expect(data).toBeDefined();
+		expect(data.lastReadMessageId).toBe(message.id);
 	});
 
 	test("POST /chats/:chatId/messages/read - should mark chat as read without messageId", async () => {
 		await createTestMessage(chat.id, userB.id, { text: "Read this too" });
 
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(await authHeader(userA.id, userA.username)),
+				},
+				body: JSON.stringify({}),
 			},
-			body: JSON.stringify({}),
-		});
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
+		const data = (await res.json()) as any;
+		expect(data).toBeDefined();
 	});
 
 	test("POST /chats/:chatId/messages/read - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({}),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({}),
+			},
+		);
 
 		expect(res.status).toBe(401);
 	});
 
 	test("POST /chats/:chatId/messages/pin - should return 501 not implemented", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/pin`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/pin`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(await authHeader(userA.id, userA.username)),
+				},
+				body: JSON.stringify({ messageId: "some-message-id" }),
 			},
-			body: JSON.stringify({ messageId: "some-message-id" }),
-		});
+		);
 
 		expect(res.status).toBe(501);
-		const data = await res.json();
-		expect(data.message).toBe("This message feature needs additional database models first");
+		const data = (await res.json()) as any;
+		expect(data.message).toBe(
+			"This message feature needs additional database models first",
+		);
 	});
 
 	test("POST /chats/:chatId/messages/reactions - should return 501 not implemented", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/reactions`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/reactions`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(await authHeader(userA.id, userA.username)),
+				},
+				body: JSON.stringify({ messageId: "some-message-id", emoji: "👍" }),
 			},
-			body: JSON.stringify({ messageId: "some-message-id", emoji: "👍" }),
-		});
+		);
 
 		expect(res.status).toBe(501);
-		const data = await res.json();
-		expect(data.message).toBe("This message feature needs additional database models first");
+		const data = (await res.json()) as any;
+		expect(data.message).toBe(
+			"This message feature needs additional database models first",
+		);
 	});
 
 	test("GET /messages/:messageId - should return message details", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Test message" });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Test message",
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("id", message.id);
-		expect(data.response).toHaveProperty("text", "Test message");
-		expect(data.response).toHaveProperty("senderId", userA.id);
+		const data = (await res.json()) as any;
+		expect(data.message).toHaveProperty("id", message.id);
+		expect(data.message).toHaveProperty("text", "Test message");
+		expect(data.message).toHaveProperty("senderId", userA.id);
 	});
 
-	test("GET /messages/:messageId - should fail for non-existent message", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/messages/nonexistent-message-id`, {
-			headers: await authHeader(userA.id, userA.username),
-		});
+	test("GET /messages/:messageId - should return 404 for non-existent message", async () => {
+		const res = await fetch(
+			`${baseUrl()}/api/v1/messages/nonexistent-message-id`,
+			{
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
 	test("GET /messages/:messageId - should fail for deleted message", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Delete me", deleted: true });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Delete me",
+			deleted: true,
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
 	test("GET /messages/:messageId - should fail for non-participant", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Secret message" });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Secret message",
+		});
 		const outsideUser = await createTestUser({
 			username: `outside3-${Date.now()}`,
 			email: `outside3-${Date.now()}@example.com`,
@@ -421,8 +476,8 @@ describe("Messages Endpoints", () => {
 			headers: await authHeader(outsideUser.id, outsideUser.username),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -433,54 +488,60 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("PATCH /messages/:messageId - should edit own message", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Original text" });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Original text",
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ text: "Edited text" }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("text", "Edited text");
-		expect(data.response).toHaveProperty("id", message.id);
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("text", "Edited text");
+		expect(data).toHaveProperty("id", message.id);
 	});
 
 	test("PATCH /messages/:messageId - should fail editing others message", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Original text" });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Original text",
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userB.id, userB.username),
+				...(await authHeader(userB.id, userB.username)),
 			},
 			body: JSON.stringify({ text: "Hacked text" }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
 	test("PATCH /messages/:messageId - should fail with empty text", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Original text" });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Original text",
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ text: "   " }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -495,7 +556,9 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("DELETE /messages/:messageId - should delete own message", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Delete me" });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Delete me",
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "DELETE",
@@ -503,25 +566,29 @@ describe("Messages Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("id", message.id);
-		expect(data.response).toHaveProperty("deleted", true);
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("id", message.id);
+		expect(data).toHaveProperty("deleted", true);
 
-		const deletedMessage = await prisma.message.findUnique({ where: { id: message.id } });
+		const deletedMessage = await prisma.message.findUnique({
+			where: { id: message.id },
+		});
 		expect(deletedMessage?.deleted).toBe(true);
 		expect(deletedMessage?.text).toBeNull();
 	});
 
 	test("DELETE /messages/:messageId - should fail deleting others message", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Protected" });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Protected",
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userB.id, userB.username),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -534,54 +601,77 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("POST /messages/:messageId/reactions - should return 501 not implemented", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "React to me" });
-
-		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/reactions`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
-			},
-			body: JSON.stringify({ emoji: "👍" }),
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "React to me",
 		});
 
+		const res = await fetch(
+			`${baseUrl()}/api/v1/messages/${message.id}/reactions`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(await authHeader(userA.id, userA.username)),
+				},
+				body: JSON.stringify({ emoji: "👍" }),
+			},
+		);
+
 		expect(res.status).toBe(501);
-		const data = await res.json();
-		expect(data.message).toBe("This message feature needs additional database models first");
+		const data = (await res.json()) as any;
+		expect(data.message).toBe(
+			"This message feature needs additional database models first",
+		);
 	});
 
 	test("DELETE /messages/:messageId/reactions - should return 501 not implemented", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Unreact from me" });
-
-		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/reactions`, {
-			method: "DELETE",
-			headers: await authHeader(userA.id, userA.username),
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Unreact from me",
 		});
 
+		const res = await fetch(
+			`${baseUrl()}/api/v1/messages/${message.id}/reactions`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
+
 		expect(res.status).toBe(501);
-		const data = await res.json();
-		expect(data.message).toBe("This message feature needs additional database models first");
+		const data = (await res.json()) as any;
+		expect(data.message).toBe(
+			"This message feature needs additional database models first",
+		);
 	});
 
 	test("POST /messages/:messageId/reply - should return 501 not implemented", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Reply to me" });
-
-		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/reply`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
-			},
-			body: JSON.stringify({ text: "Reply text" }),
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Reply to me",
 		});
 
+		const res = await fetch(
+			`${baseUrl()}/api/v1/messages/${message.id}/reply`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...(await authHeader(userA.id, userA.username)),
+				},
+				body: JSON.stringify({ text: "Reply text" }),
+			},
+		);
+
 		expect(res.status).toBe(501);
-		const data = await res.json();
-		expect(data.message).toBe("This message feature needs additional database models first");
+		const data = (await res.json()) as any;
+		expect(data.message).toBe(
+			"This message feature needs additional database models first",
+		);
 	});
 
 	test("PATCH /messages/:messageId/pin - should return 501 not implemented", async () => {
-		const message = await createTestMessage(chat.id, userA.id, { text: "Pin me" });
+		const message = await createTestMessage(chat.id, userA.id, {
+			text: "Pin me",
+		});
 
 		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/pin`, {
 			method: "PATCH",
@@ -589,8 +679,10 @@ describe("Messages Endpoints", () => {
 		});
 
 		expect(res.status).toBe(501);
-		const data = await res.json();
-		expect(data.message).toBe("This message feature needs additional database models first");
+		const data = (await res.json()) as any;
+		expect(data.message).toBe(
+			"This message feature needs additional database models first",
+		);
 	});
 
 	test("GET /chats/:chatId/messages - should respect limit query parameter", async () => {
@@ -598,13 +690,16 @@ describe("Messages Endpoints", () => {
 			await createTestMessage(chat.id, userA.id, { text: `Message ${i}` });
 		}
 
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=3`, {
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=3`,
+			{
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveLength(3);
+		const data = (await res.json()) as any;
+		expect(data.messages).toHaveLength(3);
 	});
 
 	test("GET /chats/:chatId/messages - should cap limit at 100", async () => {
@@ -612,13 +707,16 @@ describe("Messages Endpoints", () => {
 			await createTestMessage(chat.id, userA.id, { text: `Message ${i}` });
 		}
 
-		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=200`, {
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=200`,
+			{
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response.length).toBeLessThanOrEqual(100);
+		const data = (await res.json()) as any;
+		expect(data.messages.length).toBeLessThanOrEqual(100);
 	});
 
 	test("POST /chats/:chatId/messages - should update chat lastMessageAt", async () => {
@@ -632,13 +730,13 @@ describe("Messages Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...await authHeader(userA.id, userA.username),
+				...(await authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({ type: "TEXT", text: "New message" }),
 		});
 
 		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("id");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("id");
 	});
 });

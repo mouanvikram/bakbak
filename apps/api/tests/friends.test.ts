@@ -1,8 +1,17 @@
+import "./setup";
 import { mock } from "bun:test";
-import { beforeAll, afterAll, beforeEach, afterEach, describe, test, expect } from "bun:test";
+import {
+	beforeAll,
+	afterAll,
+	beforeEach,
+	afterEach,
+	describe,
+	test,
+	expect,
+} from "bun:test";
 import { createServer } from "node:http";
 import app from "../src/app";
-import { prisma } from "@sealchat/db";
+import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
@@ -16,7 +25,9 @@ import {
 mock.module("resend", () => ({
 	Resend: class {
 		emails = {
-			send: mock(() => Promise.resolve({ data: { id: "test-email-id" }, error: null })),
+			send: mock(() =>
+				Promise.resolve({ data: { id: "test-email-id" }, error: null }),
+			),
 		};
 	},
 }));
@@ -65,33 +76,42 @@ describe("Friends Endpoints", () => {
 	const baseUrl = () => `http://localhost:${port}`;
 
 	test("POST /friends/requests/:receiverId - should send friend request", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${userB.id}`, {
-			method: "POST",
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${userB.id}`,
+			{
+				method: "POST",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("senderId", userA.id);
-		expect(data.response).toHaveProperty("receiverId", userB.id);
-		expect(data.response).toHaveProperty("status", "PENDING");
+		const data = (await res.json()) as any;
+		expect(data.sender.id).toBe(userA.id);
+		expect(data.receiver.id).toBe(userB.id);
+		expect(data.status).toBe("PENDING");
 	});
 
 	test("POST /friends/requests/:receiverId - should fail sending request to self", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${userA.id}`, {
-			method: "POST",
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${userA.id}`,
+			{
+				method: "POST",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Invalid Id");
 	});
 
 	test("POST /friends/requests/:receiverId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${userB.id}`, {
-			method: "POST",
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${userB.id}`,
+			{
+				method: "POST",
+			},
+		);
 
 		expect(res.status).toBe(401);
 	});
@@ -103,22 +123,25 @@ describe("Friends Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Invalid Id");
 	});
 
 	test("POST /friends/requests/:requestId/accept - should accept pending request", async () => {
 		const request = await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`, {
-			method: "POST",
-			headers: await authHeader(userB.id, userB.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`,
+			{
+				method: "POST",
+				headers: await authHeader(userB.id, userB.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("id", request.id);
-		expect(data.response).toHaveProperty("status", "ACCEPTED");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("id", request.id);
+		expect(data).toHaveProperty("status", "ACCEPTED");
 
 		const friendship = await prisma.friendship.findFirst({
 			where: {
@@ -132,13 +155,16 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("POST /friends/requests/:requestId/accept - should fail for non-existent request", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/nonexistent-id/accept`, {
-			method: "POST",
-			headers: await authHeader(userB.id, userB.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/nonexistent-id/accept`,
+			{
+				method: "POST",
+				headers: await authHeader(userB.id, userB.username),
+			},
+		);
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -149,21 +175,27 @@ describe("Friends Endpoints", () => {
 			data: { status: "ACCEPTED" },
 		});
 
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`, {
-			method: "POST",
-			headers: await authHeader(userB.id, userB.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`,
+			{
+				method: "POST",
+				headers: await authHeader(userB.id, userB.username),
+			},
+		);
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(409);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
 	test("POST /friends/requests/:requestId/accept - should fail without auth", async () => {
 		const request = await sendFriendRequest(userA.id, userB.id);
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`, {
-			method: "POST",
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`,
+			{
+				method: "POST",
+			},
+		);
 
 		expect(res.status).toBe(401);
 	});
@@ -171,50 +203,62 @@ describe("Friends Endpoints", () => {
 	test("POST /friends/requests/:requestId/reject - should reject pending request", async () => {
 		const request = await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/reject`, {
-			method: "POST",
-			headers: await authHeader(userB.id, userB.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${request.id}/reject`,
+			{
+				method: "POST",
+				headers: await authHeader(userB.id, userB.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("id", request.id);
-		expect(data.response).toHaveProperty("status", "REJECTED");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("id", request.id);
+		expect(data).toHaveProperty("status", "REJECTED");
 	});
 
 	test("POST /friends/requests/:requestId/reject - should fail for non-existent request", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/nonexistent-id/reject`, {
-			method: "POST",
-			headers: await authHeader(userB.id, userB.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/nonexistent-id/reject`,
+			{
+				method: "POST",
+				headers: await authHeader(userB.id, userB.username),
+			},
+		);
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
 	test("DELETE /friends/requests/:requestId - should cancel pending request", async () => {
 		const request = await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}`, {
-			method: "DELETE",
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${request.id}`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toHaveProperty("id", request.id);
-		expect(data.response).toHaveProperty("status", "CANCELLED");
+		const data = (await res.json()) as any;
+		expect(data).toHaveProperty("id", request.id);
+		expect(data).toHaveProperty("status", "CANCELLED");
 	});
 
 	test("DELETE /friends/requests/:requestId - should fail for non-existent request", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/nonexistent-id`, {
-			method: "DELETE",
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/nonexistent-id`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
@@ -233,12 +277,12 @@ describe("Friends Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
-		expect(Array.isArray(data.response)).toBe(true);
-		expect(data.response.length).toBe(1);
-		expect(data.response[0]).toHaveProperty("friend");
-		expect(data.response[0]).toHaveProperty("friendshipId");
+		const data = (await res.json()) as any;
+		expect(data.friendships).toBeDefined();
+		expect(Array.isArray(data.friendships)).toBe(true);
+		expect(data.friendships.length).toBe(1);
+		expect(data.friendships[0]).toHaveProperty("friend");
+		expect(data.friendships[0]).toHaveProperty("friendshipId");
 	});
 
 	test("GET /friends/ - should return empty array when no friends", async () => {
@@ -247,10 +291,10 @@ describe("Friends Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.response).toBeDefined();
-		expect(Array.isArray(data.response)).toBe(true);
-		expect(data.response.length).toBe(0);
+		const data = (await res.json()) as any;
+		expect(data.friendships).toBeDefined();
+		expect(Array.isArray(data.friendships)).toBe(true);
+		expect(data.friendships.length).toBe(0);
 	});
 
 	test("GET /friends/ - should fail without auth", async () => {
@@ -268,7 +312,7 @@ describe("Friends Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data).toHaveProperty("sent");
 		expect(data).toHaveProperty("received");
 		expect(Array.isArray(data.sent)).toBe(true);
@@ -283,7 +327,7 @@ describe("Friends Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.sent).toEqual([]);
 		expect(data.received).toEqual([]);
 	});
@@ -297,13 +341,16 @@ describe("Friends Endpoints", () => {
 	test("POST /friends/requests/:receiverId - should not create duplicate pending requests", async () => {
 		await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${userB.id}`, {
-			method: "POST",
-			headers: await authHeader(userA.id, userA.username),
-		});
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/requests/${userB.id}`,
+			{
+				method: "POST",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
 
 		expect(res.status).toBe(500);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 });
