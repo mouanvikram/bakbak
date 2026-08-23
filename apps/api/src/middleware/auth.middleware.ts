@@ -19,7 +19,7 @@ export const authMiddleware = (
     }
     const token = authHeaders.split(" ")[1];
     if (!token) {
-      return res.status(401).json({
+      return res.status(403).json({
         message: "Missing Token",
       });
     }

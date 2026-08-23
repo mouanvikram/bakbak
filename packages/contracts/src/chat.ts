@@ -74,6 +74,12 @@ export const createDirectChatRequestSchema = z.object({
 	participantId: z.uuid(),
 });
 
+export const chatIdParamsSchema = z.object({
+	chatId: z.uuid(),
+});
+
+export type ChatIdParamsType = z.infer<typeof chatIdParamsSchema>;
+
 export type CreateDirectChatRequestType = z.infer<
 	typeof createDirectChatRequestSchema
 >;

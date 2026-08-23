@@ -199,16 +199,17 @@ export class AuthService {
 			email,
 		});
 
+		const genericResponse: ResendVerificationResponseType = {
+			message:
+				"If an account exists, a verification link is sent to the email.",
+		};
+
 		if (!user) {
-			return {
-				message: "If an account exists, reset link is sent to the email.",
-			} as ResendVerificationResponseType;
+			return genericResponse;
 		}
 
 		if (user.isEmailVerified) {
-			return {
-				message: "If an account exists, reset link is sent to the email.",
-			} as ResendVerificationResponseType;
+			return genericResponse;
 		}
 
 		await this.emailRepository.deleteAll({
@@ -238,10 +239,7 @@ export class AuthService {
 			url,
 		});
 
-		return {
-			message:
-				"If an account exists, verification link has been sent to the email.",
-		} as ResendVerificationResponseType;
+		return genericResponse;
 	}
 
 	async changePassword(
@@ -312,7 +310,7 @@ export class AuthService {
 			email: dto.email,
 		});
 		const genericResponse: ForgotPasswordResponseType = {
-			message: "If account exists, a reset link is sent to email.",
+			message: "If an account exists, reset link is sent to the email.",
 		};
 		if (!user) {
 			return genericResponse;

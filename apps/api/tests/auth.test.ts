@@ -15,7 +15,7 @@ import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
-	generateToken,
+	// generateToken,
 	authHeader,
 	isDatabaseAvailable,
 } from "./helpers";
@@ -537,7 +537,7 @@ describe("Auth Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...(await authHeader(user.id, user.username)),
+				...authHeader(user.id, user.username),
 			},
 			body: JSON.stringify({
 				currentPassword: "WrongPass123!",
@@ -551,13 +551,13 @@ describe("Auth Endpoints", () => {
 	});
 
 	test("POST /api/v1/auth/change-password - should fail for non-existent user", async () => {
-		const token = await generateToken(`user-${Date.now()}`, "testuser");
+		const token = authHeader(`user-${Date.now()}`, "testuser");
 
 		const res = await fetch(`${baseUrl()}/api/v1/auth/change-password`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
+				...authHeader(`user-${Date.now()}`, "testuser"),
 			},
 			body: JSON.stringify({
 				currentPassword: "TestPass123!",

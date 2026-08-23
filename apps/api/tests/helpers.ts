@@ -1,44 +1,16 @@
-import { prisma, Prisma, ParticipantRole, MessageType } from "@bakbak/db";
+import { prisma, ParticipantRole, MessageType } from "@bakbak/db";
 import type { User } from "@bakbak/db";
+import {
+	type AccessTokenPayload,
+	JwtService,
+} from "../src/helpers/jwt.service";
 
-export async function generateToken(
-	userId: string,
-	username: string,
-): Promise<string> {
-	const jwtSecret = process.env.JWT_SECRET || "test-secret";
-	const payload = { sub: userId, username };
-	const header = { alg: "HS256", typ: "JWT" };
-
-	const encodedHeader = Buffer.from(JSON.stringify(header)).toString(
-		"base64url",
-	);
-	const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(
-		"base64url",
-	);
-
-	const encoder = new TextEncoder();
-	const key = await crypto.subtle.importKey(
-		"raw",
-		encoder.encode(jwtSecret),
-		{ name: "HMAC", hash: "SHA-256" },
-		false,
-		["sign"],
-	);
-	const signature = await crypto.subtle.sign(
-		"HMAC",
-		key,
-		encoder.encode(`${encodedHeader}.${encodedPayload}`),
-	);
-	const encodedSignature = Buffer.from(signature).toString("base64url");
-
-	return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
-}
-
-export async function authHeader(
-	userId: string,
-	username: string,
-): Promise<Record<string, string>> {
-	const token = await generateToken(userId, username);
+export function authHeader(userId: string, username: string) {
+	const jwtService = new JwtService(process.env.JWT_SECRET!);
+	const token = jwtService.signJwt<AccessTokenPayload>({
+		sub: userId,
+		username,
+	});
 	return { Authorization: `Bearer ${token}` };
 }
 

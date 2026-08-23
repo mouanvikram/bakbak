@@ -345,12 +345,12 @@ describe("Chats Endpoints", () => {
 		expect(data).toHaveProperty("type", "DIRECT");
 	});
 
-	test("GET /chats/:chatId - should return 404 for non-existent chat", async () => {
+	test("GET /chats/:chatId - should return 400 for malformed chat id", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/chats/nonexistent-chat-id`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
-		expect(res.status).toBe(404);
+		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});

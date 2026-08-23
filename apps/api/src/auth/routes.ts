@@ -10,7 +10,7 @@ import {
 	signUpRequestSchema,
 	verifyEmailRequestSchema,
 } from "@bakbak/contracts";
-import { errorHandler } from "../middleware/error.middleware";
+
 const router = Router();
 
 router.post("/signup", validate(signUpRequestSchema), authController.signUp);
@@ -45,7 +45,5 @@ router.post(
 
 router.post("/logout", authController.logout);
 router.post("/refresh-token", authController.refreshToken);
-
-router.use(errorHandler);
 
 export default router;

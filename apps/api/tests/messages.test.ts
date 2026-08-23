@@ -437,7 +437,7 @@ describe("Messages Endpoints", () => {
 
 	test("GET /messages/:messageId - should return 404 for non-existent message", async () => {
 		const res = await fetch(
-			`${baseUrl()}/api/v1/messages/nonexistent-message-id`,
+			`${baseUrl()}/api/v1/messages/${crypto.randomUUID()}`,
 			{
 				headers: await authHeader(userA.id, userA.username),
 			},

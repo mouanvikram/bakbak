@@ -1,248 +1,112 @@
-## 📋 TODO / Roadmap
+# 💬 BakBak
 
-> Progress is tracked using the following checklist.
+A real-time social chat app — direct & group messaging, friends, media sharing.
 
-### 🚀 Phase 1 — Project Setup
-
-* [x] Initialize React + Bun + TypeScript
-* [ ] Configure Tailwind CSS
-* [ ] Setup ESLint, Prettier & Husky
-* [ ] Configure React Router
-* [ ] Configure Zustand
-* [ ] Configure TanStack Query
-* [ ] Configure Axios
-* [ ] Setup shadcn/ui
-* [ ] Configure Socket.IO client
-* [x] Setup Express backend
-* [x] Configure Prisma ORM
-* [x] Setup PostgreSQL database
-* [ ] Docker development environment
-* [ ] Environment configuration
+> ⚠️ **Work in progress.** The backend core (auth, users, friends, chats, messages) is implemented and integration-tested. Real-time messaging, media uploads, and the frontend data layer are under active development. See [Status](#-current-status) below.
 
 ---
 
-### 👤 Authentication
+## 🧱 Tech Stack
 
-* [x] User registration
-* [x] Login
-* [x] Logout
-* [x] Refresh tokens
-* [x] JWT authentication
-* [x] Password hashing
-* [x] Email verification
-* [x] Forgot password
-* [x] Reset password
-* [x] Change password
-* [x] Multi-device login
-* [x] Session management
+| Layer | Tech |
+|---|---|
+| Runtime | [Bun](https://bun.sh) (monorepo workspaces) |
+| Backend | Express 5 + TypeScript, Socket.IO (wired, handlers pending) |
+| Database | PostgreSQL (Neon) + Prisma ORM |
+| Validation | Shared Zod contracts (`@bakbak/contracts`) — validates requests **and** responses |
+| Auth | JWT access tokens + Argon2id password hashing, email verification & password reset via Resend |
+| Frontend | React 19 + Vite + React Router, Tailwind CSS v4, React Compiler |
+| Testing | `bun:test` — HTTP integration tests |
 
----
+## 📁 Monorepo Structure
 
-### 👥 User Profile
+```
+bakbak/
+├── apps/
+│   ├── api/          # Express REST API + Socket.IO server
+│   │   └── src/
+│   │       ├── auth/         # signup, login, verification, password flows
+│   │       ├── users/        # profiles, search
+│   │       ├── friends/      # requests, friendships
+│   │       ├── chat/         # direct & group chats, participants
+│   │       ├── messages/     # send, paginate, read state
+│   │       ├── websocket/    # socket.io connection handling (WIP)
+│   │       └── middleware/   # auth, validation, error handler
+│   └── web/          # React SPA (auth pages, app shell, settings UI)
+├── packages/
+│   ├── contracts/    # shared Zod schemas + inferred types (API ↔ client)
+│   └── db/           # Prisma schema, migrations, generated client
+```
 
-* [x] Edit profile
-* [x] Upload profile picture
-* [x] Username support
-* [x] Bio/About
-* [x] Last seen
-* [x] Online/Offline status
-* [x] Privacy settings
-* [x] Account settings
+Each backend module follows the same layered flow:
 
----
+```
+routes → validate(zod contract) → controller → service → repository (Prisma)
+```
 
-### 🤝 Friends & Contacts
+Services own business rules and authorization; controllers only translate HTTP ↔ contracts; every response payload is validated against its Zod contract before leaving the server.
 
-* [x] User search
-* [x] Friend requests
-* [x] Accept request
-* [x] Reject request
-* [ ] Remove friend
-* [ ] Block user
-* [ ] Unblock user
-* [ ] Mutual friends
-* [ ] Contact list
+## 🚀 Getting Started
 
----
+**Prerequisites:** Bun ≥ 1.2, PostgreSQL (local instance recommended)
 
-### 💬 Chat
+```bash
+# 1. Install dependencies
+bun install
 
-* [x] One-to-one chat
-* [x] Group chat
-* [x] Real-time messaging
-* [ ] Typing indicator
-* [ ] Read receipts
-* [ ] Delivery status
-* [ ] Message reactions
-* [ ] Reply to messages
-* [ ] Forward messages
-* [ ] Edit messages
-* [ ] Delete for me
-* [ ] Delete for everyone
-* [ ] Pin messages
-* [ ] Star messages
-* [ ] Search messages
-* [ ] Unread message count
-* [ ] Infinite message scrolling
-* [ ] Message timestamps
+# 2. Configure environment
+#    apps/api/.env        → DATABASE_URL, JWT_SECRET, PORT,
+#                           CORS_ORIGINS, FRONTEND_URL, RESEND_API_KEY
+#    packages/db/.env     → DATABASE_URL
+cp apps/api/.env.example apps/api/.env   # fill in values
 
----
+# 3. Generate Prisma client & apply migrations
+cd packages/db && bunx prisma migrate dev
 
-### 📎 Media
+# 4. Run
+bun run dev              # from repo root — starts API on :3000
+cd apps/web && bun run dev   # frontend on :5173
 
-* [ ] Image upload
-* [ ] Video upload
-* [ ] Audio upload
-* [ ] Document upload
-* [ ] Drag & drop upload
-* [ ] Image compression
-* [ ] Video compression
-* [ ] Voice messages
-* [ ] View once media
-* [ ] Media gallery
-* [ ] Download files
+# 5. Test (uses DATABASE_URL — point it at a local DB first!)
+cd apps/api && bun test
+```
 
----
+## 📌 Current Status
 
-### 😀 Rich Messaging
+### ✅ Implemented (backend)
 
-* [ ] Emoji picker
-* [ ] GIF support
-* [ ] Stickers
-* [ ] Mentions (@user)
-* [ ] Hashtags
-* [ ] Link previews
-* [ ] Code block messages
-* [ ] Markdown support
+- **Auth** — register, login, email verification (+ resend), forgot/reset password, change password. Argon2id hashing, SHA-256-hashed one-time tokens with expiry, anti-enumeration responses.
+- **Users** — profile read/update, avatar, user search.
+- **Friends** — send/accept/reject/cancel requests, friend list, pending requests.
+- **Chats** — create direct chats (idempotent via unique pair key) and group chats, member management.
+- **Messages** — send text messages, cursor-based pagination (capped), unread counts, mark-as-read, soft delete.
+- **Infrastructure** — global error handling with typed error codes, Zod request/response validation, pino logging.
 
----
+### 🚧 In Progress
 
-### 👥 Groups
+- Socket.IO layer: authenticated handshake, rooms, presence, live message delivery
+- Refresh-token rotation & session revocation (schema exists, flow pending)
+- Frontend data layer: wiring `@bakbak/contracts` into the web app, replacing mock chat data
+- Media attachments (schema exists, upload pipeline pending)
 
-* [x] Create group
-* [x] Group avatar
-* [x] Group description
-* [x] Add members
-* [x] Remove members
-* [ ] Promote admins
-* [ ] Invite links
-* [ ] Leave group
-* [ ] Delete group
+### 🗺 Roadmap
 
----
+1. Finish realtime messaging end-to-end (typing indicators, delivery/read receipts)
+2. Rate limiting + security hardening pass (helmet, body limits, ownership checks audit)
+3. Message features: reactions, replies, edit/delete-for-everyone, search
+4. Media uploads (images, voice notes) with compression
+5. Group admin features: promote admins, invite links
+6. Notifications (in-app + browser push)
+7. Dark mode, responsive polish, accessibility pass
+8. Dockerized local dev (Postgres + API + web), CI pipeline running lint + tests
+9. Calls (WebRTC) — stretch goal
 
-### 📞 Calls
+<details>
+<summary>Longer-term ideas</summary>
 
-* [ ] Voice calls
-* [ ] Video calls
-* [ ] Screen sharing
-* [ ] Call history
-* [ ] Mute
-* [ ] Camera toggle
-* [ ] Call notifications
+Communities/channels, stories, polls, scheduled messages, E2E encryption, desktop/mobile clients.
+</details>
 
----
+## 📄 License
 
-### 🔔 Notifications
-
-* [ ] Browser notifications
-* [ ] Sound notifications
-* [ ] Push notifications
-* [ ] Notification settings
-
----
-
-### 🔐 Security
-
-* [ ] End-to-End Encryption
-* [ ] Device verification
-* [ ] Encrypted media
-* [ ] Secure key management
-* [ ] Two-factor authentication (2FA)
-* [ ] Login activity
-* [ ] Account recovery
-
----
-
-### 🎨 UI / UX
-
-* [ ] Dark mode
-* [ ] Light mode
-* [ ] Responsive design
-* [ ] Accessibility improvements
-* [ ] Keyboard shortcuts
-* [ ] Animations
-* [ ] Loading skeletons
-* [ ] Error pages
-* [ ] Empty states
-
----
-
-### ⚙️ Settings
-
-* [ ] Profile settings
-* [ ] Privacy settings
-* [ ] Notification settings
-* [ ] Appearance settings
-* [ ] Language selection
-
----
-
-### 🛠 Admin
-
-* [ ] User management
-* [ ] Reported users
-* [ ] Analytics dashboard
-* [ ] Audit logs
-* [ ] System monitoring
-
----
-
-### 🚀 Performance
-
-* [ ] Redis caching
-* [ ] Message pagination
-* [ ] Lazy loading
-* [ ] Image optimization
-* [ ] Code splitting
-* [ ] Virtualized chat list
-
----
-
-### 🧪 Testing
-
-* [ ] Unit tests
-* [ ] Integration tests
-* [ ] API tests
-* [ ] End-to-end tests
-* [ ] Load testing
-
----
-
-### 📦 Deployment
-
-* [ ] Docker
-* [ ] CI/CD pipeline
-* [ ] Production deployment
-* [ ] Monitoring
-* [ ] Logging
-* [ ] Backups
-* [ ] HTTPS
-* [ ] Domain configuration
-
----
-
-### 🌟 Future Features
-
-* [ ] Communities
-* [ ] Channels
-* [ ] Stories / Status
-* [ ] Broadcast messages
-* [ ] Polls
-* [ ] Scheduled messages
-* [ ] Message translation
-* [ ] AI assistant
-* [ ] Desktop application
-* [ ] Mobile application (React Native)
-* [ ] Multi-device synchronization
-* [ ] End-to-end encrypted backups
+MIT

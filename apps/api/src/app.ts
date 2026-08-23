@@ -2,6 +2,7 @@ import express from "express";
 import { type Express } from "express";
 import cors from "cors";
 import { env } from "../lib/config";
+import { errorHandler } from "./middleware/error.middleware";
 import authRoutes from "./auth/routes";
 import userRoutes from "./users/routes";
 import chatRoutes from "./chat/routes";
@@ -34,5 +35,7 @@ app.use("/api/v1/messages", messageRoutes);
 // 6. Attachments
 // 7. Notifications
 // 8. Calls
+
+app.use(errorHandler);
 
 export default app;

@@ -4,6 +4,7 @@ import { chatController } from "../services/service.container";
 import { validate } from "../middleware/validate";
 import {
 	addParticipantRequestSchema,
+	chatIdParamsSchema,
 	createGroupChatRequestSchema,
 	updateChatRequestSchema,
 } from "@bakbak/contracts";
@@ -14,20 +15,34 @@ router.use(authMiddleware);
 // Chats
 router.post("/", chatController.createChat);
 router.get("/", chatController.listChats);
-router.get("/:chatId", chatController.getChat);
+router.get(
+	"/:chatId",
+	validate(chatIdParamsSchema, "params"),
+	chatController.getChat,
+);
 router.patch(
 	"/:chatId",
+	validate(chatIdParamsSchema, "params"),
 	validate(updateChatRequestSchema),
 	chatController.updateChat,
 );
-router.delete("/:chatId", chatController.deleteChat);
+router.delete(
+	"/:chatId",
+	validate(chatIdParamsSchema, "params"),
+	chatController.deleteChat,
+);
 
 // Participants
 router.post(
 	"/:chatId/members",
+	validate(chatIdParamsSchema, "params"),
 	validate(addParticipantRequestSchema),
 	chatController.addParticipant,
 );
-router.delete("/:chatId/members/:userId", chatController.removeParticipant);
+router.delete(
+	"/:chatId/members/:userId",
+	validate(chatIdParamsSchema, "params"),
+	chatController.removeParticipant,
+);
 
 export default router;
