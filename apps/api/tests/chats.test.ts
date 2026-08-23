@@ -70,7 +70,7 @@ describe("Chats Endpoints", () => {
 	const baseUrl = () => `http://localhost:${port}`;
 
 	test("POST /chats/ - should create direct chat", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -90,7 +90,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should create direct chat with receiverId alias", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -108,7 +108,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should create direct chat with userId alias", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -128,7 +128,7 @@ describe("Chats Endpoints", () => {
 	test("POST /chats/ - should reuse existing direct chat (idempotent)", async () => {
 		await createTestDirectChat(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -146,7 +146,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should create group chat", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -169,7 +169,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should create group chat with memberIds alias", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -188,7 +188,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should fail creating group chat without name", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -206,7 +206,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should fail creating group chat without participants", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -224,7 +224,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should fail creating direct chat without participant id", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -241,7 +241,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should fail with invalid chat type", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -259,7 +259,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should fail creating direct chat with self", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -277,7 +277,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/ - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ type: "DIRECT", participantId: userB.id }),
@@ -289,7 +289,7 @@ describe("Chats Endpoints", () => {
 	test("GET /chats/ - should list user chats", async () => {
 		await createTestDirectChat(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -301,7 +301,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("GET /chats/ - should return empty array for user with no chats", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -313,7 +313,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("GET /chats/ - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/`);
+		const res = await fetch(`${baseUrl()}/api/v1/chats/`);
 
 		expect(res.status).toBe(401);
 	});
@@ -321,7 +321,7 @@ describe("Chats Endpoints", () => {
 	test("GET /chats/:chatId - should return chat details", async () => {
 		const chat = await createTestDirectChat(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -332,7 +332,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("GET /chats/:chatId - should return 500 for non-existent chat", async () => {
-		const res = await fetch(`${baseUrl()}/chats/nonexistent-chat-id`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/nonexistent-chat-id`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -344,7 +344,7 @@ describe("Chats Endpoints", () => {
 	test("GET /chats/:chatId - should fail for non-participant", async () => {
 		const chat = await createTestDirectChat(userB.id, userC.id);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -354,7 +354,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("GET /chats/:chatId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/some-chat-id`);
+		const res = await fetch(`${baseUrl()}/api/v1/chats/some-chat-id`);
 
 		expect(res.status).toBe(401);
 	});
@@ -362,7 +362,7 @@ describe("Chats Endpoints", () => {
 	test("PATCH /chats/:chatId - should update group chat name", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -379,7 +379,7 @@ describe("Chats Endpoints", () => {
 	test("PATCH /chats/:chatId - should update group chat avatar", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -396,7 +396,7 @@ describe("Chats Endpoints", () => {
 	test("PATCH /chats/:chatId - should fail updating direct chat", async () => {
 		const chat = await createTestDirectChat(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -413,7 +413,7 @@ describe("Chats Endpoints", () => {
 	test("PATCH /chats/:chatId - should fail when non-admin updates group chat", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -430,7 +430,7 @@ describe("Chats Endpoints", () => {
 	test("PATCH /chats/:chatId - should fail with empty name", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -445,7 +445,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("PATCH /chats/:chatId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/some-chat-id`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/some-chat-id`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ name: "New Name" }),
@@ -457,7 +457,7 @@ describe("Chats Endpoints", () => {
 	test("DELETE /chats/:chatId - should delete group chat by admin", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -473,7 +473,7 @@ describe("Chats Endpoints", () => {
 	test("DELETE /chats/:chatId - should fail deleting direct chat", async () => {
 		const chat = await createTestDirectChat(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -486,7 +486,7 @@ describe("Chats Endpoints", () => {
 	test("DELETE /chats/:chatId - should fail when non-admin deletes group chat", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userB.id, userB.username),
 		});
@@ -497,7 +497,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("DELETE /chats/:chatId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/some-chat-id`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/some-chat-id`, {
 			method: "DELETE",
 		});
 
@@ -507,7 +507,7 @@ describe("Chats Endpoints", () => {
 	test("POST /chats/:chatId/members - should add participant to group chat", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/members`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -525,7 +525,7 @@ describe("Chats Endpoints", () => {
 	test("POST /chats/:chatId/members - should fail adding member to direct chat", async () => {
 		const chat = await createTestDirectChat(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/members`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -542,7 +542,7 @@ describe("Chats Endpoints", () => {
 	test("POST /chats/:chatId/members - should fail when non-admin adds member", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/members`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -557,7 +557,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("POST /chats/:chatId/members - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/some-chat-id/members`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/some-chat-id/members`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ participantId: userB.id }),
@@ -569,7 +569,7 @@ describe("Chats Endpoints", () => {
 	test("DELETE /chats/:chatId/members/:userId - should remove participant from group chat", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/members/${userC.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members/${userC.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -583,7 +583,7 @@ describe("Chats Endpoints", () => {
 	test("DELETE /chats/:chatId/members/:userId - should allow self-removal", async () => {
 		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/members/${userB.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members/${userB.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userB.id, userB.username),
 		});
@@ -597,7 +597,7 @@ describe("Chats Endpoints", () => {
 	test("DELETE /chats/:chatId/members/:userId - should fail removing from direct chat", async () => {
 		const chat = await createTestDirectChat(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/members/${userB.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members/${userB.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -608,7 +608,7 @@ describe("Chats Endpoints", () => {
 	});
 
 	test("DELETE /chats/:chatId/members/:userId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/some-chat-id/members/some-user-id`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/some-chat-id/members/some-user-id`, {
 			method: "DELETE",
 		});
 

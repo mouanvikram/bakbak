@@ -1,6 +1,7 @@
 import express from "express";
 import { type Express } from "express";
 import cors from "cors";
+import { env } from "../lib/config";
 import authRoutes from "./auth/routes";
 import userRoutes from "./users/routes";
 import chatRoutes from "./chat/routes";
@@ -11,29 +12,24 @@ import messageRoutes from "./messages/routes";
 const app: Express = express();
 
 app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-    ],
-    credentials: true,
-  }),
+	cors({
+		origin: env.CORS_ORIGINS,
+		credentials: true,
+	}),
 );
 app.use(express.json());
 
 // 1. Auth
-app.use("/api/auth", authRoutes);
+app.use("/api/v1/auth", authRoutes);
 // 2. Users
-app.use("/users", userRoutes);
+app.use("/api/v1/users", userRoutes);
 // 2.1. Friends
-app.use("/friends", friendRoutes);
+app.use("/api/v1/friends", friendRoutes);
 // 3. Chats
-app.use("/chats", chatRoutes);
-app.use("/chats", chatMessageRoutes);
+app.use("/api/v1/chats", chatRoutes);
+app.use("/api/v1/chats", chatMessageRoutes);
 // 4. Messages
-app.use("/messages", messageRoutes); //modified
+app.use("/api/v1/messages", messageRoutes);
 // 5. WebSocket
 // 6. Attachments
 // 7. Notifications

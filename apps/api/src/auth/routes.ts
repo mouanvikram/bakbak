@@ -6,7 +6,7 @@ import {
 	forgotPasswordRequestSchema,
 	loginRequestSchema,
 	resendVerificationRequestSchema,
-	resetPasswordRequestSchema,
+	resetPasswordBodySchema,
 	signUpRequestSchema,
 	verifyEmailRequestSchema,
 } from "@bakbak/contracts";

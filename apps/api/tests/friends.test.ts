@@ -65,7 +65,7 @@ describe("Friends Endpoints", () => {
 	const baseUrl = () => `http://localhost:${port}`;
 
 	test("POST /friends/requests/:receiverId - should send friend request", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests/${userB.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${userB.id}`, {
 			method: "POST",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -78,7 +78,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("POST /friends/requests/:receiverId - should fail sending request to self", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests/${userA.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${userA.id}`, {
 			method: "POST",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -89,7 +89,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("POST /friends/requests/:receiverId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests/${userB.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${userB.id}`, {
 			method: "POST",
 		});
 
@@ -97,7 +97,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("POST /friends/requests/:receiverId - should fail with invalid receiver id format", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests/not-a-uuid`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/not-a-uuid`, {
 			method: "POST",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -110,7 +110,7 @@ describe("Friends Endpoints", () => {
 	test("POST /friends/requests/:requestId/accept - should accept pending request", async () => {
 		const request = await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/friends/requests/${request.id}/accept`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`, {
 			method: "POST",
 			headers: await authHeader(userB.id, userB.username),
 		});
@@ -132,7 +132,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("POST /friends/requests/:requestId/accept - should fail for non-existent request", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests/nonexistent-id/accept`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/nonexistent-id/accept`, {
 			method: "POST",
 			headers: await authHeader(userB.id, userB.username),
 		});
@@ -149,7 +149,7 @@ describe("Friends Endpoints", () => {
 			data: { status: "ACCEPTED" },
 		});
 
-		const res = await fetch(`${baseUrl()}/friends/requests/${request.id}/accept`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`, {
 			method: "POST",
 			headers: await authHeader(userB.id, userB.username),
 		});
@@ -161,7 +161,7 @@ describe("Friends Endpoints", () => {
 
 	test("POST /friends/requests/:requestId/accept - should fail without auth", async () => {
 		const request = await sendFriendRequest(userA.id, userB.id);
-		const res = await fetch(`${baseUrl()}/friends/requests/${request.id}/accept`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`, {
 			method: "POST",
 		});
 
@@ -171,7 +171,7 @@ describe("Friends Endpoints", () => {
 	test("POST /friends/requests/:requestId/reject - should reject pending request", async () => {
 		const request = await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/friends/requests/${request.id}/reject`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/reject`, {
 			method: "POST",
 			headers: await authHeader(userB.id, userB.username),
 		});
@@ -183,7 +183,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("POST /friends/requests/:requestId/reject - should fail for non-existent request", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests/nonexistent-id/reject`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/nonexistent-id/reject`, {
 			method: "POST",
 			headers: await authHeader(userB.id, userB.username),
 		});
@@ -196,7 +196,7 @@ describe("Friends Endpoints", () => {
 	test("DELETE /friends/requests/:requestId - should cancel pending request", async () => {
 		const request = await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/friends/requests/${request.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -208,7 +208,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("DELETE /friends/requests/:requestId - should fail for non-existent request", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests/nonexistent-id`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/nonexistent-id`, {
 			method: "DELETE",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -228,7 +228,7 @@ describe("Friends Endpoints", () => {
 			data: { user1Id: userA.id, user2Id: userB.id },
 		});
 
-		const res = await fetch(`${baseUrl()}/friends/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -242,7 +242,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("GET /friends/ - should return empty array when no friends", async () => {
-		const res = await fetch(`${baseUrl()}/friends/`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -254,7 +254,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("GET /friends/ - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/friends/`);
+		const res = await fetch(`${baseUrl()}/api/v1/friends/`);
 
 		expect(res.status).toBe(401);
 	});
@@ -263,7 +263,7 @@ describe("Friends Endpoints", () => {
 		const incoming = await sendFriendRequest(userB.id, userA.id);
 		const outgoing = await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/friends/requests`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -278,7 +278,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("GET /friends/requests - should return empty arrays when no requests", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -289,7 +289,7 @@ describe("Friends Endpoints", () => {
 	});
 
 	test("GET /friends/requests - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/friends/requests`);
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests`);
 
 		expect(res.status).toBe(401);
 	});
@@ -297,7 +297,7 @@ describe("Friends Endpoints", () => {
 	test("POST /friends/requests/:receiverId - should not create duplicate pending requests", async () => {
 		await sendFriendRequest(userA.id, userB.id);
 
-		const res = await fetch(`${baseUrl()}/friends/requests/${userB.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/requests/${userB.id}`, {
 			method: "POST",
 			headers: await authHeader(userA.id, userA.username),
 		});

@@ -14,11 +14,17 @@ export class EmailService {
 		try {
 			const { data, error } = await resend.emails.send({
 				from: "onboarding@resend.dev",
-				to: "mouanvikram@gmail.com",
+				to: dto.to,
 				subject: dto.subject,
 				html: dto.html,
 			});
+
+			if (error) {
+				logger.error({ error }, "Failed to send email");
+				throw new Error(error.message);
+			}
 		} catch (error) {
+			logger.error({ error }, "Failed to send email");
 			throw error;
 		}
 	}

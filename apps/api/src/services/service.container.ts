@@ -1,8 +1,8 @@
 import { AuthController } from "../auth/controller";
-import { EmailRepository } from "../auth/email.repository";
-import { EmailService } from "../auth/email.service";
-import { JwtService } from "../auth/jwt.service";
-import { PasswordService } from "../auth/pwd.service";
+import { EmailRepository } from "../helpers/email.repository";
+import { EmailService } from "../helpers/email.service";
+import { JwtService } from "../helpers/jwt.service";
+import { PasswordService } from "../helpers/pwd.service";
 import { AuthService } from "../auth/service";
 import { ChatController } from "../chat/controller";
 import { ChatService } from "../chat/service";

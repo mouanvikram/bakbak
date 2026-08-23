@@ -14,7 +14,7 @@ export interface LoginResponse {
 }
 
 export function login(data: LoginRequest): Promise<LoginResponse> {
-  return apiClient("/api/auth/login", {
+  return apiClient("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -35,7 +35,7 @@ export interface SignupResponse {
 }
 
 export function signup(data: SignupRequest): Promise<SignupResponse> {
-  return apiClient("/api/auth/signup", {
+  return apiClient("/api/v1/auth/signup", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -48,5 +48,5 @@ export interface EmailVerification {
 export interface verifyEmailResponse extends Response {}
 
 export function verifyEmail(token: string): Promise<verifyEmailResponse> {
-  return apiClient(`/api/auth/verify-email?token=${token}`, { method: "POST" });
+  return apiClient(`/api/v1/auth/verify-email?token=${token}`, { method: "POST" });
 }

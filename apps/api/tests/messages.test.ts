@@ -72,7 +72,7 @@ describe("Messages Endpoints", () => {
 	const baseUrl = () => `http://localhost:${port}`;
 
 	test("POST /chats/:chatId/messages - should send text message", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -94,7 +94,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("POST /chats/:chatId/messages - should send image message without text", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -112,7 +112,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("POST /chats/:chatId/messages - should fail with empty text for TEXT type", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -130,7 +130,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("POST /chats/:chatId/messages - should fail with invalid message type", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -153,7 +153,7 @@ describe("Messages Endpoints", () => {
 			email: `outside-${Date.now()}@example.com`,
 		});
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -171,7 +171,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("POST /chats/:chatId/messages - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ type: "TEXT", text: "Hello" }),
@@ -184,7 +184,7 @@ describe("Messages Endpoints", () => {
 		await createTestMessage(chat.id, userA.id, { text: "First message" });
 		await createTestMessage(chat.id, userB.id, { text: "Second message" });
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -198,7 +198,7 @@ describe("Messages Endpoints", () => {
 	test("GET /chats/:chatId/messages - should return empty array for chat with no messages", async () => {
 		const emptyChat = await createTestGroupChat(userA.id, [userB.id]);
 
-		const res = await fetch(`${baseUrl()}/chats/${emptyChat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${emptyChat.id}/messages`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -215,7 +215,7 @@ describe("Messages Endpoints", () => {
 			email: `outside2-${Date.now()}@example.com`,
 		});
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			headers: await authHeader(outsideUser.id, outsideUser.username),
 		});
 
@@ -225,7 +225,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("GET /chats/:chatId/messages - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`);
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`);
 
 		expect(res.status).toBe(401);
 	});
@@ -236,7 +236,7 @@ describe("Messages Endpoints", () => {
 		await createTestMessage(chat.id, userC.id, { text: "Goodbye world" });
 
 		const res = await fetch(
-			`${baseUrl()}/chats/${chat.id}/messages/search?q=hello`,
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/search?q=hello`,
 			{
 				headers: await authHeader(userA.id, userA.username),
 			}
@@ -253,7 +253,7 @@ describe("Messages Endpoints", () => {
 		await createTestMessage(chat.id, userA.id, { text: "UPPERCASE MESSAGE" });
 
 		const res = await fetch(
-			`${baseUrl()}/chats/${chat.id}/messages/search?q=uppercase`,
+			`${baseUrl()}/api/v1/chats/${chat.id}/messages/search?q=uppercase`,
 			{
 				headers: await authHeader(userA.id, userA.username),
 			}
@@ -265,7 +265,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("GET /chats/:chatId/messages/search - should fail without query param", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/search`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/search`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -275,7 +275,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("GET /chats/:chatId/messages/search - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/search?q=hello`);
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/search?q=hello`);
 
 		expect(res.status).toBe(401);
 	});
@@ -283,7 +283,7 @@ describe("Messages Endpoints", () => {
 	test("GET /chats/:chatId/messages/unread - should return unread count", async () => {
 		await createTestMessage(chat.id, userB.id, { text: "Message for A" });
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/unread`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/unread`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -294,7 +294,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("GET /chats/:chatId/messages/unread - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/unread`);
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/unread`);
 
 		expect(res.status).toBe(401);
 	});
@@ -302,7 +302,7 @@ describe("Messages Endpoints", () => {
 	test("POST /chats/:chatId/messages/read - should mark chat as read", async () => {
 		const message = await createTestMessage(chat.id, userB.id, { text: "Read this" });
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/read`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -320,7 +320,7 @@ describe("Messages Endpoints", () => {
 	test("POST /chats/:chatId/messages/read - should mark chat as read without messageId", async () => {
 		await createTestMessage(chat.id, userB.id, { text: "Read this too" });
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/read`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -335,7 +335,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("POST /chats/:chatId/messages/read - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/read`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/read`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({}),
@@ -345,7 +345,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("POST /chats/:chatId/messages/pin - should return 501 not implemented", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/pin`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/pin`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -360,7 +360,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("POST /chats/:chatId/messages/reactions - should return 501 not implemented", async () => {
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages/reactions`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages/reactions`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -377,7 +377,7 @@ describe("Messages Endpoints", () => {
 	test("GET /messages/:messageId - should return message details", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Test message" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -389,7 +389,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("GET /messages/:messageId - should fail for non-existent message", async () => {
-		const res = await fetch(`${baseUrl()}/messages/nonexistent-message-id`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/nonexistent-message-id`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -401,7 +401,7 @@ describe("Messages Endpoints", () => {
 	test("GET /messages/:messageId - should fail for deleted message", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Delete me", deleted: true });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -417,7 +417,7 @@ describe("Messages Endpoints", () => {
 			email: `outside3-${Date.now()}@example.com`,
 		});
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			headers: await authHeader(outsideUser.id, outsideUser.username),
 		});
 
@@ -427,7 +427,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("GET /messages/:messageId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/messages/some-message-id`);
+		const res = await fetch(`${baseUrl()}/api/v1/messages/some-message-id`);
 
 		expect(res.status).toBe(401);
 	});
@@ -435,7 +435,7 @@ describe("Messages Endpoints", () => {
 	test("PATCH /messages/:messageId - should edit own message", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Original text" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -453,7 +453,7 @@ describe("Messages Endpoints", () => {
 	test("PATCH /messages/:messageId - should fail editing others message", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Original text" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -470,7 +470,7 @@ describe("Messages Endpoints", () => {
 	test("PATCH /messages/:messageId - should fail with empty text", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Original text" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -485,7 +485,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("PATCH /messages/:messageId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/messages/some-message-id`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/some-message-id`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ text: "Edited" }),
@@ -497,7 +497,7 @@ describe("Messages Endpoints", () => {
 	test("DELETE /messages/:messageId - should delete own message", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Delete me" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -515,7 +515,7 @@ describe("Messages Endpoints", () => {
 	test("DELETE /messages/:messageId - should fail deleting others message", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Protected" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {
 			method: "DELETE",
 			headers: await authHeader(userB.id, userB.username),
 		});
@@ -526,7 +526,7 @@ describe("Messages Endpoints", () => {
 	});
 
 	test("DELETE /messages/:messageId - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/messages/some-message-id`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/some-message-id`, {
 			method: "DELETE",
 		});
 
@@ -536,7 +536,7 @@ describe("Messages Endpoints", () => {
 	test("POST /messages/:messageId/reactions - should return 501 not implemented", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "React to me" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}/reactions`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/reactions`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -553,7 +553,7 @@ describe("Messages Endpoints", () => {
 	test("DELETE /messages/:messageId/reactions - should return 501 not implemented", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Unreact from me" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}/reactions`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/reactions`, {
 			method: "DELETE",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -566,7 +566,7 @@ describe("Messages Endpoints", () => {
 	test("POST /messages/:messageId/reply - should return 501 not implemented", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Reply to me" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}/reply`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/reply`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -583,7 +583,7 @@ describe("Messages Endpoints", () => {
 	test("PATCH /messages/:messageId/pin - should return 501 not implemented", async () => {
 		const message = await createTestMessage(chat.id, userA.id, { text: "Pin me" });
 
-		const res = await fetch(`${baseUrl()}/messages/${message.id}/pin`, {
+		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/pin`, {
 			method: "PATCH",
 			headers: await authHeader(userA.id, userA.username),
 		});
@@ -598,7 +598,7 @@ describe("Messages Endpoints", () => {
 			await createTestMessage(chat.id, userA.id, { text: `Message ${i}` });
 		}
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages?limit=3`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=3`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -612,7 +612,7 @@ describe("Messages Endpoints", () => {
 			await createTestMessage(chat.id, userA.id, { text: `Message ${i}` });
 		}
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages?limit=200`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=200`, {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
@@ -628,7 +628,7 @@ describe("Messages Endpoints", () => {
 		});
 		expect(updatedChat.lastMessageAt).toBeDefined();
 
-		const res = await fetch(`${baseUrl()}/chats/${chat.id}/messages`, {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",

@@ -61,7 +61,7 @@ describe("Users Endpoints", () => {
 	const baseUrl = () => `http://localhost:${port}`;
 
 	test("GET /users/me - should return current user profile with auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/me`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
 			headers: await authHeader(testUser.id, testUser.username),
 		});
 
@@ -79,7 +79,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("GET /users/me - should fail without auth token", async () => {
-		const res = await fetch(`${baseUrl()}/users/me`);
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`);
 
 		expect(res.status).toBe(401);
 		const data = await res.json();
@@ -87,7 +87,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("GET /users/me - should fail with invalid auth token", async () => {
-		const res = await fetch(`${baseUrl()}/users/me`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
 			headers: { Authorization: "Bearer invalid-token" },
 		});
 
@@ -97,7 +97,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("PATCH /users/me - should update profile with auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/me`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -120,7 +120,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("PATCH /users/me - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/me`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ bio: "Updated" }),
@@ -130,7 +130,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("PATCH /users/me/avatar - should update avatar with auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/me/avatar`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me/avatar`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -145,7 +145,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("PATCH /users/me/avatar - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/me/avatar`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me/avatar`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ avatar: "https://example.com/avatar.png" }),
@@ -155,7 +155,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("DELETE /users/me - should delete account with auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/me`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
 			method: "DELETE",
 			headers: await authHeader(testUser.id, testUser.username),
 		});
@@ -169,7 +169,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("DELETE /users/me - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/me`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
 			method: "DELETE",
 		});
 
@@ -178,7 +178,7 @@ describe("Users Endpoints", () => {
 
 	test("GET /users/check-username - should return available for unused username", async () => {
 		const username = `check-${Date.now()}`;
-		const res = await fetch(`${baseUrl()}/users/check-username?username=${username}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/check-username?username=${username}`, {
 			headers: await authHeader(testUser.id, testUser.username),
 		});
 
@@ -189,7 +189,7 @@ describe("Users Endpoints", () => {
 
 	test("GET /users/check-username - should return not available for used username", async () => {
 		const res = await fetch(
-			`${baseUrl()}/users/check-username?username=${encodeURIComponent(testUser.username)}`,
+			`${baseUrl()}/api/v1/users/check-username?username=${encodeURIComponent(testUser.username)}`,
 			{
 				headers: await authHeader(testUser.id, testUser.username),
 			}
@@ -201,7 +201,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("GET /users/check-username - should fail without username query param", async () => {
-		const res = await fetch(`${baseUrl()}/users/check-username`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/check-username`, {
 			headers: await authHeader(testUser.id, testUser.username),
 		});
 
@@ -219,7 +219,7 @@ describe("Users Endpoints", () => {
 		});
 
 		const res = await fetch(
-			`${baseUrl()}/users/search?q=${encodeURIComponent(uniqueName)}`,
+			`${baseUrl()}/api/v1/users/search?q=${encodeURIComponent(uniqueName)}`,
 			{
 				headers: await authHeader(testUser.id, testUser.username),
 			}
@@ -235,7 +235,7 @@ describe("Users Endpoints", () => {
 
 	test("GET /users/search - should return empty array for no matches", async () => {
 		const res = await fetch(
-			`${baseUrl()}/users/search?q=${encodeURIComponent("nonexistent-user-xyz-12345")}`,
+			`${baseUrl()}/api/v1/users/search?q=${encodeURIComponent("nonexistent-user-xyz-12345")}`,
 			{
 				headers: await authHeader(testUser.id, testUser.username),
 			}
@@ -249,13 +249,13 @@ describe("Users Endpoints", () => {
 	});
 
 	test("GET /users/search - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/search?q=test`);
+		const res = await fetch(`${baseUrl()}/api/v1/users/search?q=test`);
 
 		expect(res.status).toBe(401);
 	});
 
 	test("GET /users/:username - should return user profile by username", async () => {
-		const res = await fetch(`${baseUrl()}/users/${encodeURIComponent(testUser.username)}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/${encodeURIComponent(testUser.username)}`, {
 			headers: await authHeader(testUser.id, testUser.username),
 		});
 
@@ -269,7 +269,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("GET /users/:username - should return 500 for non-existent username", async () => {
-		const res = await fetch(`${baseUrl()}/users/nonexistent-user-xyz-12345`, {
+		const res = await fetch(`${baseUrl()}/api/v1/users/nonexistent-user-xyz-12345`, {
 			headers: await authHeader(testUser.id, testUser.username),
 		});
 
@@ -279,7 +279,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("GET /users/:username - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/users/${encodeURIComponent(testUser.username)}`);
+		const res = await fetch(`${baseUrl()}/api/v1/users/${encodeURIComponent(testUser.username)}`);
 
 		expect(res.status).toBe(401);
 	});

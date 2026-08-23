@@ -1,3 +1,4 @@
+import "./setup";
 import { mock } from "bun:test";
 import { beforeAll, afterAll, beforeEach, afterEach, describe, test, expect } from "bun:test";
 import { createServer } from "node:http";
@@ -52,13 +53,14 @@ describe("Auth Endpoints", () => {
 
 	const baseUrl = () => `http://localhost:${port}`;
 
-	test("POST /api/auth/signup - should create a new user with valid data", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+	test("POST /api/v1/auth/signup - should create a new user with valid data", async () => {
+		const email = `newuser-${Date.now()}@example.com`;
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				username: `newuser-${Date.now()}`,
-				email: `newuser-${Date.now()}@example.com`,
+				email,
 				password: "TestPass123!",
 				firstname: "John",
 				lastname: "Doe",
@@ -68,20 +70,16 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 
-		const data = await res.json();
-		expect(res.status).toBe(201);
-		expect(data).toHaveProperty("id");
-		expect(data).toHaveProperty("email");
-		expect(data).toHaveProperty("user");
-		expect(data.user).toHaveProperty("firstName", "John");
-		expect(data.user).toHaveProperty("lastName", "Doe");
-		expect(data.user).toHaveProperty("displayName", "John Doe");
-		expect(data.user).toHaveProperty("bio", "Hello world");
-		expect(data.user).toHaveProperty("avatar", "https://example.com/avatar.png");
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBeDefined();
+
+		const created = await prisma.user.findFirst({ where: { email } });
+		expect(created).not.toBeNull();
 	});
 
-	test("POST /api/auth/signup - should fail with short username", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+	test("POST /api/v1/auth/signup - should fail with short username", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -95,12 +93,12 @@ describe("Auth Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error).toBe("Validation failed");
 	});
 
-	test("POST /api/auth/signup - should fail with invalid email", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+	test("POST /api/v1/auth/signup - should fail with invalid email", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -114,12 +112,12 @@ describe("Auth Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error).toBe("Validation failed");
 	});
 
-	test("POST /api/auth/signup - should fail with weak password", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+	test("POST /api/v1/auth/signup - should fail with weak password", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -133,12 +131,12 @@ describe("Auth Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error).toBe("Validation failed");
 	});
 
-	test("POST /api/auth/signup - should fail with missing firstname", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+	test("POST /api/v1/auth/signup - should fail with missing firstname", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -151,14 +149,14 @@ describe("Auth Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error).toBe("Validation failed");
 	});
 
-	test("POST /api/auth/signup - should fail with duplicate email", async () => {
+	test("POST /api/v1/auth/signup - should fail with duplicate email", async () => {
 		const user = await createTestUser({ email: `dup-${Date.now()}@example.com` });
 
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -171,15 +169,15 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(409);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/signup - should fail with duplicate username", async () => {
+	test("POST /api/v1/auth/signup - should fail with duplicate username", async () => {
 		const user = await createTestUser({ username: `dupuser-${Date.now()}` });
 
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -192,30 +190,30 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(409);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/signup - should fail with missing body fields", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+	test("POST /api/v1/auth/signup - should fail with missing body fields", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({}),
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error).toBe("Validation failed");
 	});
 
-	test("POST /api/auth/login - should login with valid credentials", async () => {
+	test("POST /api/v1/auth/login - should login with valid credentials", async () => {
 		const user = await createTestUser({
 			email: `login-${Date.now()}@example.com`,
 			isEmailVerified: true,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/login`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -225,20 +223,20 @@ describe("Auth Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data).toHaveProperty("id", user.id);
-		expect(data).toHaveProperty("username", user.username);
-		expect(data).toHaveProperty("token");
-		expect(typeof data.token).toBe("string");
+		const data = (await res.json()) as any;
+		expect(data.accessToken).toBeDefined();
+		expect(typeof data.accessToken).toBe("string");
+		expect(data.user.id).toBe(user.id);
+		expect(data.user.identifier).toBe(user.username);
 	});
 
-	test("POST /api/auth/login - should login with username as identifier", async () => {
+	test("POST /api/v1/auth/login - should login with username as identifier", async () => {
 		const user = await createTestUser({
 			username: `loginuser-${Date.now()}`,
 			isEmailVerified: true,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/login`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -248,17 +246,17 @@ describe("Auth Endpoints", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.id).toBe(user.id);
+		const data = (await res.json()) as any;
+		expect(data.user.id).toBe(user.id);
 	});
 
-	test("POST /api/auth/login - should fail with wrong password", async () => {
+	test("POST /api/v1/auth/login - should fail with wrong password", async () => {
 		const user = await createTestUser({
 			email: `wrongpwd-${Date.now()}@example.com`,
 			isEmailVerified: true,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/login`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -267,13 +265,13 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(401);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/login - should fail with non-existent user", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/login`, {
+	test("POST /api/v1/auth/login - should fail with non-existent user", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -282,18 +280,18 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(401);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/login - should fail with unverified email", async () => {
+	test("POST /api/v1/auth/login - should fail with unverified email", async () => {
 		const user = await createTestUser({
 			email: `unverified-${Date.now()}@example.com`,
 			isEmailVerified: false,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/login`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -302,13 +300,13 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/login - should fail with short identifier", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/login`, {
+	test("POST /api/v1/auth/login - should fail with short identifier", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -318,12 +316,12 @@ describe("Auth Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error).toBe("Validation failed");
 	});
 
-	test("POST /api/auth/login - should fail with weak password", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/login`, {
+	test("POST /api/v1/auth/login - should fail with weak password", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -333,11 +331,11 @@ describe("Auth Endpoints", () => {
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.error).toBe("Validation failed");
 	});
 
-	test("POST /api/auth/verify-email - should verify with valid token", async () => {
+	test("POST /api/v1/auth/verify-email - should verify with valid token", async () => {
 		const user = await createTestUser({
 			email: `verify-${Date.now()}@example.com`,
 			isEmailVerified: false,
@@ -357,46 +355,42 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/verify-email`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email?token=${token}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ token }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data).toHaveProperty("email", user.email);
-		expect(data).toHaveProperty("message", "Email successfully verified");
+		const data = (await res.json()) as any;
+		expect(data.message).toBe("Email verified successfully");
 
 		const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
 		expect(updatedUser?.isEmailVerified).toBe(true);
 	});
 
-	test("POST /api/auth/verify-email - should fail with missing token", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/verify-email`, {
+	test("POST /api/v1/auth/verify-email - should fail with missing token", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({}),
 		});
 
 		expect(res.status).toBe(400);
-		const data = await res.json();
-		expect(data.message).toBe("Verification token is required");
+		const data = (await res.json()) as any;
+		expect(data.error).toBe("Validation failed");
 	});
 
-	test("POST /api/auth/verify-email - should fail with invalid token", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/verify-email`, {
+	test("POST /api/v1/auth/verify-email - should fail with invalid token", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email?token=invalid-token-12345`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ token: "invalid-token-12345" }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/verify-email - should fail with expired token", async () => {
+	test("POST /api/v1/auth/verify-email - should fail with expired token", async () => {
 		const user = await createTestUser({
 			email: `expired-${Date.now()}@example.com`,
 			isEmailVerified: false,
@@ -416,162 +410,157 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/verify-email`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email?token=${token}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ token }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/resend-verification - should resend for valid unverified email", async () => {
+	test("POST /api/v1/auth/resend-verification - should resend for valid unverified email", async () => {
 		const user = await createTestUser({
 			email: `resend-${Date.now()}@example.com`,
 			isEmailVerified: false,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/resend-verification`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/resend-verification`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ email: user.email }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.message).toBe("Email sent successfully");
+		const data = (await res.json()) as any;
+		expect(data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/resend-verification - should fail for non-existent email", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/resend-verification`, {
+	test("POST /api/v1/auth/resend-verification - should return generic response for non-existent email", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/resend-verification`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ email: `nonexistent-${Date.now()}@example.com` }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
-		expect(data.error || data.message).toBeDefined();
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/resend-verification - should fail for already verified email", async () => {
+	test("POST /api/v1/auth/resend-verification - should return generic response for already verified email", async () => {
 		const user = await createTestUser({
 			email: `verified-${Date.now()}@example.com`,
 			isEmailVerified: true,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/resend-verification`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/resend-verification`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ email: user.email }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
-		expect(data.error || data.message).toBeDefined();
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/change-password - should change password with valid data and auth", async () => {
+	test("POST /api/v1/auth/change-password - should change password with valid data and auth", async () => {
 		const user = await createTestUser({
 			email: `changepwd-${Date.now()}@example.com`,
 			isEmailVerified: true,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/change-password`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/change-password`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 				...await authHeader(user.id, user.username),
 			},
 			body: JSON.stringify({
-				email: user.email,
-				oldPassword: "TestPass123!",
+				currentPassword: "TestPass123!",
 				newPassword: "NewPass123!",
 			}),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Password changed successfully");
 	});
 
-	test("POST /api/auth/change-password - should fail without auth token", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/change-password`, {
+	test("POST /api/v1/auth/change-password - should fail without auth token", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/change-password`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
-				email: `test-${Date.now()}@example.com`,
-				oldPassword: "TestPass123!",
+				currentPassword: "TestPass123!",
 				newPassword: "NewPass123!",
 			}),
 		});
 
 		expect(res.status).toBe(401);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message || data.error).toBeDefined();
 	});
 
-	test("POST /api/auth/change-password - should fail with wrong old password", async () => {
+	test("POST /api/v1/auth/change-password - should fail with wrong current password", async () => {
 		const user = await createTestUser({
 			email: `wrongold-${Date.now()}@example.com`,
 			isEmailVerified: true,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/change-password`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/change-password`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 				...await authHeader(user.id, user.username),
 			},
 			body: JSON.stringify({
-				email: user.email,
-				oldPassword: "WrongPass123!",
+				currentPassword: "WrongPass123!",
 				newPassword: "NewPass123!",
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/change-password - should fail for non-existent email", async () => {
-		const token = generateToken(`user-${Date.now()}`, "testuser");
+	test("POST /api/v1/auth/change-password - should fail for non-existent user", async () => {
+		const token = await generateToken(`user-${Date.now()}`, "testuser");
 
-		const res = await fetch(`${baseUrl()}/api/auth/change-password`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/change-password`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
 			},
 			body: JSON.stringify({
-				email: `nonexistent-${Date.now()}@example.com`,
-				oldPassword: "TestPass123!",
+				currentPassword: "TestPass123!",
 				newPassword: "NewPass123!",
 			}),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/forgot-password - should create reset token for valid email", async () => {
+	test("POST /api/v1/auth/forgot-password - should create reset token for valid email", async () => {
 		const user = await createTestUser({
 			email: `forgot-${Date.now()}@example.com`,
 			isEmailVerified: true,
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/forgot-password`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/forgot-password`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ email: user.email }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("If an account exists, reset link is sent to the email.");
 
 		const token = await prisma.verificationToken.findFirst({
@@ -580,19 +569,19 @@ describe("Auth Endpoints", () => {
 		expect(token).toBeDefined();
 	});
 
-	test("POST /api/auth/forgot-password - should return 500 for non-existent email", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/forgot-password`, {
+	test("POST /api/v1/auth/forgot-password - should return generic response for non-existent email", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/forgot-password`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ email: `nonexistent-${Date.now()}@example.com` }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
-		expect(data.error || data.message).toBeDefined();
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/reset-password/:token - should reset password with valid token", async () => {
+	test("POST /api/v1/auth/reset-password - should reset password with valid token", async () => {
 		const user = await createTestUser({
 			email: `reset-${Date.now()}@example.com`,
 			isEmailVerified: true,
@@ -612,14 +601,14 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/reset-password/${token}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password?token=${token}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ password: "NewResetPass123!" }),
+			body: JSON.stringify({ newPassword: "NewResetPass123!" }),
 		});
 
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = (await res.json()) as any;
 		expect(data.message).toBe("Password reset successful");
 
 		const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
@@ -627,19 +616,19 @@ describe("Auth Endpoints", () => {
 		expect(valid).toBe(true);
 	});
 
-	test("POST /api/auth/reset-password/:token - should fail with invalid token", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/reset-password/invalid-token-123`, {
+	test("POST /api/v1/auth/reset-password - should fail with invalid token", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password?token=invalid-token-123`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ password: "NewResetPass123!" }),
+			body: JSON.stringify({ newPassword: "NewResetPass123!" }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/reset-password/:token - should fail with expired token", async () => {
+	test("POST /api/v1/auth/reset-password - should fail with expired token", async () => {
 		const user = await createTestUser({
 			email: `expiredreset-${Date.now()}@example.com`,
 			isEmailVerified: true,
@@ -659,18 +648,18 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/reset-password/${token}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password?token=${token}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ password: "NewResetPass123!" }),
+			body: JSON.stringify({ newPassword: "NewResetPass123!" }),
 		});
 
-		expect(res.status).toBe(500);
-		const data = await res.json();
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/reset-password/:token - should fail without password in body", async () => {
+	test("POST /api/v1/auth/reset-password - should fail without password in body", async () => {
 		const user = await createTestUser({
 			email: `resetnopwd-${Date.now()}@example.com`,
 			isEmailVerified: true,
@@ -690,24 +679,25 @@ describe("Auth Endpoints", () => {
 			},
 		});
 
-		const res = await fetch(`${baseUrl()}/api/auth/reset-password/${token}`, {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password?token=${token}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({}),
 		});
 
-		expect(res.status).toBe(200);
-		const data = await res.json();
-		expect(data.message).toBe("Password reset successful");
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
+		expect(data.error || data.message).toBeDefined();
 	});
 
-	test("POST /api/auth/signup - should handle optional bio and avatarUrl", async () => {
-		const res = await fetch(`${baseUrl()}/api/auth/signup`, {
+	test("POST /api/v1/auth/signup - should handle optional bio and avatarUrl", async () => {
+		const email = `optional-${Date.now()}@example.com`;
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				username: `optional-${Date.now()}`,
-				email: `optional-${Date.now()}@example.com`,
+				email,
 				password: "TestPass123!",
 				firstname: "John",
 				lastname: "Doe",
@@ -715,9 +705,15 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(201);
-		const data = await res.json();
-		expect(data.user.bio).toBeNull();
-		expect(data.user.avatar).toBeNull();
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBeDefined();
+
+		const created = await prisma.user.findFirst({
+			where: { email },
+			include: { profile: true },
+		});
+		expect(created?.profile?.bio).toBeNull();
+		expect(created?.profile?.avatar).toBeNull();
 	});
 });

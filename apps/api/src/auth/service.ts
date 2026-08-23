@@ -1,11 +1,12 @@
-import type { AccessTokenPayload, JwtService } from "./jwt.service";
-import type { PasswordService } from "./pwd.service";
+import type { AccessTokenPayload, JwtService } from "../helpers/jwt.service";
+import type { PasswordService } from "../helpers/pwd.service";
 import type { UserRepository } from "../users/repository";
-import type { EmailService } from "./email.service";
+import type { EmailService } from "../helpers/email.service";
 import crypto from "crypto";
-import type { EmailRepository } from "./email.repository";
+import type { EmailRepository } from "../helpers/email.repository";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { env } from "../../lib/config";
 import type {
 	ChangePasswordRequestType,
 	ChangePasswordResponseType,
@@ -77,7 +78,7 @@ export class AuthService {
 			},
 		});
 
-		const url = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
 
 		// send the mail to the user.
 		await this.emailService.sendVerificationEmail({
@@ -229,9 +230,10 @@ export class AuthService {
 			},
 		});
 
-		const url = `${process.env.FRONTEND_URL}/api/auth/verify-email?token=${token}`;
+		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
 
 		await this.emailService.sendVerificationEmail({
+			username: user.username,
 			email,
 			url,
 		});
@@ -336,7 +338,7 @@ export class AuthService {
 			},
 		});
 
-		const url = `${process.env.FRONTEND_URL}/api/auth/reset-password?token=${token}`;
+		const url = `${env.FRONTEND_URL}/reset-password?token=${token}`;
 
 		await this.emailService.sendPasswordResetEmail({
 			email: user.email,

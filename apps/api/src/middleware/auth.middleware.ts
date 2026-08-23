@@ -1,7 +1,7 @@
 import type { AuthRequest } from "../auth/controller";
 import type { NextFunction, Response } from "express";
 import { jwtService } from "../services/service.container";
-import type { AccessTokenPayload } from "../auth/jwt.service";
+import type { AccessTokenPayload } from "../helpers/jwt.service";
 import logger from "@lib/logger";
 
 export const authMiddleware = (

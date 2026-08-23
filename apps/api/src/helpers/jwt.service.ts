@@ -16,4 +16,3 @@ export class JwtService {
     return jwt.decode(token) as T;
   }
 }
-
