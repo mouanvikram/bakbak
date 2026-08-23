@@ -42,7 +42,6 @@ const getMessageType = (value: unknown) => {
 };
 
 export class MessageController {
-	//modified
 	constructor(private readonly messageService: MessageService) {}
 
 	sendMessage = async (req: AuthRequest, res: Response) => {
