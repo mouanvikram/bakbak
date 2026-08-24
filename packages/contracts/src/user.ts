@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { UserIdType } from "./auth";
 
 export const userProfileSchema = z.object({
 	id: z.uuid(),
@@ -43,9 +44,8 @@ export const updateProfileResponseSchema = z.object({
 	displayName: z.string().nullish(),
 });
 
-export type UpdateProfileRequestType = z.infer<
-	typeof updateProfileRequestSchema
->;
+export type UpdateProfileRequestType = UserIdType &
+	z.infer<typeof updateProfileRequestSchema>;
 export type UpdateProfileResponseType = z.infer<
 	typeof updateProfileResponseSchema
 >;
@@ -60,7 +60,8 @@ export const updateAvatarResponseSchema = z.object({
 	avatar: z.string().nullish(),
 });
 
-export type UpdateAvatarRequestType = z.infer<typeof updateAvatarRequestSchema>;
+export type UpdateAvatarRequestType = UserIdType &
+	z.infer<typeof updateAvatarRequestSchema>;
 export type UpdateAvatarResponseType = z.infer<
 	typeof updateAvatarResponseSchema
 >;
@@ -135,32 +136,3 @@ export const getProfileResponseSchema = z.object({
 
 export type GetProfileRequestType = z.infer<typeof getProfileRequestSchema>;
 export type GetProfileResponseType = z.infer<typeof getProfileResponseSchema>;
-
-export interface AuthenticatedDto {
-	userId: string;
-}
-
-export interface MeDto extends AuthenticatedDto {}
-
-export interface UpdateProfileDto extends AuthenticatedDto {
-	displayName?: string;
-	bio?: string;
-	firstName?: string;
-	lastName?: string;
-}
-
-export interface UpdateAvatarDto extends AuthenticatedDto {
-	avatar?: string;
-}
-
-export interface CheckUsernameDto {
-	username: string;
-}
-
-export interface SearchUsersDto {
-	query: string;
-}
-
-export interface GetUserProfileDto {
-	username: string;
-}

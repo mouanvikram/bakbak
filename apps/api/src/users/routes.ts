@@ -13,7 +13,9 @@ import {
 const router = express.Router();
 
 router.use(authMiddleware);
+
 router.get("/me", userController.getMe);
+
 router.patch(
 	"/me",
 	validate(updateProfileRequestSchema),
@@ -31,11 +33,13 @@ router.get(
 	validate(checkUsernameRequestSchema, "query"),
 	userController.checkUsername,
 );
+
 router.get(
 	"/search",
 	validate(searchUsersRequestSchema, "query"),
 	userController.searchUsers,
 );
+
 router.get(
 	"/:username",
 	validate(getProfileRequestSchema, "params"),

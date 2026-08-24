@@ -217,7 +217,8 @@ describe("Users Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe("invalid request");
+		expect(data.error).toBe("Validation failed");
+		expect(Array.isArray(data.issues)).toBe(true);
 	});
 
 	test("GET /users/search - should return matching users", async () => {
@@ -229,7 +230,7 @@ describe("Users Endpoints", () => {
 		});
 
 		const res = await fetch(
-			`${baseUrl()}/api/v1/users/search?q=${encodeURIComponent(uniqueName)}`,
+			`${baseUrl()}/api/v1/users/search?query=${encodeURIComponent(uniqueName)}`,
 			{
 				headers: await authHeader(testUser.id, testUser.username),
 			},
@@ -245,7 +246,7 @@ describe("Users Endpoints", () => {
 
 	test("GET /users/search - should return empty array for no matches", async () => {
 		const res = await fetch(
-			`${baseUrl()}/api/v1/users/search?q=${encodeURIComponent("nonexistent-user-xyz-12345")}`,
+			`${baseUrl()}/api/v1/users/search?query=${encodeURIComponent("nonexistent-user-xyz-12345")}`,
 			{
 				headers: await authHeader(testUser.id, testUser.username),
 			},
@@ -259,7 +260,7 @@ describe("Users Endpoints", () => {
 	});
 
 	test("GET /users/search - should fail without auth", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/users/search?q=test`);
+		const res = await fetch(`${baseUrl()}/api/v1/users/search?query=test`);
 
 		expect(res.status).toBe(401);
 	});

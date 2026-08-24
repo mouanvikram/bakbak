@@ -51,7 +51,7 @@ export function validateResponse<T>(
 		throw new AppError(
 			HTTP_STATUS.INTERNAL_SERVER_ERROR,
 			ERROR_CODES.INVALID_API_RESPONSE,
-			"Internal server error",
+			"Invalid response from API",
 		);
 	}
 	return res.status(status).json(result.data);
