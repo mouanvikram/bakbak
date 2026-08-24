@@ -29,9 +29,7 @@ export class UserController {
 			userId,
 		});
 
-		return validateResponse(res, 200, getMeResponseSchema, {
-			profile,
-		});
+		return validateResponse(res, 200, getMeResponseSchema, profile);
 	};
 
 	updateMe = async (req: AuthRequest, res: Response) => {

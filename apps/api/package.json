@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun --hot run index.ts | bunx pino-pretty",
+    "dev": "bun --hot run index.ts | bunx pino-pretty",
     "test": "bun test --serial tests/"
   },
   "devDependencies": {

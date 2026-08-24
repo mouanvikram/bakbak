@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bunx prisma studio",
+    "dev": "bunx prisma studio",
     "migrate": "bunx prisma migrate dev",
     "generate": "bunx prisma generate",
     "reset": "bunx prisma migrate reset",

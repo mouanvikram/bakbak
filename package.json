@@ -4,7 +4,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun run apps/api/index.ts"
+    "dev": "bun run --parallel dev:frontend dev:backend dev:prisma",
+    "dev:frontend": "bun --cwd apps/web dev",
+    "dev:backend": "bun --hot apps/api/index.ts",
+    "dev:prisma": "bun --cwd packages/db dev"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -17,6 +20,5 @@
   "peerDependencies": {
     "typescript": "^5"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }
