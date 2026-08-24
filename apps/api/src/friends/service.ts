@@ -1,34 +1,118 @@
-import { FriendRequestStatus } from "@bakbak/db";
+import {
+	FriendRequestStatus,
+	Prisma,
+	type Friendship,
+	type FriendRequest,
+} from "@bakbak/db";
 import type { FriendRepository } from "./repository";
-import type { FriendRequestIdType, FriendRequestType } from "@bakbak/contracts";
+import type {
+	AcceptFriendRequestResponseType,
+	CancelFriendRequestResponseType,
+	FriendRequestIdType,
+	FriendRequestResponseType,
+	FriendRequestType,
+	GetFriendsResponseType,
+	RejectFriendRequestResponseType,
+	SendFriendRequestResponseType,
+	UserIdType,
+} from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 export class FriendService {
 	constructor(private readonly friendRepository: FriendRepository) {}
-	//requests
-	async sendRequest(dto: FriendRequestType) {
-		const { senderId, receiverId } = dto;
 
-		const request = await this.friendRepository.createRequest({
-			sender: {
-				connect: {
-					id: senderId,
-				},
-			},
-			receiver: {
-				connect: {
-					id: receiverId,
-				},
-			},
-		});
-
-		return request;
+	private serializeDateFields<T extends { createdAt: Date; updatedAt: Date }>(
+		record: T,
+	) {
+		return {
+			...record,
+			createdAt: record.createdAt.toISOString(),
+			updatedAt: record.updatedAt.toISOString(),
+		};
 	}
 
-	async cancelRequest(dto: FriendRequestIdType) {
-		const { id } = dto;
+	private serializeRequest<
+		T extends FriendRequest & { createdAt: Date; updatedAt: Date },
+	>(request: T) {
+		return this.serializeDateFields(request);
+	}
 
-		const existing = await this.friendRepository.findRequestById(id);
+	//requests
+	async sendRequest(
+		dto: FriendRequestType,
+	): Promise<SendFriendRequestResponseType> {
+		const { senderId, receiverId } = dto;
+
+		if (senderId === receiverId) {
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"You cannot send a friend request to yourself",
+			);
+		}
+
+		const reverseRequest = await this.friendRepository.findRequest({
+			senderId: receiverId,
+			receiverId: senderId,
+			status: FriendRequestStatus.PENDING,
+		});
+
+		if (reverseRequest.length > 0) {
+			throw new AppError(
+				HTTP_STATUS.CONFLICT,
+				ERROR_CODES.CONFLICT,
+				"This user has already sent you a friend request",
+			);
+		}
+
+		try {
+			const request = await this.friendRepository.createRequest({
+				sender: {
+					connect: {
+						id: senderId,
+					},
+				},
+				receiver: {
+					connect: {
+						id: receiverId,
+					},
+				},
+			});
+
+			return this.serializeRequest(request);
+		} catch (error) {
+			if (
+				error instanceof Prisma.PrismaClientKnownRequestError &&
+				error.code === "P2002"
+			) {
+				throw new AppError(
+					HTTP_STATUS.CONFLICT,
+					ERROR_CODES.CONFLICT,
+					"A friend request already exists between these users",
+				);
+			}
+
+			if (
+				error instanceof Prisma.PrismaClientKnownRequestError &&
+				(error.code === "P2025" || error.code === "P2003")
+			) {
+				throw new AppError(
+					HTTP_STATUS.NOT_FOUND,
+					ERROR_CODES.USER_NOT_FOUND,
+					"Receiver user not found",
+				);
+			}
+
+			throw error;
+		}
+	}
+
+	async cancelRequest(
+		dto: FriendRequestIdType & UserIdType,
+	): Promise<CancelFriendRequestResponseType> {
+		const { requestId, userId } = dto;
+
+		const existing = await this.friendRepository.findRequestById(requestId);
 		if (!existing) {
 			throw new AppError(
 				HTTP_STATUS.NOT_FOUND,
@@ -37,27 +121,53 @@ export class FriendService {
 			);
 		}
 
+		if (existing.senderId !== userId) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.FORBIDDEN,
+				"Only the sender can cancel a friend request",
+			);
+		}
+
+		if (existing.status !== FriendRequestStatus.PENDING) {
+			throw new AppError(
+				HTTP_STATUS.CONFLICT,
+				ERROR_CODES.CONFLICT,
+				"Only pending friend requests can be cancelled",
+			);
+		}
+
 		const request = await this.friendRepository.updateRequest(
 			{
-				id,
+				id: requestId,
 			},
 			{
 				status: FriendRequestStatus.CANCELLED,
 			},
 		);
 
-		return request;
+		return this.serializeRequest(request);
 	}
 
-	async acceptReqeust(dto: FriendRequestIdType) {
-		const { id } = dto;
+	async acceptRequest(
+		dto: FriendRequestIdType & UserIdType,
+	): Promise<AcceptFriendRequestResponseType> {
+		const { requestId, userId } = dto;
 
-		const existing = await this.friendRepository.findRequestById(id);
+		const existing = await this.friendRepository.findRequestById(requestId);
 		if (!existing) {
 			throw new AppError(
 				HTTP_STATUS.NOT_FOUND,
 				ERROR_CODES.FRIEND_REQUEST_NOT_FOUND,
 				"Friend request not found",
+			);
+		}
+
+		if (existing.receiverId !== userId) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.FORBIDDEN,
+				"Only the receiver can accept a friend request",
 			);
 		}
 
@@ -69,38 +179,24 @@ export class FriendService {
 			);
 		}
 
-		const [user1Id, user2Id] = [existing.senderId, existing.receiverId].sort();
-
-		const alreadyFriends = await this.friendRepository.findFriendship({
-			OR: [
-				{ user1Id, user2Id },
-				{ user1Id: user2Id, user2Id: user1Id },
-			],
-		});
-
-		if (!alreadyFriends) {
-			await this.friendRepository.createFriendship({
-				user1: { connect: { id: user1Id } },
-				user2: { connect: { id: user2Id } },
-			});
+		const request = await this.friendRepository.acceptPendingRequest(requestId);
+		if (!request) {
+			throw new AppError(
+				HTTP_STATUS.CONFLICT,
+				ERROR_CODES.CONFLICT,
+				"Friend request is not pending",
+			);
 		}
 
-		const request = await this.friendRepository.updateRequest(
-			{
-				id,
-			},
-			{
-				status: FriendRequestStatus.ACCEPTED,
-			},
-		);
-
-		return request;
+		return this.serializeRequest(request);
 	}
 
-	async rejectRequest(dto: FriendRequestIdType) {
-		const { id } = dto;
+	async rejectRequest(
+		dto: FriendRequestIdType & UserIdType,
+	): Promise<RejectFriendRequestResponseType> {
+		const { requestId, userId } = dto;
 
-		const existing = await this.friendRepository.findRequestById(id);
+		const existing = await this.friendRepository.findRequestById(requestId);
 		if (!existing) {
 			throw new AppError(
 				HTTP_STATUS.NOT_FOUND,
@@ -109,72 +205,95 @@ export class FriendService {
 			);
 		}
 
+		if (existing.receiverId !== userId) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.FORBIDDEN,
+				"Only the receiver can reject a friend request",
+			);
+		}
+
+		if (existing.status !== FriendRequestStatus.PENDING) {
+			throw new AppError(
+				HTTP_STATUS.CONFLICT,
+				ERROR_CODES.CONFLICT,
+				"Only pending friend requests can be rejected",
+			);
+		}
+
 		const request = await this.friendRepository.updateRequest(
 			{
-				id,
+				id: requestId,
 			},
 			{
 				status: FriendRequestStatus.REJECTED,
 			},
 		);
 
-		return request;
+		return this.serializeRequest(request);
 	}
 
 	//friends
-	async getFriends(id: string) {
+	async getFriends(
+		dto: UserIdType,
+	): Promise<GetFriendsResponseType["friendships"]> {
 		const friendships = await this.friendRepository.findFriends({
-			OR: [{ user1Id: id }, { user2Id: id }],
+			OR: [{ user1Id: dto.userId }, { user2Id: dto.userId }],
 		});
 
 		return friendships.map((friendship) => {
 			const friend =
-				friendship.user1Id === id ? friendship.user2 : friendship.user1;
+				friendship.user1Id === dto.userId ? friendship.user2 : friendship.user1;
 
 			return {
 				friendshipId: friendship.id,
-				createdAt: friendship.createdAt,
+				createdAt: friendship.createdAt.toISOString(),
 				friend,
 			};
 		});
 	}
 
-  async removeFriend(id: string) {
-    const existing = await this.friendRepository.findFriendship({ id });
-    if (!existing) {
-      throw new AppError(
-        HTTP_STATUS.NOT_FOUND,
-        ERROR_CODES.FRIENDSHIP_NOT_FOUND,
-        "Friendship not found",
-      );
-    }
+	async removeFriend(dto: FriendRequestIdType): Promise<void> {
+		const existing = await this.friendRepository.findFriendship({
+			id: dto.requestId,
+		});
+		if (!existing) {
+			throw new AppError(
+				HTTP_STATUS.NOT_FOUND,
+				ERROR_CODES.FRIENDSHIP_NOT_FOUND,
+				"Friendship not found",
+			);
+		}
 
-    await this.friendRepository.deleteFriendship({
-      id,
-    });
-  }
+		await this.friendRepository.deleteFriendship({
+			id: dto.requestId,
+		});
+	}
 
 	// Requests — outgoing = I sent, incoming = I received
-	async getIncomingRequests(id: string) {
+	async getIncomingRequests(id: string): Promise<FriendRequestResponseType[]> {
 		const requests = await this.friendRepository.findRequest({
 			receiverId: id,
 			status: FriendRequestStatus.PENDING,
 		});
 
-		return requests;
+		return requests.map((request) => this.serializeRequest(request));
 	}
 
-	async getOutgoingRequests(id: string) {
+	async getOutgoingRequests(id: string): Promise<FriendRequestResponseType[]> {
 		const requests = await this.friendRepository.findRequest({
 			senderId: id,
 			status: FriendRequestStatus.PENDING,
 		});
 
-		return requests;
+		return requests.map((request) => this.serializeRequest(request));
 	}
 
 	// Status
-	async getRelationshipStatus(dto: { userId: string; otherUserId: string }) {
+	async getRelationshipStatus(dto: {
+		userId: string;
+		otherUserId: string;
+	}): Promise<Friendship | null> {
 		const status = await this.friendRepository.findFriendship({
 			OR: [
 				{

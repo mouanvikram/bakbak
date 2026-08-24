@@ -41,6 +41,10 @@ export const sendFriendRequestRequestSchema = z.object({
 	receiverId: z.uuid(),
 });
 
+export const friendRequestIdParamsSchema = z.object({
+	requestId: z.uuid(),
+});
+
 export const sendFriendRequestResponseSchema = friendRequestResponseSchema;
 
 export type SendFriendRequestRequestType = z.infer<
@@ -88,6 +92,6 @@ export interface FriendRequestType {
 	receiverId: string;
 }
 
-export interface FriendRequestIdType {
-	id: string;
-}
+export type FriendRequestIdType = {
+	requestId: string;
+};

@@ -1,7 +1,8 @@
-import type { Response } from "express";
+import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import type { FriendService } from "./service";
 import { validateResponse } from "../middleware/validate";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import {
 	acceptFriendRequestResponseSchema,
 	cancelFriendRequestResponseSchema,
@@ -11,121 +12,183 @@ import {
 	sendFriendRequestResponseSchema,
 } from "@bakbak/contracts";
 
+const getStringParam = (value: unknown): string | undefined =>
+	typeof value === "string" && value.trim().length > 0 ? value : undefined;
+
 export class FriendController {
-  constructor(private readonly friendService: FriendService) {}
+	constructor(private readonly friendService: FriendService) {}
 
-  sendRequest = async (req: AuthRequest, res: Response) => {
-    const senderId = req.user?.userId;
-    const { receiverId } = req.params;
-    if (!senderId || !receiverId) {
-      return res.status(400).json({
-        message: "Invalid Id",
-      });
-    }
-    if (typeof receiverId !== "string") {
-      return res.status(400).json({
-        message: "Invalid Id",
-      });
-    }
-    const response = await this.friendService.sendRequest({
-      senderId,
-      receiverId,
-    });
+	sendRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+		try {
+			const senderId = req.user?.userId;
+			const receiverId = getStringParam(req.params.receiverId);
+			if (!senderId || !receiverId) {
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid Id",
+				);
+			}
 
-    return validateResponse(
-      res,
-      200,
-      sendFriendRequestResponseSchema,
-      response,
-    );
-  };
+			const response = await this.friendService.sendRequest({
+				senderId,
+				receiverId,
+			});
 
-  cancelRequest = async (req: AuthRequest, res: Response) => {
-    const { requestId } = req.params;
-    if (!requestId || typeof requestId !== "string") {
-      return res.status(400).json({
-        message: "Invalid Request",
-      });
-    }
-    const response = await this.friendService.cancelRequest({
-      id: requestId,
-    });
+			return validateResponse(
+				res,
+				200,
+				sendFriendRequestResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
 
-    return validateResponse(
-      res,
-      200,
-      cancelFriendRequestResponseSchema,
-      response,
-    );
-  };
+	cancelRequest = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = req.user?.userId;
+			const requestId = getStringParam(req.params.requestId);
+			if (!userId || !requestId) {
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid Request",
+				);
+			}
+			const response = await this.friendService.cancelRequest({
+				requestId,
+				userId,
+			});
 
-  acceptRequest = async (req: AuthRequest, res: Response) => {
-    const { requestId } = req.params;
-    if (!requestId || typeof requestId !== "string") {
-      return res.status(400).json({
-        message: "Invalid Request",
-      });
-    }
-    const response = await this.friendService.acceptReqeust({
-      id: requestId,
-    });
+			return validateResponse(
+				res,
+				200,
+				cancelFriendRequestResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
 
-    return validateResponse(
-      res,
-      200,
-      acceptFriendRequestResponseSchema,
-      response,
-    );
-  };
+	acceptRequest = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = req.user?.userId;
+			const requestId = getStringParam(req.params.requestId);
+			if (!userId || !requestId) {
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid Request",
+				);
+			}
+			const response = await this.friendService.acceptRequest({
+				requestId,
+				userId,
+			});
 
-  rejectRequest = async (req: AuthRequest, res: Response) => {
-    const { requestId } = req.params;
-    if (!requestId || typeof requestId !== "string") {
-      return res.status(400).json({
-        message: "Invalid Request",
-      });
-    }
-    const response = await this.friendService.rejectRequest({
-      id: requestId,
-    });
+			return validateResponse(
+				res,
+				200,
+				acceptFriendRequestResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
 
-    return validateResponse(
-      res,
-      200,
-      rejectFriendRequestResponseSchema,
-      response,
-    );
-  };
+	rejectRequest = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = req.user?.userId;
+			const requestId = getStringParam(req.params.requestId);
+			if (!userId || !requestId) {
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid Request",
+				);
+			}
+			const response = await this.friendService.rejectRequest({
+				requestId,
+				userId,
+			});
 
-  getFriends = async (req: AuthRequest, res: Response) => {
-    const id = req.user?.userId;
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({
-        message: "Invalid",
-      });
-    }
-    const response = await this.friendService.getFriends(id);
+			return validateResponse(
+				res,
+				200,
+				rejectFriendRequestResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
 
-    return validateResponse(res, 200, getFriendsResponseSchema, {
-      friendships: response,
-    });
-  };
+	getFriends = async (req: AuthRequest, res: Response, next: NextFunction) => {
+		try {
+			const userId = req.user?.userId;
+			if (!userId) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Unauthorized",
+				);
+			}
+			const response = await this.friendService.getFriends({ userId });
 
-  getPendingRequest = async (req: AuthRequest, res: Response) => {
-    const id = req.user?.userId;
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({
-        message: "Invalid",
-      });
-    }
+			return validateResponse(res, 200, getFriendsResponseSchema, {
+				friendships: response,
+			});
+		} catch (error) {
+			next(error);
+		}
+	};
 
-    const received = await this.friendService.getIncomingRequests(id);
-    const sent = await this.friendService.getOutgoingRequests(id);
+	getPendingRequest = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const id = req.user?.userId;
+			if (!id) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Unauthorized",
+				);
+			}
 
-    return validateResponse(res, 200, getPendingRequestsResponseSchema, {
-      sent,
-      received,
-    });
-  };
-  // removeFriend = async (req: AuthRequest, res: Response) => {}
+			const received = await this.friendService.getIncomingRequests(id);
+			const sent = await this.friendService.getOutgoingRequests(id);
+
+			return validateResponse(res, 200, getPendingRequestsResponseSchema, {
+				sent,
+				received,
+			});
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	removeFriend = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {};
 }
