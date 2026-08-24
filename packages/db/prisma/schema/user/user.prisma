@@ -12,6 +12,7 @@ model User {
 
   verification     VerificationToken[]
   profile          UserProfile?
+  settings         UserSettings?
   refreshToken     RefreshToken[]
   sentRequests     FriendRequest[]     @relation("FriendRequestSender")
   receivedRequests FriendRequest[]     @relation("FriendRequestReceiver")
@@ -46,4 +47,33 @@ model UserProfile {
   lastSeenAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per user, created lazily on first access.
+// Mirrors the fields rendered by the frontend settings pages:
+// NotificationsPage, AppearancePage, ChatSettingsPage, SecurityPrivacyPage.
+model UserSettings {
+  userId String @id @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // NotificationsPage
+  notifyMessages Boolean @default(true)
+  notifySounds   Boolean @default(true)
+  notifyAlerts   Boolean @default(true)
+  emailDigest    Boolean @default(false)
+
+  // AppearancePage
+  theme    String @default("system") @db.VarChar(10)
+  fontSize String @default("medium") @db.VarChar(10)
+
+  // ChatSettingsPage
+  enterToSend     Boolean @default(true)
+  mediaPreview    Boolean @default(true)
+  keepChatHistory Boolean @default(true)
+
+  // SecurityPrivacyPage (2FA toggle)
+  twoFactorEnabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

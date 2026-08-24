@@ -1,5 +1,5 @@
 import { MessageType } from "@bakbak/contracts";
-import { Prisma } from "@bakbak/db"; //modified
+import { Prisma } from "@bakbak/db";
 import type { MessageRepository } from "./repository";
 import type {
 	ChatMessagesDto,
@@ -12,7 +12,6 @@ import type {
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 const messageUserSelect = {
-	//modified
 	id: true,
 	username: true,
 	profile: {
@@ -26,15 +25,38 @@ const messageUserSelect = {
 } satisfies Prisma.UserSelect;
 
 const messageInclude = {
-	//modified
 	sender: {
 		select: messageUserSelect,
 	},
 } satisfies Prisma.MessageInclude;
 
 export class MessageService {
-	//modified
 	constructor(private readonly messageRepository: MessageRepository) {}
+
+	private serializeMessage<T extends { createdAt: Date; updatedAt: Date }>(
+		message: T,
+	) {
+		return {
+			...message,
+			createdAt: message.createdAt.toISOString(),
+			updatedAt: message.updatedAt.toISOString(),
+		};
+	}
+
+	private serializeParticipant<
+		T extends {
+			joinedAt: Date;
+			mutedUntil: Date | null;
+			leftAt: Date | null;
+		},
+	>(participant: T) {
+		return {
+			...participant,
+			joinedAt: participant.joinedAt.toISOString(),
+			mutedUntil: participant.mutedUntil?.toISOString() ?? null,
+			leftAt: participant.leftAt?.toISOString() ?? null,
+		};
+	}
 
 	private async requireActiveParticipant(chatId: string, userId: string) {
 		const participant = await this.messageRepository.findParticipant({
@@ -86,14 +108,8 @@ export class MessageService {
 				"Message text is required",
 			);
 		}
-
-		if (dto.type !== MessageType.TEXT && !text) {
-			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.VALIDATION_ERROR,
-				"Message content is required",
-			);
-		}
+		// Non-TEXT types may omit text: the media payload will live on the
+		// attachment (uploads module), text acts as an optional caption.
 
 		const message = await this.messageRepository.create({
 			data: {
@@ -122,13 +138,13 @@ export class MessageService {
 			},
 		});
 
-		return message;
+		return this.serializeMessage(message);
 	}
 
 	async listMessages(dto: ChatMessagesDto) {
 		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
-		return await this.messageRepository.findMany({
+		const messages = await this.messageRepository.findMany({
 			where: {
 				chatId: dto.chatId,
 				deleted: false,
@@ -141,13 +157,15 @@ export class MessageService {
 			take: dto.limit ?? 50,
 			include: messageInclude,
 		});
+
+		return messages.map((message) => this.serializeMessage(message));
 	}
 
 	async getMessage(dto: MessageIdDto) {
 		const message = await this.requireVisibleMessage(dto.messageId);
 		await this.requireActiveParticipant(message.chatId, dto.currentUserId);
 
-		return message;
+		return this.serializeMessage(message);
 	}
 
 	async editMessage(dto: EditMessageDto) {
@@ -171,16 +189,19 @@ export class MessageService {
 			);
 		}
 
-		return await this.messageRepository.update({
+		const updated = await this.messageRepository.update({
 			where: {
 				id: dto.messageId,
 			},
 			data: {
 				text,
-				type: MessageType.TEXT,
+				// keep the original type — editing a caption must not
+				// silently convert an IMAGE/VIDEO message into TEXT
 			},
 			include: messageInclude,
 		});
+
+		return this.serializeMessage(updated);
 	}
 
 	async deleteMessage(dto: MessageIdDto) {
@@ -195,7 +216,7 @@ export class MessageService {
 			);
 		}
 
-		return await this.messageRepository.update({
+		const deleted = await this.messageRepository.update({
 			where: {
 				id: dto.messageId,
 			},
@@ -206,6 +227,8 @@ export class MessageService {
 			},
 			include: messageInclude,
 		});
+
+		return this.serializeMessage(deleted);
 	}
 
 	async markChatRead(dto: MarkChatReadDto) {
@@ -229,7 +252,7 @@ export class MessageService {
 			)?.id;
 
 		if (!messageId) {
-			return await this.messageRepository.updateParticipant({
+			const participant = await this.messageRepository.updateParticipant({
 				where: {
 					chatId_userId: {
 						chatId: dto.chatId,
@@ -239,7 +262,14 @@ export class MessageService {
 				data: {
 					lastReadMessageId: null,
 				},
+				include: {
+					user: {
+						select: messageUserSelect,
+					},
+				},
 			});
+
+			return this.serializeParticipant(participant);
 		}
 
 		const message = await this.messageRepository.findFirst({
@@ -261,7 +291,7 @@ export class MessageService {
 			);
 		}
 
-		return await this.messageRepository.updateParticipant({
+		const participant = await this.messageRepository.updateParticipant({
 			where: {
 				chatId_userId: {
 					chatId: dto.chatId,
@@ -271,7 +301,14 @@ export class MessageService {
 			data: {
 				lastReadMessageId: message.id,
 			},
+			include: {
+				user: {
+					select: messageUserSelect,
+				},
+			},
 		});
+
+		return this.serializeParticipant(participant);
 	}
 
 	async searchMessages(dto: SearchMessagesDto) {
@@ -286,7 +323,7 @@ export class MessageService {
 
 		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
-		return await this.messageRepository.findMany({
+		const messages = await this.messageRepository.findMany({
 			where: {
 				chatId: dto.chatId,
 				deleted: false,
@@ -303,6 +340,8 @@ export class MessageService {
 			take: dto.limit ?? 50,
 			include: messageInclude,
 		});
+
+		return messages.map((message) => this.serializeMessage(message));
 	}
 
 	async getUnreadCount(dto: ChatMessagesDto) {

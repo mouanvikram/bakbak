@@ -13,6 +13,11 @@ import { FriendService } from "../friends/service";
 import { MessageController } from "../messages/controller"; //modified
 import { MessageRepository } from "../messages/repository"; //modified
 import { MessageService } from "../messages/service"; //modified
+import { SettingsController } from "../settings/controller";
+import { SettingsRepository } from "../settings/repository";
+import { SettingsService } from "../settings/service";
+import { UploadController } from "../uploads/controller";
+import { UploadService } from "../uploads/service";
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
@@ -47,3 +52,12 @@ export const chatController = new ChatController(chatService);
 export const messageRepository = new MessageRepository(); //modified
 export const messageService = new MessageService(messageRepository); //modified
 export const messageController = new MessageController(messageService); //modified
+
+// settings
+export const settingsRepository = new SettingsRepository();
+export const settingsService = new SettingsService(settingsRepository);
+export const settingsController = new SettingsController(settingsService);
+
+// uploads (skeleton — storage provider integration pending)
+export const uploadService = new UploadService();
+export const uploadController = new UploadController(uploadService);

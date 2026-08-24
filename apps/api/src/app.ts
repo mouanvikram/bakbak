@@ -9,6 +9,8 @@ import chatRoutes from "./chat/routes";
 import chatMessageRoutes from "./messages/chat.message.routes";
 import friendRoutes from "./friends/routes";
 import messageRoutes from "./messages/routes";
+import settingsRoutes from "./settings/routes";
+import uploadRoutes from "./uploads/routes";
 
 const app: Express = express();
 
@@ -22,19 +24,22 @@ app.use(express.json());
 
 // 1. Auth
 app.use("/api/v1/auth", authRoutes);
+// 1.1. Uploads (skeleton — storage provider integration pending)
+app.use("/api/v1/uploads", uploadRoutes);
 // 2. Users
 app.use("/api/v1/users", userRoutes);
 // 2.1. Friends
 app.use("/api/v1/friends", friendRoutes);
+// 2.2. Settings
+app.use("/api/v1/settings", settingsRoutes);
 // 3. Chats
 app.use("/api/v1/chats", chatRoutes);
 app.use("/api/v1/chats", chatMessageRoutes);
 // 4. Messages
 app.use("/api/v1/messages", messageRoutes);
 // 5. WebSocket
-// 6. Attachments
-// 7. Notifications
-// 8. Calls
+// 6. Notifications
+// 7. Calls
 
 app.use(errorHandler);
 

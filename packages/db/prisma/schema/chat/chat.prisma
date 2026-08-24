@@ -33,11 +33,11 @@ model ChatParticipant {
 
     role              ParticipantRole @default(MEMBER)
     joinedAt          DateTime        @default(now())
-    // lastReadMessageId String?
-    // mutedUntil        DateTime?
-    // isPinned          Boolean         @default(false)
-    // isArchived        Boolean         @default(false)
-    // leftAt            DateTime?
+    lastReadMessageId String?
+    mutedUntil        DateTime?
+    isPinned          Boolean         @default(false)
+    isArchived        Boolean         @default(false)
+    leftAt            DateTime?
 
     @@unique([chatId, userId])
     @@index([userId])

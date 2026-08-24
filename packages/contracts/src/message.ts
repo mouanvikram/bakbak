@@ -31,6 +31,8 @@ export const messageSenderSchema = z.object({
 
 export const messageResponseSchema = z.object({
 	id: z.uuid(),
+	chatId: z.uuid(),
+	senderId: z.uuid(),
 	type: z.enum([
 		"TEXT",
 		"IMAGE",
@@ -54,19 +56,22 @@ export type MessageResponseType = z.infer<typeof messageResponseSchema>;
 export type MessageSenderType = z.infer<typeof messageSenderSchema>;
 
 export const sendMessageRequestSchema = z.object({
-	chatId: z.uuid(),
-	type: z.enum([
-		"TEXT",
-		"IMAGE",
-		"VIDEO",
-		"AUDIO",
-		"FILE",
-		"STICKER",
-		"LOCATION",
-		"CONTACT",
-		"CALL",
-		"SYSTEM",
-	]),
+	// chatId comes from the route param; type falls back to TEXT and invalid
+	// values are rejected by the controller so it can answer "Invalid request"
+	type: z
+		.enum([
+			"TEXT",
+			"IMAGE",
+			"VIDEO",
+			"AUDIO",
+			"FILE",
+			"STICKER",
+			"LOCATION",
+			"CONTACT",
+			"CALL",
+			"SYSTEM",
+		])
+		.optional(),
 	text: z.string().optional(),
 });
 
@@ -92,8 +97,8 @@ export const getMessageResponseSchema = z.object({
 export type GetMessageRequestType = z.infer<typeof getMessageRequestSchema>;
 export type GetMessageResponseType = z.infer<typeof getMessageResponseSchema>;
 
+// messageId comes from the route param
 export const editMessageRequestSchema = z.object({
-	messageId: z.uuid(),
 	text: z.string().min(1),
 });
 
@@ -106,8 +111,9 @@ export const deleteMessageResponseSchema = messageResponseSchema;
 
 export type DeleteMessageResponseType = z.infer<typeof deleteMessageResponseSchema>;
 
+// chatId comes from the route param; messageId is optional (defaults to
+// the latest message in the chat)
 export const markChatReadRequestSchema = z.object({
-	chatId: z.uuid(),
 	messageId: z.uuid().optional(),
 });
 
