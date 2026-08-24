@@ -9,6 +9,7 @@ import {
 	getFriendsResponseSchema,
 	getPendingRequestsResponseSchema,
 	rejectFriendRequestResponseSchema,
+	removeFriendResponseSchema,
 	sendFriendRequestResponseSchema,
 } from "@bakbak/contracts";
 
@@ -190,5 +191,26 @@ export class FriendController {
 		req: AuthRequest,
 		res: Response,
 		next: NextFunction,
-	) => {};
+	) => {
+		try {
+			const userId = req.user?.userId;
+			const friendId = getStringParam(req.params.friendId);
+			if (!userId || !friendId) {
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid Request",
+				);
+			}
+
+			const response = await this.friendService.removeFriend({
+				requestId: friendId,
+				userId,
+			});
+
+			return validateResponse(res, 200, removeFriendResponseSchema, response);
+		} catch (error) {
+			next(error);
+		}
+	};
 }

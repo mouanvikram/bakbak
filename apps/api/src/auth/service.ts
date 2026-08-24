@@ -7,6 +7,7 @@ import type { EmailRepository } from "../helpers/email.repository";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import { env } from "../../lib/config";
+import logger from "@logger";
 import type {
 	ChangePasswordRequestType,
 	ChangePasswordResponseType,
@@ -20,11 +21,9 @@ import type {
 	ResetPasswordResponseType,
 	SignUpRequestType,
 	SignUpResponseType,
-	UserIdType,
 	VerifyEmailRequestType,
 	VerifyEmailResponseType,
 } from "@bakbak/contracts";
-import { z } from "zod";
 
 export class AuthService {
 	constructor(
@@ -83,11 +82,21 @@ export class AuthService {
 		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
 
 		// send the mail to the user.
-		await this.emailService.sendVerificationEmail({
-			email: user.email,
-			username: user.username,
-			url,
-		});
+		// Best-effort: the user and token are already persisted, so a delivery
+		// failure must not fail the request — the client can use
+		// resend-verification instead of hitting a 500 with a zombie account.
+		try {
+			await this.emailService.sendVerificationEmail({
+				email: user.email,
+				username: user.username,
+				url,
+			});
+		} catch (error) {
+			logger.error(
+				{ err: error, userId: user.id },
+				"Failed to send verification email",
+			);
+		}
 
 		// return user
 		return {

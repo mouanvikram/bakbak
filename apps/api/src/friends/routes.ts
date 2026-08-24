@@ -3,6 +3,7 @@ import { authMiddleware } from "../middleware/auth.middleware";
 import { friendController } from "../services/service.container";
 import { validate } from "../middleware/validate";
 import {
+	friendIdParamsSchema,
 	friendRequestIdParamsSchema,
 	sendFriendRequestRequestSchema,
 } from "@bakbak/contracts";
@@ -36,6 +37,10 @@ router.delete(
 router.get("/", friendController.getFriends);
 router.get("/requests", friendController.getPendingRequest);
 
-router.delete("/friends/:friendId", friendController.removeFriend);
+router.delete(
+	"/:friendId",
+	validate(friendIdParamsSchema, "params"),
+	friendController.removeFriend,
+);
 
 export default router;

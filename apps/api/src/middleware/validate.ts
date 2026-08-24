@@ -3,6 +3,8 @@ import type { ZodType } from "zod";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import type { AuthRequest } from "../auth/controller";
 import { userIdSchema } from "@bakbak/contracts";
+import logger from "@logger";
+import { env } from "../../lib/config";
 
 export function validate<T>(
 	schema: ZodType<T>,
@@ -48,11 +50,21 @@ export function validateResponse<T>(
 	const result = schema.safeParse(data);
 
 	if (!result.success) {
-		throw new AppError(
-			HTTP_STATUS.INTERNAL_SERVER_ERROR,
-			ERROR_CODES.INVALID_API_RESPONSE,
-			"Invalid response from API",
+		logger.error(
+			{ issues: result.error.issues, status },
+			"Response schema mismatch",
 		);
+
+		if (env.NODE_ENV !== "production") {
+			throw new AppError(
+				HTTP_STATUS.INTERNAL_SERVER_ERROR,
+				ERROR_CODES.INVALID_API_RESPONSE,
+				"Invalid response from API",
+			);
+		}
+
+		return res.status(status).json(data);
 	}
+
 	return res.status(status).json(result.data);
 }

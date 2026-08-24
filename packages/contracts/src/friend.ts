@@ -87,6 +87,18 @@ export type GetPendingRequestsResponseType = z.infer<
 	typeof getPendingRequestsResponseSchema
 >;
 
+export const friendIdParamsSchema = z.object({
+	friendId: z.uuid(),
+});
+
+export const removeFriendResponseSchema = z.object({
+	message: z.string(),
+});
+
+export type RemoveFriendResponseType = z.infer<
+	typeof removeFriendResponseSchema
+>;
+
 export interface FriendRequestType {
 	senderId: string;
 	receiverId: string;

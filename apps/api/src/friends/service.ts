@@ -13,6 +13,7 @@ import type {
 	FriendRequestType,
 	GetFriendsResponseType,
 	RejectFriendRequestResponseType,
+	RemoveFriendResponseType,
 	SendFriendRequestResponseType,
 	UserIdType,
 } from "@bakbak/contracts";
@@ -253,9 +254,13 @@ export class FriendService {
 		});
 	}
 
-	async removeFriend(dto: FriendRequestIdType): Promise<void> {
+	async removeFriend(
+		dto: FriendRequestIdType & UserIdType,
+	): Promise<RemoveFriendResponseType> {
+		const { requestId, userId } = dto;
+
 		const existing = await this.friendRepository.findFriendship({
-			id: dto.requestId,
+			id: requestId,
 		});
 		if (!existing) {
 			throw new AppError(
@@ -265,9 +270,21 @@ export class FriendService {
 			);
 		}
 
+		if (existing.user1Id !== userId && existing.user2Id !== userId) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.FORBIDDEN,
+				"You are not a participant of this friendship",
+			);
+		}
+
 		await this.friendRepository.deleteFriendship({
-			id: dto.requestId,
+			id: requestId,
 		});
+
+		return {
+			message: "Friend removed successfully",
+		};
 	}
 
 	// Requests — outgoing = I sent, incoming = I received

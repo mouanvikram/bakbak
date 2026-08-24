@@ -165,7 +165,21 @@ export class AuthController {
 		}
 	};
 
-	logout = async (req: Request, res: Response, next: NextFunction) => {};
+	logout = async (req: Request, res: Response, next: NextFunction) => {
+		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
+			error: {
+				code: ERROR_CODES.NOT_IMPLEMENTED,
+				message: "Logout is not implemented yet",
+			},
+		});
+	};
 
-	refreshToken = async (req: Request, res: Response, next: NextFunction) => {};
+	refreshToken = async (req: Request, res: Response, next: NextFunction) => {
+		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
+			error: {
+				code: ERROR_CODES.NOT_IMPLEMENTED,
+				message: "Refresh token is not implemented yet",
+			},
+		});
+	};
 }
