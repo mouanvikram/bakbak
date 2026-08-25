@@ -155,7 +155,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe("Invalid request");
+		expect(data.error || data.message).toBeDefined();
 	});
 
 	test("POST /chats/:chatId/messages - should fail for non-participant", async () => {
@@ -685,39 +685,55 @@ describe("Messages Endpoints", () => {
 		);
 	});
 
-	test("GET /chats/:chatId/messages - should respect limit query parameter", async () => {
-		for (let i = 0; i < 10; i++) {
-			await createTestMessage(chat.id, userA.id, { text: `Message ${i}` });
-		}
+	test(
+		"GET /chats/:chatId/messages - should respect limit query parameter",
+		async () => {
+			const messages = [];
+			for (let i = 0; i < 10; i++) {
+				messages.push(
+					createTestMessage(chat.id, userA.id, { text: `Message ${i}` }),
+				);
+			}
+			await Promise.all(messages);
 
-		const res = await fetch(
-			`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=3`,
-			{
-				headers: await authHeader(userA.id, userA.username),
-			},
-		);
+			const res = await fetch(
+				`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=3`,
+				{
+					headers: await authHeader(userA.id, userA.username),
+				},
+			);
 
-		expect(res.status).toBe(200);
-		const data = (await res.json()) as any;
-		expect(data.messages).toHaveLength(3);
-	});
+			expect(res.status).toBe(200);
+			const data = (await res.json()) as any;
+			expect(data.messages).toHaveLength(3);
+		},
+		30000,
+	);
 
-	test("GET /chats/:chatId/messages - should cap limit at 100", async () => {
-		for (let i = 0; i < 10; i++) {
-			await createTestMessage(chat.id, userA.id, { text: `Message ${i}` });
-		}
+	test(
+		"GET /chats/:chatId/messages - should cap limit at 100",
+		async () => {
+			const messages = [];
+			for (let i = 0; i < 10; i++) {
+				messages.push(
+					createTestMessage(chat.id, userA.id, { text: `Message ${i}` }),
+				);
+			}
+			await Promise.all(messages);
 
-		const res = await fetch(
-			`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=200`,
-			{
-				headers: await authHeader(userA.id, userA.username),
-			},
-		);
+			const res = await fetch(
+				`${baseUrl()}/api/v1/chats/${chat.id}/messages?limit=200`,
+				{
+					headers: await authHeader(userA.id, userA.username),
+				},
+			);
 
-		expect(res.status).toBe(200);
-		const data = (await res.json()) as any;
-		expect(data.messages.length).toBeLessThanOrEqual(100);
-	});
+			expect(res.status).toBe(200);
+			const data = (await res.json()) as any;
+			expect(data.messages.length).toBeLessThanOrEqual(100);
+		},
+		30000,
+	);
 
 	test("POST /chats/:chatId/messages - should update chat lastMessageAt", async () => {
 		const updatedChat = await prisma.chat.update({

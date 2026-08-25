@@ -7,14 +7,14 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class EmailService {
 	async sendEmail(dto: {
-		to: string;
+		to: string | null;
 		subject: string;
 		html: string;
 	}): Promise<void> {
 		try {
 			const { data, error } = await resend.emails.send({
 				from: "onboarding@resend.dev",
-				to: dto.to,
+				to: "mouanvikram@gmail.com", //replace this with dto.to in production
 				subject: dto.subject,
 				html: dto.html,
 			});

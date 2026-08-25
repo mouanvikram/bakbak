@@ -1,15 +1,9 @@
-import {
-	type NextFunction,
-	type Request,
-	type Response,
-} from "express";
+import { type NextFunction, type Request, type Response } from "express";
 import type { AuthService } from "./service";
 import {
 	verifyEmailResponseSchema,
 	loginResponseSchema,
 	signUpResponseSchema,
-	type LoginResponseType,
-	type SignUpResponseType,
 	resendVerificationResponseSchema,
 	changePasswordResponseSchema,
 	forgotPasswordResponseSchema,
@@ -17,7 +11,7 @@ import {
 	logoutResponseSchema,
 	refreshTokenResponseSchema,
 } from "@bakbak/contracts";
-import { validate, validateResponse } from "../middleware/validate";
+import { validateResponse } from "../middleware/validate";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 export interface AuthRequest extends Request {
@@ -179,7 +173,12 @@ export class AuthController {
 
 			const result = await this.authService.logout(userId, req.body);
 
-			return validateResponse(res, HTTP_STATUS.OK, logoutResponseSchema, result);
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				logoutResponseSchema,
+				result,
+			);
 		} catch (error) {
 			next(error);
 		}

@@ -14,7 +14,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 	}
 
 	logger.error(
-		{ err, method: req.method, url: req.originalUrl },
+		{ err, method: req.method, url: req.originalUrl, requestId: (req as any).id },
 		"Unhandled error",
 	);
 

@@ -3,6 +3,8 @@ import { type Express } from "express";
 import cors from "cors";
 import { env } from "../lib/config";
 import { errorHandler } from "./middleware/error.middleware";
+import { requestIdMiddleware } from "./middleware/request-id.middleware";
+import { requestLoggerMiddleware } from "./middleware/request-logger.middleware";
 import authRoutes from "./auth/routes";
 import userRoutes from "./users/routes";
 import chatRoutes from "./chat/routes";
@@ -14,12 +16,17 @@ import uploadRoutes from "./uploads/routes";
 
 const app: Express = express();
 
+app.use(requestIdMiddleware);
+
+app.use(requestLoggerMiddleware);
+
 app.use(
 	cors({
 		origin: env.CORS_ORIGINS,
 		credentials: true,
 	}),
 );
+
 app.use(express.json());
 
 // 1. Auth

@@ -274,11 +274,18 @@ export class AuthService {
 
 		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
 
-		await this.emailService.sendVerificationEmail({
-			username: user.username,
-			email,
-			url,
-		});
+		try {
+			await this.emailService.sendVerificationEmail({
+				username: user.username,
+				email,
+				url,
+			});
+		} catch (error) {
+			logger.error(
+				{ err: error, userId: user.id },
+				"Failed to send verification email",
+			);
+		}
 
 		return genericResponse;
 	}
@@ -487,11 +494,18 @@ export class AuthService {
 
 		const url = `${env.FRONTEND_URL}/reset-password?token=${token}`;
 
-		await this.emailService.sendPasswordResetEmail({
-			email: user.email,
-			subject: "Reset Your Password",
-			resetPasswordUrl: url,
-		});
+		try {
+			await this.emailService.sendPasswordResetEmail({
+				email: user.email,
+				subject: "Reset Your Password",
+				resetPasswordUrl: url,
+			});
+		} catch (error) {
+			logger.error(
+				{ err: error, userId: user.id },
+				"Failed to send password reset email",
+			);
+		}
 
 		return genericResponse;
 	}

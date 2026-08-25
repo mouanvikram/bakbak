@@ -10,6 +10,7 @@ import {
 	expect,
 } from "bun:test";
 import { createServer } from "node:http";
+import crypto from "node:crypto";
 import app from "../src/app";
 import { prisma } from "@bakbak/db";
 import {
@@ -757,5 +758,258 @@ describe("Auth Endpoints", () => {
 		});
 		expect(created?.profile?.bio).toBeNull();
 		expect(created?.profile?.avatar).toBeNull();
+	});
+
+	const hashToken = (token: string) =>
+		crypto.createHash("sha256").update(token).digest("hex");
+
+	const loginAs = async (
+		identifier: string,
+		password = "TestPass123!",
+	) => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ identifier, password }),
+		});
+		return (await res.json()) as any;
+	};
+
+	// ── Refresh Token ────────────────────────────────────────────────
+
+	test("POST /api/v1/auth/login - should return a refresh token", async () => {
+		const user = await createTestUser({
+			email: `refreshlogin-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		const data = await loginAs(user.email);
+
+		expect(data.accessToken).toBeDefined();
+		expect(data.refreshToken).toBeDefined();
+		expect(typeof data.refreshToken).toBe("string");
+		expect(data.refreshToken.length).toBeGreaterThan(0);
+	});
+
+	test("POST /api/v1/auth/refresh-token - should rotate tokens with valid refresh token", async () => {
+		const user = await createTestUser({
+			email: `refreshvalid-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		const loginData = await loginAs(user.email);
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.accessToken).toBeDefined();
+		expect(data.refreshToken).toBeDefined();
+		expect(data.refreshToken).not.toBe(loginData.refreshToken);
+
+		const oldHash = hashToken(loginData.refreshToken);
+		const oldToken = await prisma.refreshToken.findFirst({
+			where: { tokenHash: oldHash },
+		});
+		expect(oldToken?.revokedAt).not.toBeNull();
+	});
+
+	test("POST /api/v1/auth/refresh-token - should fail with invalid refresh token", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: "totally-fake-token" }),
+		});
+
+		expect(res.status).toBe(401);
+		const data = (await res.json()) as any;
+		expect(data.error || data.message).toBeDefined();
+	});
+
+	test("POST /api/v1/auth/refresh-token - should fail with revoked refresh token", async () => {
+		const user = await createTestUser({
+			email: `refreshrevoked-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		const loginData = await loginAs(user.email);
+
+		const stored = await prisma.refreshToken.findFirst({
+			where: { tokenHash: hashToken(loginData.refreshToken) },
+		});
+		await prisma.refreshToken.update({
+			where: { id: stored!.id },
+			data: { revokedAt: new Date() },
+		});
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+
+		expect(res.status).toBe(401);
+		const data = (await res.json()) as any;
+		expect(data.error || data.message).toBeDefined();
+	});
+
+	test("POST /api/v1/auth/refresh-token - should fail with expired refresh token", async () => {
+		const user = await createTestUser({
+			email: `refreshexpired-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		const token = `expired-rt-${Date.now()}`;
+		await prisma.refreshToken.create({
+			data: {
+				userId: user.id,
+				tokenHash: hashToken(token),
+				expiresAt: new Date(Date.now() - 1000 * 60),
+			},
+		});
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: token }),
+		});
+
+		expect(res.status).toBe(401);
+		const data = (await res.json()) as any;
+		expect(data.error || data.message).toBeDefined();
+	});
+
+	test("POST /api/v1/auth/refresh-token - should fail without body", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({}),
+		});
+
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
+		expect(data.error).toBe("Validation failed");
+	});
+
+	test("POST /api/v1/auth/refresh-token - new access token should be usable", async () => {
+		const user = await createTestUser({
+			email: `refreshtokenusability-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		const loginData = await loginAs(user.email);
+
+		const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+
+		const refreshData = (await refreshRes.json()) as any;
+
+		const meRes = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			headers: { Authorization: `Bearer ${refreshData.accessToken}` },
+		});
+
+		expect(meRes.status).toBe(200);
+		const meData = (await meRes.json()) as any;
+		expect(meData.profile.id).toBe(user.id);
+	});
+
+	// ── Logout ───────────────────────────────────────────────────────
+
+	test("POST /api/v1/auth/logout - should revoke all tokens without body", async () => {
+		const user = await createTestUser({
+			email: `logoutall-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		const loginData = await loginAs(user.email);
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/logout`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${loginData.accessToken}`,
+			},
+			body: JSON.stringify({}),
+		});
+
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBe("Logged out successfully");
+
+		const tokens = await prisma.refreshToken.findMany({
+			where: { userId: user.id },
+		});
+		expect(tokens.length).toBeGreaterThan(0);
+		expect(tokens.every((t) => t.revokedAt !== null)).toBe(true);
+	});
+
+	test("POST /api/v1/auth/logout - should revoke a specific refresh token", async () => {
+		const user = await createTestUser({
+			email: `logoutspecific-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		const loginData = await loginAs(user.email);
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/logout`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${loginData.accessToken}`,
+			},
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBe("Logged out successfully");
+
+		const token = await prisma.refreshToken.findFirst({
+			where: { tokenHash: hashToken(loginData.refreshToken) },
+		});
+		expect(token?.revokedAt).not.toBeNull();
+	});
+
+	test("POST /api/v1/auth/logout - revoked refresh token should not be usable", async () => {
+		const user = await createTestUser({
+			email: `logoutverify-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		const loginData = await loginAs(user.email);
+
+		await fetch(`${baseUrl()}/api/v1/auth/logout`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${loginData.accessToken}`,
+			},
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+
+		const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+
+		expect(refreshRes.status).toBe(401);
+	});
+
+	test("POST /api/v1/auth/logout - should fail without auth", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/logout`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({}),
+		});
+
+		expect(res.status).toBe(401);
 	});
 });
