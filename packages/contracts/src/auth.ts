@@ -1,14 +1,16 @@
 import { z } from "zod";
 
-// login request and response
 export const loginRequestSchema = z.object({
 	identifier: z
 		.string()
-		.min(4, "Email or username must be at least 4 characters"),
+		.min(4, "Email or username must be at least 4 characters")
+		.max(100, "Email or username must be at most 100 characters")
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
 	password: z
 		.string()
 		.min(12, "Password must be at least 12 characters")
 		.max(128, "Password must be at most 128 characters")
+		.regex(/[^\x00]/, "Null bytes are not allowed")
 		.regex(/[A-Z]/, "Password must contain an uppercase letter")
 		.regex(/[a-z]/, "Password must contain a lowercase letter")
 		.regex(/[0-9]/, "Password must contain a number")
@@ -27,24 +29,50 @@ export const loginResponseSchema = z.object({
 export type LoginRequestType = z.infer<typeof loginRequestSchema>;
 export type LoginResponseType = z.infer<typeof loginResponseSchema>;
 
-// signup request and response
-
 export const signUpRequestSchema = z.object({
-	username: z.string().min(4, "Minimum length should be 4"),
-	email: z.email(),
+	username: z
+		.string()
+		.min(4, "Minimum length should be 4")
+		.max(30, "Username must be at most 30 characters")
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
+	email: z
+		.string()
+		.max(100)
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
 	password: z
 		.string()
 		.min(12, "Password must be at least 12 characters")
 		.max(128, "Password must be at most 128 characters")
+		.regex(/[^\x00]/, "Null bytes are not allowed")
 		.regex(/[A-Z]/, "Password must contain an uppercase letter")
 		.regex(/[a-z]/, "Password must contain a lowercase letter")
 		.regex(/[0-9]/, "Password must contain a number")
 		.regex(/[^A-Za-z0-9]/, "Password must contain a special character"),
-	firstname: z.string().min(1),
-	lastname: z.string().min(1),
-	displayname: z.string().min(1),
-	bio: z.string().optional(),
-	avatarUrl: z.string().optional(),
+	firstname: z
+		.string()
+		.min(1)
+		.max(100)
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
+	lastname: z
+		.string()
+		.min(1)
+		.max(100)
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
+	displayname: z
+		.string()
+		.min(1)
+		.max(100)
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
+	bio: z
+		.string()
+		.max(500)
+		.regex(/[^\x00]/, "Null bytes are not allowed")
+		.optional(),
+	avatarUrl: z
+		.string()
+		.max(150)
+		.regex(/[^\x00]/, "Null bytes are not allowed")
+		.optional(),
 });
 
 export const signUpResponseSchema = z.object({
@@ -54,9 +82,12 @@ export const signUpResponseSchema = z.object({
 export type SignUpRequestType = z.infer<typeof signUpRequestSchema>;
 export type SignUpResponseType = z.infer<typeof signUpResponseSchema>;
 
-// verify-email
 export const verifyEmailRequestSchema = z.object({
-	token: z.string().min(1, "Verification token is required"),
+	token: z
+		.string()
+		.min(1, "Verification token is required")
+		.max(100, "Verification token is too long")
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
 });
 
 export const verifyEmailResponseSchema = z.object({
@@ -66,10 +97,8 @@ export const verifyEmailResponseSchema = z.object({
 export type VerifyEmailRequestType = z.infer<typeof verifyEmailRequestSchema>;
 export type VerifyEmailResponseType = z.infer<typeof verifyEmailResponseSchema>;
 
-// resend-verification
-
 export const resendVerificationRequestSchema = z.object({
-	email: z.email(),
+	email: z.string().email().max(100).regex(/[^\x00]/, "Null bytes are not allowed"),
 });
 
 export const resendVerificationResponseSchema = z.object({
@@ -83,14 +112,16 @@ export type ResendVerificationResponseType = z.infer<
 	typeof resendVerificationResponseSchema
 >;
 
-// change-password
-
 export const changePasswordRequestSchema = z.object({
-	currentPassword: z.string().min(1),
+	currentPassword: z
+		.string()
+		.min(1)
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
 	newPassword: z
 		.string()
 		.min(12, "Password must be at least 12 characters")
 		.max(128, "Password must be at most 128 characters")
+		.regex(/[^\x00]/, "Null bytes are not allowed")
 		.regex(/[A-Z]/, "Password must contain an uppercase letter")
 		.regex(/[a-z]/, "Password must contain a lowercase letter")
 		.regex(/[0-9]/, "Password must contain a number")
@@ -112,9 +143,8 @@ export type ChangePasswordResponseType = z.infer<
 	typeof changePasswordResponseSchema
 >;
 
-// forgot-password
 export const forgotPasswordRequestSchema = z.object({
-	email: z.email(),
+	email: z.string().email().max(100).regex(/[^\x00]/, "Null bytes are not allowed"),
 });
 
 export const forgotPasswordResponseSchema = z.object({
@@ -129,14 +159,18 @@ export type ForgotPasswordResponseType = z.infer<
 	typeof forgotPasswordResponseSchema
 >;
 
-// reset-password
 export const resetPasswordRequestSchema = z.object({
-	token: z.string().min(1, "Reset token is required"),
+	token: z
+		.string()
+		.min(1, "Reset token is required")
+		.max(100, "Reset token is too long")
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
 
 	newPassword: z
 		.string()
 		.min(12, "Password must be at least 12 characters")
 		.max(128, "Password must be at most 128 characters")
+		.regex(/[^\x00]/, "Null bytes are not allowed")
 		.regex(/[A-Z]/, "Password must contain an uppercase letter")
 		.regex(/[a-z]/, "Password must contain a lowercase letter")
 		.regex(/[0-9]/, "Password must contain a number")
@@ -148,6 +182,7 @@ export const resetPasswordBodySchema = z.object({
 		.string()
 		.min(12, "Password must be at least 12 characters")
 		.max(128, "Password must be at most 128 characters")
+		.regex(/[^\x00]/, "Null bytes are not allowed")
 		.regex(/[A-Z]/, "Password must contain an uppercase letter")
 		.regex(/[a-z]/, "Password must contain a lowercase letter")
 		.regex(/[0-9]/, "Password must contain a number")
@@ -166,9 +201,12 @@ export type ResetPasswordResponseType = z.infer<
 	typeof resetPasswordResponseSchema
 >;
 
-// refresh-token
 export const refreshTokenRequestSchema = z.object({
-	refreshToken: z.string().min(1, "Refresh token is required"),
+	refreshToken: z
+		.string()
+		.min(1, "Refresh token is required")
+		.max(255, "Refresh token is too long")
+		.regex(/[^\x00]/, "Null bytes are not allowed"),
 });
 
 export const refreshTokenResponseSchema = z.object({
@@ -176,16 +214,17 @@ export const refreshTokenResponseSchema = z.object({
 	refreshToken: z.string().min(1),
 });
 
-export type RefreshTokenRequestType = z.infer<
-	typeof refreshTokenRequestSchema
->;
+export type RefreshTokenRequestType = z.infer<typeof refreshTokenRequestSchema>;
 export type RefreshTokenResponseType = z.infer<
 	typeof refreshTokenResponseSchema
 >;
 
-// logout
 export const logoutRequestSchema = z.object({
-	refreshToken: z.string().optional(),
+	refreshToken: z
+		.string()
+		.max(255, "Refresh token is too long")
+		.regex(/[^\x00]/, "Null bytes are not allowed")
+		.optional(),
 });
 
 export const logoutResponseSchema = z.object({
