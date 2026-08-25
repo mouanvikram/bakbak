@@ -17,6 +17,7 @@ export const loginRequestSchema = z.object({
 
 export const loginResponseSchema = z.object({
 	accessToken: z.string(),
+	refreshToken: z.string(),
 	user: z.object({
 		id: z.uuid(),
 		identifier: z.string().min(1),
@@ -166,18 +167,30 @@ export type ResetPasswordResponseType = z.infer<
 >;
 
 // refresh-token
-export const refreshTokenResponseSchema = z.object({
-	accessToken: z.string().min(1),
+export const refreshTokenRequestSchema = z.object({
+	refreshToken: z.string().min(1, "Refresh token is required"),
 });
 
+export const refreshTokenResponseSchema = z.object({
+	accessToken: z.string().min(1),
+	refreshToken: z.string().min(1),
+});
+
+export type RefreshTokenRequestType = z.infer<
+	typeof refreshTokenRequestSchema
+>;
 export type RefreshTokenResponseType = z.infer<
 	typeof refreshTokenResponseSchema
 >;
 
 // logout
+export const logoutRequestSchema = z.object({
+	refreshToken: z.string().optional(),
+});
 
 export const logoutResponseSchema = z.object({
 	message: z.string(),
 });
 
+export type LogoutRequestType = z.infer<typeof logoutRequestSchema>;
 export type LogoutResponseType = z.infer<typeof logoutResponseSchema>;
