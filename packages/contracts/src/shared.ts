@@ -1,9 +1,13 @@
 import { z } from "zod";
 
 export const safeString = (max: number, min = 1) =>
-	z.string().min(min).max(max).regex(/^(?!.*\0)/, "Null bytes are not allowed");
+	z
+		.string()
+		.min(min)
+		.max(max)
+		.regex(/^(?!.*\0)/, "Null bytes are not allowed");
 
-export const emailSchema = safeString(100).email();
+export const emailSchema = z.email().max(100);
 
 export const passwordSchema = safeString(128, 12)
 	.regex(/[A-Z]/, "Password must contain an uppercase letter")
@@ -12,9 +16,17 @@ export const passwordSchema = safeString(128, 12)
 	.regex(/[^A-Za-z0-9]/, "Password must contain a special character");
 
 export const tokenSchema = (name: string) =>
-	z.string().min(1, `${name} is required`).max(100, `${name} is too long`).regex(/^(?!.*\0)/, "Null bytes are not allowed");
+	z
+		.string()
+		.min(1, `${name} is required`)
+		.max(100, `${name} is too long`)
+		.regex(/^(?!.*\0)/, "Null bytes are not allowed");
 
-export const refreshTokenSchema = z.string().min(1, "Refresh token is required").max(255, "Refresh token is too long").regex(/^(?!.*\0)/, "Null bytes are not allowed");
+export const refreshTokenSchema = z
+	.string()
+	.min(1, "Refresh token is required")
+	.max(255, "Refresh token is too long")
+	.regex(/^(?!.*\0)/, "Null bytes are not allowed");
 
 export const okResponseSchema = z.object({
 	message: z.string(),
@@ -49,14 +61,17 @@ export const userSummarySchema = z.object({
 
 export type UserSummaryType = z.infer<typeof userSummarySchema>;
 
-export const uuidParam = (name: string) =>
-	z.object({ [name]: z.uuid() });
+export const uuidParam = (name: string) => z.object({ [name]: z.uuid() });
 
-export const arrayResponseSchema = <T extends z.ZodTypeAny>(name: string, items: T) =>
-	z.object({ [name]: z.array(items) });
+export const arrayResponseSchema = <T extends z.ZodTypeAny>(
+	name: string,
+	items: T,
+) => z.object({ [name]: z.array(items) });
 
-export const singleItemResponseSchema = <T extends z.ZodTypeAny>(name: string, item: T) =>
-	z.object({ [name]: item });
+export const singleItemResponseSchema = <T extends z.ZodTypeAny>(
+	name: string,
+	item: T,
+) => z.object({ [name]: item });
 
 export enum MessageType {
 	TEXT = "TEXT",

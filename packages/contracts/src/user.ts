@@ -1,23 +1,23 @@
 import { z } from "zod";
 import {
+	emailSchema,
 	okResponseSchema,
 	profileSnippetSchema,
 	safeString,
 	userSummarySchema,
-	userIdSchema,
 	type UserIdType,
 } from "./shared";
 
 export const userProfileSchema = z.object({
 	id: z.uuid(),
-	email: z.string().email().max(100),
-	username: z.string(),
+	email: emailSchema,
+	username: safeString(100),
 	verified: z.boolean(),
-	firstName: z.string().nullish(),
-	lastName: z.string().nullish(),
-	bio: z.string().nullish(),
-	avatar: z.string().nullish(),
-	displayName: z.string().nullish(),
+	firstName: safeString(100).nullish(),
+	lastName: safeString(100).nullish(),
+	bio: safeString(500).nullish(),
+	avatar: safeString(150).nullish(),
+	displayName: safeString(100).nullish(),
 });
 
 export type UserProfileType = z.infer<typeof userProfileSchema>;
@@ -54,11 +54,11 @@ export type UpdateProfileResponseType = z.infer<
 >;
 
 export const updateAvatarRequestSchema = z.object({
-	avatar: z.string(),
+	avatar: safeString(150),
 });
 
 export const updateAvatarResponseSchema = z.object({
-	avatar: z.string().nullish(),
+	avatar: safeString(150).nullish(),
 });
 
 export type UpdateAvatarRequestType = UserIdType &
@@ -72,7 +72,7 @@ export const deleteMeResponseSchema = okResponseSchema;
 export type DeleteMeResponseType = z.infer<typeof deleteMeResponseSchema>;
 
 export const checkUsernameRequestSchema = z.object({
-	username: z.string().min(1),
+	username: safeString(30),
 });
 
 export const checkUsernameResponseSchema = z.object({
@@ -91,7 +91,7 @@ export const searchUserSchema = userSummarySchema.extend({
 });
 
 export const searchUsersRequestSchema = z.object({
-	query: z.string(),
+	query: safeString(100),
 });
 
 export const searchUsersResponseSchema = z.object({
@@ -103,7 +103,7 @@ export type SearchUserType = z.infer<typeof searchUserSchema>;
 export type SearchUsersResponseType = z.infer<typeof searchUsersResponseSchema>;
 
 export const getProfileRequestSchema = z.object({
-	username: z.string().min(1),
+	username: safeString(100, 1),
 });
 
 export const getProfileResponseSchema = userProfileSchema.pick({

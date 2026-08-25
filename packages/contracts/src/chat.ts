@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { messageTypeSchema, profileCoreSchema } from "./shared";
+import { messageTypeSchema, profileCoreSchema, safeString } from "./shared";
 
 export const chatUserSchema = z.object({
 	id: z.uuid(),
-	username: z.string(),
+	username: safeString(100),
 	profile: profileCoreSchema.nullish(),
 });
 
@@ -12,7 +12,7 @@ export type ChatUserType = z.infer<typeof chatUserSchema>;
 export const chatMessageSchema = z.object({
 	id: z.uuid(),
 	type: messageTypeSchema,
-	text: z.string().nullish(),
+	text: safeString(5000).nullish(),
 	senderId: z.uuid(),
 	chatId: z.uuid(),
 	createdAt: z.string(),
@@ -40,10 +40,10 @@ export type ChatParticipantType = z.infer<typeof chatParticipantSchema>;
 const chatBaseSchema = z.object({
 	id: z.uuid(),
 	type: z.enum(["DIRECT", "GROUP"]),
-	directKey: z.string().nullish(),
-	name: z.string().nullish(),
-	description: z.string().nullish(),
-	avatar: z.string().nullish(),
+	directKey: safeString(100).nullish(),
+	name: safeString(100).nullish(),
+	description: safeString(500).nullish(),
+	avatar: safeString(150).nullish(),
 	createdById: z.string().nullish(),
 	lastMessageAt: z.string().nullish(),
 	createdAt: z.string(),
@@ -73,9 +73,9 @@ export type CreateDirectChatRequestType = z.infer<
 >;
 
 export const createGroupChatRequestSchema = z.object({
-	name: z.string().min(1),
+	name: safeString(100, 1),
 	participantIds: z.array(z.uuid()).min(1),
-	avatar: z.string().optional(),
+	avatar: safeString(150).optional(),
 });
 
 export type CreateGroupChatRequestType = z.infer<
@@ -97,8 +97,8 @@ export const getChatResponseSchema = chatResponseSchema;
 export type GetChatResponseType = z.infer<typeof getChatResponseSchema>;
 
 export const updateChatRequestSchema = z.object({
-	name: z.string().optional(),
-	avatar: z.string().nullish(),
+	name: safeString(100).optional(),
+	avatar: safeString(150).nullish(),
 });
 
 export const updateChatResponseSchema = chatResponseSchema;

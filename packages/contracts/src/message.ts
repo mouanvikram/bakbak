@@ -3,6 +3,7 @@ import {
 	MessageType,
 	messageTypeSchema,
 	profileCoreSchema,
+	safeString,
 	singleItemResponseSchema,
 	userSummarySchema,
 	uuidParam,
@@ -21,7 +22,7 @@ export const messageResponseSchema = z.object({
 	chatId: z.uuid(),
 	senderId: z.uuid(),
 	type: messageTypeSchema,
-	text: z.string().nullish(),
+	text: safeString(5000).nullish(),
 	deleted: z.boolean(),
 	createdAt: z.string(),
 	updatedAt: z.string(),
@@ -32,7 +33,7 @@ export type MessageResponseType = z.infer<typeof messageResponseSchema>;
 
 export const sendMessageRequestSchema = z.object({
 	type: messageTypeSchema.optional(),
-	text: z.string().optional(),
+	text: safeString(5000).optional(),
 });
 
 export const sendMessageResponseSchema = messageResponseSchema;
@@ -60,7 +61,7 @@ export type GetMessageRequestType = z.infer<typeof getMessageRequestSchema>;
 export type GetMessageResponseType = z.infer<typeof getMessageResponseSchema>;
 
 export const editMessageRequestSchema = z.object({
-	text: z.string().min(1),
+	text: safeString(5000, 1),
 });
 
 export const editMessageResponseSchema = messageResponseSchema;
