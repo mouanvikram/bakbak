@@ -5,6 +5,8 @@ import {
 	changePasswordRequestSchema,
 	forgotPasswordRequestSchema,
 	loginRequestSchema,
+	logoutRequestSchema,
+	refreshTokenRequestSchema,
 	resendVerificationRequestSchema,
 	resetPasswordBodySchema,
 	signUpRequestSchema,
@@ -29,9 +31,9 @@ router.post(
 );
 router.post(
 	"/change-password",
-	validate(changePasswordRequestSchema),
 	authMiddleware,
 	validateUserId(),
+	validate(changePasswordRequestSchema),
 	authController.changePassword,
 );
 
@@ -47,7 +49,17 @@ router.post(
 	authController.resetPassword,
 );
 
-router.post("/logout", authController.logout);
-router.post("/refresh-token", authController.refreshToken);
+router.post(
+	"/logout",
+	authMiddleware,
+	validateUserId(),
+	validate(logoutRequestSchema),
+	authController.logout,
+);
+router.post(
+	"/refresh-token",
+	validate(refreshTokenRequestSchema),
+	authController.refreshToken,
+);
 
 export default router;

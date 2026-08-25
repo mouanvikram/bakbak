@@ -3,6 +3,7 @@ import { EmailRepository } from "../helpers/email.repository";
 import { EmailService } from "../helpers/email.service";
 import { JwtService } from "../helpers/jwt.service";
 import { PasswordService } from "../helpers/pwd.service";
+import { RefreshTokenRepository } from "../helpers/refresh_token.repository";
 import { AuthService } from "../auth/service";
 import { ChatController } from "../chat/controller";
 import { ChatService } from "../chat/service";
@@ -27,12 +28,14 @@ export const pwdService = new PasswordService();
 export const jwtService = new JwtService(process.env.JWT_SECRET!);
 export const emailService = new EmailService();
 export const emailRepository = new EmailRepository();
+export const refreshTokenRepository = new RefreshTokenRepository();
 export const authService = new AuthService(
 	userRepository,
 	pwdService,
 	jwtService,
 	emailService,
 	emailRepository,
+	refreshTokenRepository,
 );
 export const authController = new AuthController(authService);
 export const userService = new UserService(userRepository);

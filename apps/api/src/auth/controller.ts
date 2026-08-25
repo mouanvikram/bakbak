@@ -1,5 +1,4 @@
 import {
-	response,
 	type NextFunction,
 	type Request,
 	type Response,
@@ -15,6 +14,8 @@ import {
 	changePasswordResponseSchema,
 	forgotPasswordResponseSchema,
 	resetPasswordResponseSchema,
+	logoutResponseSchema,
+	refreshTokenResponseSchema,
 } from "@bakbak/contracts";
 import { validate, validateResponse } from "../middleware/validate";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
@@ -165,21 +166,37 @@ export class AuthController {
 		}
 	};
 
-	logout = async (req: Request, res: Response, next: NextFunction) => {
-		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-			error: {
-				code: ERROR_CODES.NOT_IMPLEMENTED,
-				message: "Logout is not implemented yet",
-			},
-		});
+	logout = async (req: AuthRequest, res: Response, next: NextFunction) => {
+		try {
+			const userId = req.user?.userId;
+			if (!userId) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Authentication required",
+				);
+			}
+
+			const result = await this.authService.logout(userId, req.body);
+
+			return validateResponse(res, HTTP_STATUS.OK, logoutResponseSchema, result);
+		} catch (error) {
+			next(error);
+		}
 	};
 
 	refreshToken = async (req: Request, res: Response, next: NextFunction) => {
-		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-			error: {
-				code: ERROR_CODES.NOT_IMPLEMENTED,
-				message: "Refresh token is not implemented yet",
-			},
-		});
+		try {
+			const result = await this.authService.refreshAccessToken(req.body);
+
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				refreshTokenResponseSchema,
+				result,
+			);
+		} catch (error) {
+			next(error);
+		}
 	};
 }

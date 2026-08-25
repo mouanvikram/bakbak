@@ -4,6 +4,7 @@ import type { UserRepository } from "../users/repository";
 import type { EmailService } from "../helpers/email.service";
 import crypto from "crypto";
 import type { EmailRepository } from "../helpers/email.repository";
+import type { RefreshTokenRepository } from "../helpers/refresh_token.repository";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import { env } from "../../lib/config";
@@ -23,7 +24,13 @@ import type {
 	SignUpResponseType,
 	VerifyEmailRequestType,
 	VerifyEmailResponseType,
+	RefreshTokenRequestType,
+	RefreshTokenResponseType,
+	LogoutRequestType,
+	LogoutResponseType,
 } from "@bakbak/contracts";
+
+const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
 export class AuthService {
 	constructor(
@@ -32,6 +39,7 @@ export class AuthService {
 		private readonly jwtService: JwtService,
 		private readonly emailService: EmailService,
 		private readonly emailRepository: EmailRepository,
+		private readonly refreshTokenRepository: RefreshTokenRepository,
 	) {}
 
 	async register(dto: SignUpRequestType): Promise<SignUpResponseType> {
@@ -139,7 +147,7 @@ export class AuthService {
 			);
 		}
 
-		// generate jwt token
+		// generate jwt access token
 		const token = this.jwtService.signJwt<AccessTokenPayload>(
 			{
 				sub: user.id,
@@ -150,8 +158,30 @@ export class AuthService {
 			},
 		);
 
+		// generate refresh token
+		const refreshTokenValue = crypto.randomBytes(32).toString("hex");
+		const refreshTokenHash = crypto
+			.createHash("sha256")
+			.update(refreshTokenValue)
+			.digest("hex");
+
+		const expiresAt = new Date(
+			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+		);
+
+		await this.refreshTokenRepository.create({
+			tokenHash: refreshTokenHash,
+			expiresAt,
+			user: {
+				connect: {
+					id: user.id,
+				},
+			},
+		});
+
 		return {
 			accessToken: token,
+			refreshToken: refreshTokenValue,
 			user: {
 				id: user.id,
 				identifier: user.username,
@@ -285,7 +315,7 @@ export class AuthService {
 		if (!matches) {
 			throw new AppError(
 				HTTP_STATUS.FORBIDDEN,
-				ERROR_CODES.EMAIL_NOT_VERIFIED,
+				ERROR_CODES.INVALID_CREDENTIALS,
 				"Credentials do not match",
 			);
 		}
@@ -305,12 +335,119 @@ export class AuthService {
 		};
 	}
 
-	logout() {
-		// will be implemented later
+	async logout(
+		userId: string,
+		dto: LogoutRequestType,
+	): Promise<LogoutResponseType> {
+		if (dto.refreshToken) {
+			const tokenHash = crypto
+				.createHash("sha256")
+				.update(dto.refreshToken)
+				.digest("hex");
+
+			const stored = await this.refreshTokenRepository.findFirst({
+				tokenHash,
+				userId,
+			});
+
+			if (stored && !stored.revokedAt) {
+				await this.refreshTokenRepository.revoke(stored.id);
+			}
+		} else {
+			await this.refreshTokenRepository.revokeAll(userId);
+		}
+
+		return { message: "Logged out successfully" };
 	}
 
-	refreshToken() {
-		// will be implemented later
+	async refreshAccessToken(
+		dto: RefreshTokenRequestType,
+	): Promise<RefreshTokenResponseType> {
+		const tokenHash = crypto
+			.createHash("sha256")
+			.update(dto.refreshToken)
+			.digest("hex");
+
+		const stored = await this.refreshTokenRepository.findFirst({
+			tokenHash,
+		});
+
+		if (!stored) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_REFRESH_TOKEN,
+				"Invalid refresh token",
+			);
+		}
+
+		if (stored.revokedAt) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_REFRESH_TOKEN,
+				"Refresh token has been revoked",
+			);
+		}
+
+		if (stored.expiresAt < new Date()) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.REFRESH_TOKEN_EXPIRED,
+				"Refresh token has expired",
+			);
+		}
+
+		// Revoke the old token (rotation)
+		await this.refreshTokenRepository.revoke(stored.id);
+
+		// Look up the user to get their username for the new access token
+		const user = await this.userRepository.findBy({
+			id: stored.userId,
+		});
+
+		if (!user) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_REFRESH_TOKEN,
+				"User not found",
+			);
+		}
+
+		// Issue new access token
+		const newAccessToken = this.jwtService.signJwt<AccessTokenPayload>(
+			{
+				sub: user.id,
+				username: user.username,
+			},
+			{
+				expiresIn: "15m",
+			},
+		);
+
+		// Issue new refresh token
+		const newRefreshTokenValue = crypto.randomBytes(32).toString("hex");
+		const newRefreshTokenHash = crypto
+			.createHash("sha256")
+			.update(newRefreshTokenValue)
+			.digest("hex");
+
+		const expiresAt = new Date(
+			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+		);
+
+		await this.refreshTokenRepository.create({
+			tokenHash: newRefreshTokenHash,
+			expiresAt,
+			user: {
+				connect: {
+					id: stored.userId,
+				},
+			},
+		});
+
+		return {
+			accessToken: newAccessToken,
+			refreshToken: newRefreshTokenValue,
+		};
 	}
 
 	async forgotPassword(
