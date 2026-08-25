@@ -1,34 +1,17 @@
 import { z } from "zod";
+import { messageTypeSchema, profileCoreSchema } from "./shared";
 
 export const chatUserSchema = z.object({
 	id: z.uuid(),
 	username: z.string(),
-	profile: z
-		.object({
-			displayName: z.string().nullish(),
-			firstName: z.string().nullish(),
-			lastName: z.string().nullish(),
-			avatar: z.string().nullish(),
-		})
-		.nullish(),
+	profile: profileCoreSchema.nullish(),
 });
 
 export type ChatUserType = z.infer<typeof chatUserSchema>;
 
 export const chatMessageSchema = z.object({
 	id: z.uuid(),
-	type: z.enum([
-		"TEXT",
-		"IMAGE",
-		"VIDEO",
-		"AUDIO",
-		"FILE",
-		"STICKER",
-		"LOCATION",
-		"CONTACT",
-		"CALL",
-		"SYSTEM",
-	]),
+	type: messageTypeSchema,
 	text: z.string().nullish(),
 	senderId: z.uuid(),
 	chatId: z.uuid(),
@@ -54,7 +37,7 @@ export const chatParticipantSchema = z.object({
 
 export type ChatParticipantType = z.infer<typeof chatParticipantSchema>;
 
-export const chatResponseSchema = z.object({
+const chatBaseSchema = z.object({
 	id: z.uuid(),
 	type: z.enum(["DIRECT", "GROUP"]),
 	directKey: z.string().nullish(),
@@ -65,6 +48,9 @@ export const chatResponseSchema = z.object({
 	lastMessageAt: z.string().nullish(),
 	createdAt: z.string(),
 	updatedAt: z.string(),
+});
+
+export const chatResponseSchema = chatBaseSchema.extend({
 	createdBy: chatUserSchema.nullish(),
 	participants: z.array(chatParticipantSchema),
 	messages: z.array(chatMessageSchema),
@@ -120,18 +106,7 @@ export const updateChatResponseSchema = chatResponseSchema;
 export type UpdateChatRequestType = z.infer<typeof updateChatRequestSchema>;
 export type UpdateChatResponseType = z.infer<typeof updateChatResponseSchema>;
 
-export const deleteChatResponseSchema = z.object({
-	id: z.uuid(),
-	type: z.enum(["DIRECT", "GROUP"]),
-	directKey: z.string().nullish(),
-	name: z.string().nullish(),
-	description: z.string().nullish(),
-	avatar: z.string().nullish(),
-	createdById: z.string().nullish(),
-	lastMessageAt: z.string().nullish(),
-	createdAt: z.string(),
-	updatedAt: z.string(),
-});
+export const deleteChatResponseSchema = chatBaseSchema;
 
 export type DeleteChatResponseType = z.infer<typeof deleteChatResponseSchema>;
 

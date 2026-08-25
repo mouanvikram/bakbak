@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-// Mirrors apps/web/src/routes/settings pages.
-// NotificationsPage
 export const notificationSettingsSchema = z.object({
 	messages: z.boolean(),
 	sounds: z.boolean(),
@@ -9,20 +7,17 @@ export const notificationSettingsSchema = z.object({
 	emailDigest: z.boolean(),
 });
 
-// AppearancePage
 export const appearanceSettingsSchema = z.object({
 	theme: z.enum(["light", "dark", "system"]),
 	fontSize: z.enum(["small", "medium", "large"]),
 });
 
-// ChatSettingsPage
 export const chatPreferencesSchema = z.object({
 	enterToSend: z.boolean(),
 	mediaPreview: z.boolean(),
 	chatHistory: z.boolean(),
 });
 
-// SecurityPrivacyPage (2FA toggle)
 export const privacySettingsSchema = z.object({
 	twoFactorEnabled: z.boolean(),
 });
@@ -34,8 +29,6 @@ export const userSettingsResponseSchema = z.object({
 	privacy: privacySettingsSchema,
 });
 
-// Update payloads use the same shapes as their group in the response —
-// each settings page saves its full group state on "Save Preferences".
 export const updateNotificationSettingsRequestSchema =
 	notificationSettingsSchema;
 export const updateAppearanceSettingsRequestSchema = appearanceSettingsSchema;

@@ -1,18 +1,13 @@
 import { z } from "zod";
+import {
+	okResponseSchema,
+	profileSnippetSchema,
+	userSummarySchema,
+	userIdSchema,
+	type UserIdType,
+} from "./shared";
 
-export const friendUserSchema = z.object({
-	id: z.uuid(),
-	username: z.string(),
-	profile: z
-		.object({
-			displayName: z.string().nullish(),
-			firstName: z.string().nullish(),
-			lastName: z.string().nullish(),
-			avatar: z.string().nullish(),
-			bio: z.string().nullish(),
-		})
-		.nullish(),
-});
+export const friendUserSchema = userSummarySchema;
 
 export type FriendUserType = z.infer<typeof friendUserSchema>;
 
@@ -91,9 +86,7 @@ export const friendIdParamsSchema = z.object({
 	friendId: z.uuid(),
 });
 
-export const removeFriendResponseSchema = z.object({
-	message: z.string(),
-});
+export const removeFriendResponseSchema = okResponseSchema;
 
 export type RemoveFriendResponseType = z.infer<
 	typeof removeFriendResponseSchema
