@@ -2,7 +2,7 @@
 
 A real-time social chat app — direct & group messaging, friends, media sharing.
 
-> ⚠️ **Work in progress.** The backend core (auth, users, friends, chats, messages) is implemented and integration-tested. Real-time messaging, media uploads, and the frontend data layer are under active development. See [Status](#-current-status) below.
+> ⚠️ **Work in progress.** The backend core (auth, users, friends, chats, messages) is fully implemented and integration-tested (~112 tests). Socket.IO, media uploads, and most of the React frontend are still being built. See [Status](#-current-status) below.
 
 ---
 
@@ -75,19 +75,19 @@ cd apps/api && bun test
 
 ### ✅ Implemented (backend)
 
-- **Auth** — register, login, email verification (+ resend), forgot/reset password, change password. Argon2id hashing, SHA-256-hashed one-time tokens with expiry, anti-enumeration responses.
-- **Users** — profile read/update, avatar, user search.
-- **Friends** — send/accept/reject/cancel requests, friend list, pending requests.
-- **Chats** — create direct chats (idempotent via unique pair key) and group chats, member management.
-- **Messages** — send text messages, cursor-based pagination (capped), unread counts, mark-as-read, soft delete.
+- **Auth** — register, login, email verification (+ resend), forgot/reset password, change password, logout, refresh-token rotation with session revocation. Argon2id hashing, SHA-256-hashed one-time tokens with expiry, anti-enumeration responses.
+- **Users** — profile read/update, avatar, user search, delete account.
+- **Friends** — send/accept/reject/cancel requests, friend list, pending requests (sent/received).
+- **Chats** — create direct chats (idempotent via unique pair key) and group chats, member management, group admin controls.
+- **Messages** — send text/image messages, cursor-based pagination (capped), unread counts, mark-as-read, soft delete, case-insensitive search.
+- **Settings** — notification, appearance, chat preference, and privacy settings.
 - **Infrastructure** — global error handling with typed error codes, Zod request/response validation, pino logging.
 
 ### 🚧 In Progress
 
 - Socket.IO layer: authenticated handshake, rooms, presence, live message delivery
-- Refresh-token rotation & session revocation (schema exists, flow pending)
-- Frontend data layer: wiring `@bakbak/contracts` into the web app, replacing mock chat data
 - Media attachments (schema exists, upload pipeline pending)
+- Frontend: most routes are placeholder pages; `AuthContext` and chat/friends UI are not yet wired to the API
 
 ### 🗺 Roadmap
 
