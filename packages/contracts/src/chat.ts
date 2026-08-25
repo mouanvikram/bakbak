@@ -40,6 +40,8 @@ export type ChatMessageType = z.infer<typeof chatMessageSchema>;
 
 export const chatParticipantSchema = z.object({
 	id: z.uuid(),
+	chatId: z.uuid(),
+	userId: z.uuid(),
 	role: z.enum(["MEMBER", "ADMIN"]),
 	joinedAt: z.string(),
 	lastReadMessageId: z.string().nullish(),

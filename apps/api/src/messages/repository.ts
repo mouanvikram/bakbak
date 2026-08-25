@@ -1,7 +1,7 @@
-import { Prisma, prisma } from "@bakbak/db"; //modified
+import { Prisma, prisma } from "@bakbak/db";
 
 export class MessageRepository {
-	//modified
+	
 	async create<T extends Prisma.MessageCreateArgs>(
 		args: Prisma.SelectSubset<T, Prisma.MessageCreateArgs>,
 	) {

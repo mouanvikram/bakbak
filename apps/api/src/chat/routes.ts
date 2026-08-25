@@ -5,13 +5,11 @@ import { validate } from "../middleware/validate";
 import {
 	addParticipantRequestSchema,
 	chatIdParamsSchema,
-	createGroupChatRequestSchema,
 	updateChatRequestSchema,
 } from "@bakbak/contracts";
 
 const router = express.Router();
 router.use(authMiddleware);
-
 // Chats
 router.post("/", chatController.createChat);
 router.get("/", chatController.listChats);

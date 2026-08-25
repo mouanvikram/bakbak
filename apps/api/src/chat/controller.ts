@@ -15,11 +15,11 @@ import {
 } from "@bakbak/contracts";
 
 const getString = (
-	value: unknown, //modified
+	value: unknown, 
 ) => (typeof value === "string" && value.trim() ? value.trim() : undefined);
 
 const getStringArray = (value: unknown) => {
-	//modified
+	
 	if (!Array.isArray(value)) {
 		return [];
 	}
@@ -31,7 +31,7 @@ const getStringArray = (value: unknown) => {
 };
 
 const getLimit = (value: unknown, fallback = 30, max = 100) => {
-	//modified
+	
 	const parsed =
 		typeof value === "string" ? Number.parseInt(value, 10) : Number(value);
 
@@ -77,6 +77,7 @@ export class ChatController {
 			const directValidation = createDirectChatRequestSchema.safeParse({
 				participantId,
 			});
+
 			if (!directValidation.success) {
 				return res.status(400).json({
 					message: "Validation failed",
@@ -106,6 +107,7 @@ export class ChatController {
 				participantIds,
 				avatar: getString(req.body.avatar),
 			});
+
 			if (!groupValidation.success) {
 				return res.status(400).json({
 					message: "Validation failed",
@@ -157,7 +159,9 @@ export class ChatController {
 			cursor: getString(req.query.cursor),
 		});
 
-		return validateResponse(res, 200, listChatsResponseSchema, response);
+		return validateResponse(res, 200, listChatsResponseSchema, {
+			chats: response,
+		});
 	};
 
 	updateChat = async (req: AuthRequest, res: Response) => {

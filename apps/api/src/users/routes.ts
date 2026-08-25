@@ -12,27 +12,27 @@ import {
 
 const router = express.Router();
 
-router.use(authMiddleware);
-
-router.get("/me", userController.getMe);
-
-router.patch(
-	"/me",
-	validate(updateProfileRequestSchema),
-	userController.updateMe,
-);
-router.patch(
-	"/me/avatar",
-	validate(updateAvatarRequestSchema),
-	userController.updateAvatar,
-);
-router.delete("/me", userController.deleteMe);
-
 router.get(
 	"/check-username",
 	validate(checkUsernameRequestSchema, "query"),
 	userController.checkUsername,
 );
+
+router.use(authMiddleware);
+router.get("/me", userController.getMe);
+router.patch(
+	"/me",
+	validate(updateProfileRequestSchema),
+	userController.updateMe,
+);
+
+router.patch(
+	"/me/avatar",
+	validate(updateAvatarRequestSchema),
+	userController.updateAvatar,
+);
+
+router.delete("/me", userController.deleteMe);
 
 router.get(
 	"/search",

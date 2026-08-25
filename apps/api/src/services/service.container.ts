@@ -10,9 +10,9 @@ import { ChatRepository } from "../chat/repository";
 import { FriendController } from "../friends/controller";
 import { FriendRepository } from "../friends/repository";
 import { FriendService } from "../friends/service";
-import { MessageController } from "../messages/controller"; //modified
-import { MessageRepository } from "../messages/repository"; //modified
-import { MessageService } from "../messages/service"; //modified
+import { MessageController } from "../messages/controller";
+import { MessageRepository } from "../messages/repository";
+import { MessageService } from "../messages/service";
 import { SettingsController } from "../settings/controller";
 import { SettingsRepository } from "../settings/repository";
 import { SettingsService } from "../settings/service";
@@ -28,11 +28,11 @@ export const jwtService = new JwtService(process.env.JWT_SECRET!);
 export const emailService = new EmailService();
 export const emailRepository = new EmailRepository();
 export const authService = new AuthService(
-  userRepository,
-  pwdService,
-  jwtService,
-  emailService,
-  emailRepository,
+	userRepository,
+	pwdService,
+	jwtService,
+	emailService,
+	emailRepository,
 );
 export const authController = new AuthController(authService);
 export const userService = new UserService(userRepository);
@@ -48,11 +48,10 @@ export const chatRepository = new ChatRepository();
 export const chatService = new ChatService(chatRepository);
 export const chatController = new ChatController(chatService);
 
-// message service //modified
-export const messageRepository = new MessageRepository(); //modified
-export const messageService = new MessageService(messageRepository); //modified
-export const messageController = new MessageController(messageService); //modified
-
+// message service
+export const messageRepository = new MessageRepository();
+export const messageService = new MessageService(messageRepository);
+export const messageController = new MessageController(messageService);
 // settings
 export const settingsRepository = new SettingsRepository();
 export const settingsService = new SettingsService(settingsRepository);

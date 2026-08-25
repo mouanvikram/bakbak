@@ -67,7 +67,7 @@ export class AuthService {
 					lastName: dto.lastname,
 					avatar: dto.avatarUrl,
 					displayName: dto.displayname,
-					bio: dto.bio, //modified
+					bio: dto.bio, 
 				},
 			},
 			verification: {

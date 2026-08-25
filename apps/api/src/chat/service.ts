@@ -1,4 +1,4 @@
-import { ChatType, ParticipantRole, Prisma } from "@bakbak/db"; //modified
+import { ChatType, ParticipantRole, Prisma } from "@bakbak/db"; 
 import type { ChatRepository } from "./repository";
 import type {
 	ChatIdDto,
@@ -25,7 +25,6 @@ const chatUserSelect = {
 
 const getChatInclude = (messageTake = 1) =>
 	({
-		//modified
 		createdBy: {
 			select: chatUserSelect,
 		},
@@ -35,6 +34,7 @@ const getChatInclude = (messageTake = 1) =>
 			},
 			select: {
 				id: true,
+				chatId: true,
 				userId: true,
 				role: true,
 				joinedAt: true,
@@ -68,7 +68,6 @@ const getChatInclude = (messageTake = 1) =>
 	}) satisfies Prisma.ChatInclude;
 
 const participantInclude = {
-	//modified
 	user: {
 		select: chatUserSelect,
 	},
@@ -77,13 +76,62 @@ const participantInclude = {
 export class ChatService {
 	constructor(private readonly chatRepository: ChatRepository) {}
 
+	private serializeMessage<T extends { createdAt: Date; updatedAt: Date }>(
+		message: T,
+	) {
+		return {
+			...message,
+			createdAt: message.createdAt.toISOString(),
+			updatedAt: message.updatedAt.toISOString(),
+		};
+	}
+
+	private serializeParticipant<
+		T extends {
+			joinedAt: Date;
+			mutedUntil: Date | null;
+			leftAt?: Date | null;
+		},
+	>(participant: T) {
+		return {
+			...participant,
+			joinedAt: participant.joinedAt.toISOString(),
+			mutedUntil: participant.mutedUntil?.toISOString() ?? null,
+			leftAt: participant.leftAt?.toISOString() ?? null,
+		};
+	}
+
+	private serializeChat<
+		T extends {
+			createdAt: Date;
+			updatedAt: Date;
+			lastMessageAt?: Date | null;
+			participants?: Array<{
+				joinedAt: Date;
+				mutedUntil: Date | null;
+				leftAt?: Date | null;
+			}>;
+			messages?: Array<{ createdAt: Date; updatedAt: Date }>;
+		},
+	>(chat: T) {
+		return {
+			...chat,
+			createdAt: chat.createdAt.toISOString(),
+			updatedAt: chat.updatedAt.toISOString(),
+			lastMessageAt: chat.lastMessageAt?.toISOString() ?? null,
+			participants: chat.participants?.map((participant) =>
+				this.serializeParticipant(participant),
+			),
+			messages: chat.messages?.map((message) => this.serializeMessage(message)),
+		};
+	}
+
 	private getDirectKey(userId: string, participantId: string) {
-		//modified
 		return [userId, participantId].sort().join(":");
 	}
 
 	private async requireActiveParticipant(chatId: string, userId: string) {
-		//modified
+		
 		const participant = await this.chatRepository.findParticipant({
 			where: {
 				chatId,
@@ -178,7 +226,7 @@ export class ChatService {
 			include: getChatInclude(),
 		});
 
-		return chat;
+		return this.serializeChat(chat);
 	};
 
 	createGroupChat = async (dto: CreateGroupChatDto) => {
@@ -203,7 +251,7 @@ export class ChatService {
 			);
 		}
 
-		return await this.chatRepository.create({
+		const chat = await this.chatRepository.create({
 			data: {
 				type: ChatType.GROUP,
 				name,
@@ -229,10 +277,12 @@ export class ChatService {
 			},
 			include: getChatInclude(),
 		});
+
+		return this.serializeChat(chat);
 	};
 
 	listChats = async (dto: ListChatsDto) => {
-		return await this.chatRepository.findMany({
+		const chats = await this.chatRepository.findMany({
 			where: {
 				participants: {
 					some: {
@@ -254,6 +304,8 @@ export class ChatService {
 			take: dto.limit ?? 30,
 			include: getChatInclude(),
 		});
+
+		return chats.map((chat) => this.serializeChat(chat));
 	};
 
 	getChat = async (dto: ChatIdDto) => {
@@ -274,7 +326,7 @@ export class ChatService {
 			);
 		}
 
-		return chat;
+		return this.serializeChat(chat);
 	};
 
 	updateChat = async (dto: UpdateChatDto) => {
@@ -329,13 +381,15 @@ export class ChatService {
 			);
 		}
 
-		return await this.chatRepository.update({
-			where: {
-				id: dto.chatId,
-			},
-			data,
-			include: getChatInclude(),
-		});
+		return this.serializeChat(
+			await this.chatRepository.update({
+				where: {
+					id: dto.chatId,
+				},
+				data,
+				include: getChatInclude(),
+			}),
+		);
 	};
 
 	addParticipant = async (dto: ParticipantDto) => {
@@ -366,7 +420,7 @@ export class ChatService {
 
 		await this.requireGroupAdmin(dto.chatId, dto.currentUserId);
 
-		return await this.chatRepository.upsertParticipant({
+		const participant = await this.chatRepository.upsertParticipant({
 			where: {
 				chatId_userId: {
 					chatId: dto.chatId,
@@ -392,6 +446,8 @@ export class ChatService {
 			},
 			include: participantInclude,
 		});
+
+		return this.serializeParticipant(participant);
 	};
 
 	removeParticipant = async (dto: ParticipantDto) => {
@@ -426,7 +482,7 @@ export class ChatService {
 			await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 		}
 
-		return await this.chatRepository.updateParticipant({
+		const participant = await this.chatRepository.updateParticipant({
 			where: {
 				chatId_userId: {
 					chatId: dto.chatId,
@@ -438,6 +494,8 @@ export class ChatService {
 			},
 			include: participantInclude,
 		});
+
+		return this.serializeParticipant(participant);
 	};
 
 	deleteChat = async (dto: ChatIdDto) => {
@@ -464,8 +522,15 @@ export class ChatService {
 			);
 		}
 
+		if (chat.type !== ChatType.GROUP) {
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Only group chats can be deleted",
+			);
+		}
+
 		if (
-			chat.type === ChatType.GROUP &&
 			participant.role !== ParticipantRole.ADMIN &&
 			chat.createdById !== dto.currentUserId
 		) {
@@ -476,10 +541,12 @@ export class ChatService {
 			);
 		}
 
-		return await this.chatRepository.delete({
+		const chatDeleted = await this.chatRepository.delete({
 			where: {
 				id: dto.chatId,
 			},
 		});
+
+		return this.serializeChat(chatDeleted);
 	};
 }

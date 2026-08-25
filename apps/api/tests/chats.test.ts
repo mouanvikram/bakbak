@@ -17,7 +17,6 @@ import {
 	createTestUser,
 	createTestDirectChat,
 	createTestGroupChat,
-	createTestMessage,
 	authHeader,
 	isDatabaseAvailable,
 } from "./helpers";
@@ -494,7 +493,7 @@ describe("Chats Endpoints", () => {
 			headers: await authHeader(userA.id, userA.username),
 		});
 
-		expect(res.status).toBe(500);
+		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
