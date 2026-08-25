@@ -1,10 +1,13 @@
 import express from "express";
 import { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import compression from "compression";
 import { env } from "../lib/config";
 import { errorHandler } from "./middleware/error.middleware";
 import { requestIdMiddleware } from "./middleware/request-id.middleware";
 import { requestLoggerMiddleware } from "./middleware/request-logger.middleware";
+import { rateLimiterMiddleware } from "./middleware/rate-limiter.middleware";
 import authRoutes from "./auth/routes";
 import userRoutes from "./users/routes";
 import chatRoutes from "./chat/routes";
@@ -20,6 +23,8 @@ app.use(requestIdMiddleware);
 
 app.use(requestLoggerMiddleware);
 
+app.use(rateLimiterMiddleware);
+
 app.use(
 	cors({
 		origin: env.CORS_ORIGINS,
@@ -27,7 +32,11 @@ app.use(
 	}),
 );
 
-app.use(express.json());
+app.use(helmet());
+
+app.use(compression());
+
+app.use(express.json({ limit: "10kb" }));
 
 // 1. Auth
 app.use("/api/v1/auth", authRoutes);

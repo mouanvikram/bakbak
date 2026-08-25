@@ -1012,4 +1012,266 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(401);
 	});
+
+	// ── Hardcore boundary & injection tests ─────────────────────────
+
+	const maxUsername = "a".repeat(30);
+	const overMaxUsername = "a".repeat(31);
+	const maxEmail = `${"a".repeat(45)}@${"a".repeat(50)}.com`;
+	const overMaxEmail = `${"a".repeat(46)}@${"a".repeat(50)}.com`;
+	const maxPassword = "A1b!" + "a".repeat(124);
+	const overMaxPassword = "A1b!" + "a".repeat(125);
+	const maxBio = "b".repeat(500);
+	const overMaxBio = "b".repeat(501);
+	const maxDisplayName = "d".repeat(100);
+	const overMaxDisplayName = "d".repeat(101);
+	const maxIdentifier = "i".repeat(100);
+	const overMaxIdentifier = "i".repeat(101);
+	const maxToken = "t".repeat(100);
+	const overMaxToken = "t".repeat(101);
+	const maxRefreshToken = "r".repeat(255);
+	const overMaxRefreshToken = "r".repeat(256);
+
+	const nullBytePayload = "test\x00admin";
+	const unicodeBomb = "\uD800".repeat(100);
+
+	const expectValidationError = async (url: string, body: any) => {
+		const res = await fetch(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		});
+		expect([400, 413]).toContain(res.status);
+		const data = (await res.json()) as any;
+		expect(data.error || data.message).toBeDefined();
+	};
+
+	test("signup - should accept max-length username (30)", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: maxUsername,
+				email: `maxuser-${Date.now()}@example.com`,
+				password: "TestPass123!",
+				firstname: "John",
+				lastname: "Doe",
+				displayname: "John Doe",
+			}),
+		});
+		expect(res.status).toBe(200);
+	});
+
+	test("signup - should reject username over max (31)", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
+			username: overMaxUsername,
+			email: `overuser-${Date.now()}@example.com`,
+			password: "TestPass123!",
+			firstname: "John",
+			lastname: "Doe",
+			displayname: "John Doe",
+		});
+	});
+
+	test("signup - should accept max-length email (100)", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: `maxemail-${Date.now()}`,
+				email: maxEmail,
+				password: "TestPass123!",
+				firstname: "John",
+				lastname: "Doe",
+				displayname: "John Doe",
+			}),
+		});
+		expect(res.status).toBe(200);
+	});
+
+	test("signup - should reject email over max (101)", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
+			username: `overemail-${Date.now()}`,
+			email: overMaxEmail,
+			password: "TestPass123!",
+			firstname: "John",
+			lastname: "Doe",
+			displayname: "John Doe",
+		});
+	});
+
+	test("signup - should accept max-length password (128)", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: `maxpwd-${Date.now()}`,
+				email: `maxpwd-${Date.now()}@example.com`,
+				password: maxPassword,
+				firstname: "John",
+				lastname: "Doe",
+				displayname: "John Doe",
+			}),
+		});
+		expect(res.status).toBe(200);
+	});
+
+	test("signup - should reject password over max (129)", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
+			username: `overpwd-${Date.now()}`,
+			email: `overpwd-${Date.now()}@example.com`,
+			password: overMaxPassword,
+			firstname: "John",
+			lastname: "Doe",
+			displayname: "John Doe",
+		});
+	});
+
+	test("signup - should accept max-length bio (500)", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: `maxbio-${Date.now()}`,
+				email: `maxbio-${Date.now()}@example.com`,
+				password: "TestPass123!",
+				firstname: "John",
+				lastname: "Doe",
+				displayname: "John Doe",
+				bio: maxBio,
+			}),
+		});
+		expect(res.status).toBe(200);
+	});
+
+	test("signup - should reject bio over max (501)", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
+			username: `overbio-${Date.now()}`,
+			email: `overbio-${Date.now()}@example.com`,
+			password: "TestPass123!",
+			firstname: "John",
+			lastname: "Doe",
+			displayname: "John Doe",
+			bio: overMaxBio,
+		});
+	});
+
+	test("signup - should accept max-length displayname (100)", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: `maxdn-${Date.now()}`,
+				email: `maxdn-${Date.now()}@example.com`,
+				password: "TestPass123!",
+				firstname: "John",
+				lastname: "Doe",
+				displayname: maxDisplayName,
+			}),
+		});
+		expect(res.status).toBe(200);
+	});
+
+	test("signup - should reject displayname over max (101)", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
+			username: `overdn-${Date.now()}`,
+			email: `overdn-${Date.now()}@example.com`,
+			password: "TestPass123!",
+			firstname: "John",
+			lastname: "Doe",
+			displayname: overMaxDisplayName,
+		});
+	});
+
+	test("login - should reject identifier over max (101)", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/login`, {
+			identifier: overMaxIdentifier,
+			password: "TestPass123!",
+		});
+	});
+
+	test("verify-email - should reject token over max (101)", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/verify-email`, {
+			token: overMaxToken,
+		});
+	});
+
+	test("refresh-token - should reject refreshToken over max (256)", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			refreshToken: overMaxRefreshToken,
+		});
+	});
+
+	test("signup - should reject null byte in username", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
+			username: nullBytePayload,
+			email: `nullbyte-${Date.now()}@example.com`,
+			password: "TestPass123!",
+			firstname: "John",
+			lastname: "Doe",
+			displayname: "John Doe",
+		});
+	});
+
+	test("signup - should reject unicode surrogate in username", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
+			username: unicodeBomb,
+			email: `unicode-${Date.now()}@example.com`,
+			password: "TestPass123!",
+			firstname: "John",
+			lastname: "Doe",
+			displayname: "John Doe",
+		});
+	});
+
+	test("AUTH: break all endpoints with garbage payloads", async () => {
+		const garbage = { garbage: true, random: Math.random(), nested: { deep: true } };
+
+		const endpoints = [
+			{ url: `${baseUrl()}/api/v1/auth/signup`, method: "POST", body: garbage },
+			{ url: `${baseUrl()}/api/v1/auth/login`, method: "POST", body: garbage },
+			{ url: `${baseUrl()}/api/v1/auth/verify-email`, method: "POST", body: garbage },
+			{
+				url: `${baseUrl()}/api/v1/auth/resend-verification`,
+				method: "POST",
+				body: garbage,
+			},
+			{
+				url: `${baseUrl()}/api/v1/auth/forgot-password`,
+				method: "POST",
+				body: garbage,
+			},
+			{
+				url: `${baseUrl()}/api/v1/auth/reset-password`,
+				method: "POST",
+				body: garbage,
+			},
+			{
+				url: `${baseUrl()}/api/v1/auth/change-password`,
+				method: "POST",
+				body: garbage,
+				headers: { Authorization: "Bearer invalid" },
+			},
+			{
+				url: `${baseUrl()}/api/v1/auth/refresh-token`,
+				method: "POST",
+				body: garbage,
+			},
+			{
+				url: `${baseUrl()}/api/v1/auth/logout`,
+				method: "POST",
+				body: garbage,
+				headers: { Authorization: "Bearer invalid" },
+			},
+		];
+
+		for (const ep of endpoints) {
+			const res = await fetch(ep.url, {
+				method: ep.method,
+				headers: { "Content-Type": "application/json", ...ep.headers },
+				body: JSON.stringify(ep.body),
+			});
+			expect([400, 401, 403, 413]).toContain(res.status);
+		}
+	});
 });
