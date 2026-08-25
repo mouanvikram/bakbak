@@ -4,6 +4,15 @@ import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import logger from "@logger";
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+	if (err?.type === "entity.too.large") {
+		return res.status(413).json({
+			error: {
+				code: "PAYLOAD_TOO_LARGE",
+				message: "Request payload is too large.",
+			},
+		});
+	}
+
 	if (err instanceof AppError) {
 		return res.status(err.statusCode).json({
 			error: {
@@ -14,7 +23,12 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 	}
 
 	logger.error(
-		{ err, method: req.method, url: req.originalUrl, requestId: (req as any).id },
+		{
+			err,
+			method: req.method,
+			url: req.originalUrl,
+			requestId: (req as any).id,
+		},
 		"Unhandled error",
 	);
 
