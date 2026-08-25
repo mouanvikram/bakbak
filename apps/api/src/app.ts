@@ -19,11 +19,11 @@ import uploadRoutes from "./uploads/routes";
 
 const app: Express = express();
 
-app.use(requestIdMiddleware);
+// app.use(requestIdMiddleware);
 
-app.use(requestLoggerMiddleware);
+// app.use(requestLoggerMiddleware);
 
-app.use(rateLimiterMiddleware);
+// app.use(rateLimiterMiddleware);
 
 app.use(
 	cors({

@@ -10,7 +10,6 @@ import {
 	resendVerificationRequestSchema,
 	resetPasswordBodySchema,
 	signUpRequestSchema,
-	userIdSchema,
 	verifyEmailRequestSchema,
 } from "@bakbak/contracts";
 import { authMiddleware } from "../middleware/auth.middleware";
