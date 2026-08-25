@@ -17,7 +17,7 @@ export const requestLoggerMiddleware = (
 				url: req.originalUrl,
 				status: res.statusCode,
 				durationMs,
-				requestId: (req as any).id,
+				requestId: req.requestId,
 				userAgent: req.headers["user-agent"],
 				ip: req.ip,
 			},
