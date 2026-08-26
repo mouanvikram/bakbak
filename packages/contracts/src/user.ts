@@ -31,7 +31,7 @@ export const getMeResponseSchema = z.object({
 export type GetMeResponseType = z.infer<typeof getMeResponseSchema>;
 
 export const updateProfileRequestSchema = z.object({
-	bio: safeString(500).optional(),
+	bio: safeString(500, 0).optional(),
 	firstName: safeString(100).optional(),
 	lastName: safeString(100).optional(),
 	displayName: safeString(100).optional(),

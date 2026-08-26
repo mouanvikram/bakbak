@@ -1,10 +1,7 @@
 import { z } from "zod";
 import {
 	okResponseSchema,
-	profileSnippetSchema,
 	userSummarySchema,
-	userIdSchema,
-	type UserIdType,
 } from "./shared";
 
 export const friendUserSchema = userSummarySchema;
@@ -90,6 +87,14 @@ export const removeFriendResponseSchema = okResponseSchema;
 
 export type RemoveFriendResponseType = z.infer<
 	typeof removeFriendResponseSchema
+>;
+
+export const getSuggestionsResponseSchema = z.object({
+	suggestions: z.array(friendUserSchema),
+});
+
+export type GetSuggestionsResponseType = z.infer<
+	typeof getSuggestionsResponseSchema
 >;
 
 export interface FriendRequestType {

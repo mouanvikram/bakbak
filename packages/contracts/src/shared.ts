@@ -73,17 +73,30 @@ export const singleItemResponseSchema = <T extends z.ZodTypeAny>(
 	item: T,
 ) => z.object({ [name]: item });
 
-export enum MessageType {
-	TEXT = "TEXT",
-	IMAGE = "IMAGE",
-	VIDEO = "VIDEO",
-	AUDIO = "AUDIO",
-	FILE = "FILE",
-	STICKER = "STICKER",
-	LOCATION = "LOCATION",
-	CONTACT = "CONTACT",
-	CALL = "CALL",
-	SYSTEM = "SYSTEM",
-}
+export const MessageType = {
+	TEXT: "TEXT",
+	IMAGE: "IMAGE",
+	VIDEO: "VIDEO",
+	AUDIO: "AUDIO",
+	FILE: "FILE",
+	STICKER: "STICKER",
+	LOCATION: "LOCATION",
+	CONTACT: "CONTACT",
+	CALL: "CALL",
+	SYSTEM: "SYSTEM",
+} as const;
 
-export const messageTypeSchema = z.nativeEnum(MessageType);
+export type MessageType = (typeof MessageType)[keyof typeof MessageType];
+
+export const messageTypeSchema = z.enum([
+	"TEXT",
+	"IMAGE",
+	"VIDEO",
+	"AUDIO",
+	"FILE",
+	"STICKER",
+	"LOCATION",
+	"CONTACT",
+	"CALL",
+	"SYSTEM",
+]);

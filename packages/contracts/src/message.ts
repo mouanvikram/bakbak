@@ -6,7 +6,6 @@ import {
 	safeString,
 	singleItemResponseSchema,
 	userSummarySchema,
-	uuidParam,
 	arrayResponseSchema,
 } from "./shared";
 import { chatParticipantSchema } from "./chat";

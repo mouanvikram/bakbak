@@ -59,6 +59,7 @@ export const chatResponseSchema = chatBaseSchema.extend({
 export type ChatResponseType = z.infer<typeof chatResponseSchema>;
 
 export const createDirectChatRequestSchema = z.object({
+	type: z.enum(["DIRECT", "GROUP"]),
 	participantId: z.uuid(),
 });
 
