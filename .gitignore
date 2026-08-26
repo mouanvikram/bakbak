@@ -33,6 +33,12 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 
+# seed script
+apps/api/src/seed/
+
 # git-ai auto generated commits
 .git-ai.json
 summary.md
+HANDOFF.md
+audit.md
+audit-prompt.md
