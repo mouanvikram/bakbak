@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { Background } from "../../../components/ui/Background";
 import { Button } from "../../../components/ui/Button";
 import { Divider } from "../../../components/ui/Divider";
@@ -7,26 +7,23 @@ import { Mail } from "lucide-react";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
 import { Branding } from "../../../components/ui/Branding";
 import { useState } from "react";
-import { login } from "@/api/auth.api";
+import { useAuth } from "@/context/AuthContext";
 
 export function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const { login } = useAuth();
 
   async function handleLogin() {
     setLoading(true);
+    setError(null);
 
     try {
-      const response = await login({
-        identifier,
-        password,
-      });
-      console.log(response);
-      navigate("/chats");
-    } catch (error) {
-      console.log(error);
+      await login({ identifier, password });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -47,6 +44,13 @@ export function LoginPage() {
                 Login to continue your conversations
               </p>
             </div>
+
+            {/* Error */}
+            {error && (
+              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
 
             {/* Form */}
             <div className="flex w-full flex-col gap-4">
