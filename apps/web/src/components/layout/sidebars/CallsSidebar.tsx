@@ -6,7 +6,6 @@ import {
   Video,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
 
 type CallType = "incoming" | "outgoing" | "missed";
 type CallMode = "voice" | "video";
@@ -118,8 +117,6 @@ export function CallsSidebar() {
 }
 
 function CallItem({ call }: { call: Call }) {
-  const isMissed = call.type === "missed";
-
   return (
     <button
       type="button"

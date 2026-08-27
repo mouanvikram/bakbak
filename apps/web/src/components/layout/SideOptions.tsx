@@ -1,7 +1,7 @@
 import { MessageCircleMore, Phone, Settings, UsersRound } from "lucide-react";
 import { NavLink } from "react-router";
-import { Logo } from "../ui/Logo";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 const sideOptions = [
   {
@@ -27,15 +27,18 @@ const sideOptions = [
 ];
 
 function SideOptions() {
+  const { profile } = useAuth();
+  const avatarUrl = profile?.avatar;
+  const displayName = profile?.displayName ?? profile?.username ?? "U";
   return (
     <nav className="flex h-full w-full flex-col items-center rounded-lg bg-white shadow-md">
       {/* Logo — desktop only */}
-      <div className="hidden h-20 w-full flex-col items-center justify-center md:flex">
+      {/* <div className="hidden h-20 w-full flex-col items-center justify-center md:flex">
         <Logo width={32} height={32} />
-      </div>
+      </div> */}
 
       {/* Navigation */}
-      <div className="flex w-full flex-1 flex-row items-center justify-around md:flex-col md:justify-start md:gap-1 md:px-1">
+      <div className="flex w-full flex-1 flex-row items-center justify-around py-1 md:flex-col md:justify-start md:gap-1 md:px-1">
         {sideOptions.map((option) => {
           const Icon = option.icon;
 
@@ -63,17 +66,21 @@ function SideOptions() {
 
       {/* User Avatar */}
       <div className="hidden w-full items-center justify-center pb-4 md:flex">
-        <button
-          type="button"
-          className="size-10 overflow-hidden rounded-full ring-2 ring-transparent transition hover:ring-violet-200"
+        <NavLink
+          to="/settings"
+          className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-violet-100 text-sm font-medium text-violet-600 ring-2 ring-transparent transition hover:ring-violet-200"
           aria-label="Open profile"
         >
-          <img
-            src="/images/placeholders/avatar.png"
-            alt="Your profile"
-            className="size-full object-cover"
-          />
-        </button>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="size-full object-cover"
+            />
+          ) : (
+            displayName.charAt(0).toUpperCase()
+          )}
+        </NavLink>
       </div>
     </nav>
   );
