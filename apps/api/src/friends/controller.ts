@@ -8,6 +8,7 @@ import {
 	cancelFriendRequestResponseSchema,
 	getFriendsResponseSchema,
 	getPendingRequestsResponseSchema,
+	getSuggestionsResponseSchema,
 	rejectFriendRequestResponseSchema,
 	removeFriendResponseSchema,
 	sendFriendRequestResponseSchema,
@@ -209,6 +210,29 @@ export class FriendController {
 			});
 
 			return validateResponse(res, 200, removeFriendResponseSchema, response);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	getSuggestions = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = req.user?.userId;
+			if (!userId) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Unauthorized",
+				);
+			}
+
+			const response = await this.friendService.getSuggestions({ userId });
+
+			return validateResponse(res, 200, getSuggestionsResponseSchema, response);
 		} catch (error) {
 			next(error);
 		}

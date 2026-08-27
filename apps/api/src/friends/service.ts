@@ -12,6 +12,7 @@ import type {
 	FriendRequestResponseType,
 	FriendRequestType,
 	GetFriendsResponseType,
+	GetSuggestionsResponseType,
 	RejectFriendRequestResponseType,
 	RemoveFriendResponseType,
 	SendFriendRequestResponseType,
@@ -324,5 +325,10 @@ export class FriendService {
 			],
 		});
 		return status;
+	}
+
+	async getSuggestions(dto: UserIdType): Promise<GetSuggestionsResponseType> {
+		const suggestions = await this.friendRepository.findSuggestions(dto.userId);
+		return { suggestions };
 	}
 }

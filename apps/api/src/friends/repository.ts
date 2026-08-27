@@ -143,4 +143,45 @@ export class FriendRepository {
 			where,
 		});
 	}
+
+	async findSuggestions(currentUserId: string) {
+		const friendships = await prisma.friendship.findMany({
+			where: {
+				OR: [
+					{ user1Id: currentUserId },
+					{ user2Id: currentUserId },
+				],
+			},
+			select: { user1Id: true, user2Id: true },
+		});
+
+		const requests = await prisma.friendRequest.findMany({
+			where: {
+				OR: [
+					{ senderId: currentUserId, status: "PENDING" },
+					{ receiverId: currentUserId, status: "PENDING" },
+				],
+			},
+			select: { senderId: true, receiverId: true },
+		});
+
+		const excludeIds = new Set<string>([
+			currentUserId,
+			...friendships.map((f) =>
+				f.user1Id === currentUserId ? f.user2Id : f.user1Id,
+			),
+			...requests.map((r) =>
+				r.senderId === currentUserId ? r.receiverId : r.senderId,
+			),
+		]);
+
+		return await prisma.user.findMany({
+			where: {
+				id: { notIn: Array.from(excludeIds) },
+			},
+			select: friendUserSelect,
+			take: 20,
+			orderBy: { createdAt: "desc" },
+		});
+	}
 }

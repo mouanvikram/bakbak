@@ -36,6 +36,7 @@ router.delete(
 
 router.get("/", friendController.getFriends);
 router.get("/requests", friendController.getPendingRequest);
+router.get("/suggestions", friendController.getSuggestions);
 
 router.delete(
 	"/:friendId",
