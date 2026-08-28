@@ -109,7 +109,7 @@ export function UserMenu() {
             "fixed z-50 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg",
             menuOpen
               ? "scale-100 opacity-100 blur-0"
-              : "scale-[0.98] opacity-0 blur-[10px] pointer-events-none",
+              : "scale-[0.95] opacity-0 blur-[10px] pointer-events-none",
             "transition-all duration-200 ease-out",
           )}
           style={{
