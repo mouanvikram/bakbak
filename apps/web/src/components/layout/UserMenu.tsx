@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { LogOut, UserRound, X, CalendarDays, Users, Mail, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,48 +34,12 @@ function Avatar({ className }: { className?: string }) {
   );
 }
 
-function TooltipCard({
-  onProfile,
-  onLogout,
-}: {
-  onProfile: () => void;
-  onLogout: () => void;
-}) {
-  return (
-    <div className="absolute right-full top-1/2 mr-3 w-44 -translate-y-1/2">
-      <div
-        className={cn(
-          "overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg",
-          "scale-[0.98] opacity-0 blur-[10px]",
-          "transition-all duration-200 ease-out",
-          "group-hover:scale-100 group-hover:opacity-100 group-hover:blur-0",
-        )}
-      >
-        <button
-          type="button"
-          onClick={onProfile}
-          className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-violet-50 hover:text-violet-600"
-        >
-          <UserRound className="size-4" />
-          Profile
-        </button>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
-        >
-          <LogOut className="size-4" />
-          Logout
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function UserMenu() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const displayName = profile?.displayName ?? profile?.username ?? "User";
   const fullName =
@@ -83,25 +47,85 @@ export function UserMenu() {
       ? `${profile.firstName} ${profile.lastName}`
       : undefined;
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
+
   async function handleLogout() {
+    setMenuOpen(false);
     await logout();
     navigate("/login", { replace: true });
   }
 
   return (
     <>
-      <div className="group relative">
-        <Avatar className="size-10 ring-2 ring-transparent transition hover:ring-violet-200" />
-        <TooltipCard
-          onProfile={() => setOpen(true)}
-          onLogout={handleLogout}
-        />
+      <div className="relative" ref={menuRef}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="User menu"
+          aria-expanded={menuOpen}
+          className="rounded-full ring-2 ring-transparent transition hover:ring-violet-200"
+        >
+          <Avatar className="size-10" />
+        </button>
+
+        <div className="absolute right-full top-1/2 mr-3 w-44 -translate-y-1/2">
+          <div
+            className={cn(
+              "overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg",
+              menuOpen
+                ? "scale-100 opacity-100 blur-0"
+                : "scale-[0.98] opacity-0 blur-[10px]",
+              "transition-all duration-200 ease-out",
+              "pointer-events-none",
+              menuOpen && "pointer-events-auto",
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setProfileOpen(true);
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-violet-50 hover:text-violet-600"
+            >
+              <UserRound className="size-4" />
+              Profile
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+            >
+              <LogOut className="size-4" />
+              Logout
+            </button>
+          </div>
+        </div>
       </div>
 
-      {open && (
+      {profileOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
+          onClick={() => setProfileOpen(false)}
         >
           <div
             className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
@@ -110,7 +134,7 @@ export function UserMenu() {
             <button
               type="button"
               aria-label="Close profile"
-              onClick={() => setOpen(false)}
+              onClick={() => setProfileOpen(false)}
               className="absolute top-4 right-4 flex size-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
             >
               <X className="size-5" />
@@ -158,7 +182,7 @@ export function UserMenu() {
             <button
               type="button"
               onClick={() => {
-                setOpen(false);
+                setProfileOpen(false);
                 navigate("/settings");
               }}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-violet-700"
