@@ -27,6 +27,7 @@ export class UserService {
 				email: true,
 				username: true,
 				isEmailVerified: true,
+				createdAt: true,
 				profile: {
 					select: {
 						firstName: true,
@@ -47,6 +48,8 @@ export class UserService {
 			);
 		}
 
+		const friendsCount = await this.userRepository.countFriends(user.id);
+
 		return {
 			profile: {
 				id: user.id,
@@ -58,6 +61,8 @@ export class UserService {
 				bio: user.profile?.bio,
 				avatar: user.profile?.avatar,
 				displayName: user.profile?.displayName,
+				joinedAt: user.createdAt.toISOString(),
+				friendsCount,
 			},
 		};
 	}

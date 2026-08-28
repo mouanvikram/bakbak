@@ -24,6 +24,14 @@ export class UserRepository {
 		});
 	}
 
+	async countFriends(userId: string) {
+		const [asUser1, asUser2] = await Promise.all([
+			prisma.friendship.count({ where: { user1Id: userId } }),
+			prisma.friendship.count({ where: { user2Id: userId } }),
+		]);
+		return asUser1 + asUser2;
+	}
+
 	async getUsers(query: string) {
 		return prisma.user.findMany({
 			where: query

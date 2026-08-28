@@ -18,6 +18,8 @@ export const userProfileSchema = z.object({
 	bio: safeString(500).nullish(),
 	avatar: safeString(150).nullish(),
 	displayName: safeString(100).nullish(),
+	joinedAt: z.string(),
+	friendsCount: z.number().int().nonnegative(),
 });
 
 export type UserProfileType = z.infer<typeof userProfileSchema>;
