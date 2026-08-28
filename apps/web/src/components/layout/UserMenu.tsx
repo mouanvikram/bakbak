@@ -38,7 +38,9 @@ export function UserMenu() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const avatarRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const displayName = profile?.displayName ?? profile?.username ?? "User";
@@ -47,13 +49,24 @@ export function UserMenu() {
       ? `${profile.firstName} ${profile.lastName}`
       : undefined;
 
+  function openMenu() {
+    const avatar = avatarRef.current;
+    if (!avatar) return;
+    const rect = avatar.getBoundingClientRect();
+    // Anchor the card just to the right of the avatar, vertically centered.
+    setMenuPos({ left: rect.right + 12, top: rect.top + rect.height / 2 });
+    setMenuOpen(true);
+  }
+
   useEffect(() => {
     if (!menuOpen) return;
 
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
+      const avatar = avatarRef.current;
+      const menu = menuRef.current;
+      if (avatar?.contains(event.target as Node)) return;
+      if (menu?.contains(event.target as Node)) return;
+      setMenuOpen(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -76,52 +89,56 @@ export function UserMenu() {
 
   return (
     <>
-      <div className="relative" ref={menuRef}>
-        <button
-          type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="User menu"
-          aria-expanded={menuOpen}
-          className="rounded-full ring-2 ring-transparent transition hover:ring-violet-200"
+      <button
+        ref={avatarRef}
+        type="button"
+        onClick={menuOpen ? () => setMenuOpen(false) : openMenu}
+        aria-label="User menu"
+        aria-expanded={menuOpen}
+        className="rounded-full ring-2 ring-transparent transition hover:ring-violet-200"
+      >
+        <Avatar className="size-10" />
+      </button>
+
+      {/* Fixed-position dropdown anchored just right of the avatar.
+          The nav column is only 80px wide, so centering the card there would push it off-screen. */}
+      {menuPos && (
+        <div
+          ref={menuRef}
+          className={cn(
+            "fixed z-50 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg",
+            menuOpen
+              ? "scale-100 opacity-100 blur-0"
+              : "scale-[0.98] opacity-0 blur-[10px] pointer-events-none",
+            "transition-all duration-200 ease-out",
+          )}
+          style={{
+            left: menuPos.left,
+            top: menuPos.top,
+            transform: "translateY(-50%)",
+          }}
         >
-          <Avatar className="size-10" />
-        </button>
-
-        <div className="absolute right-full top-1/2 mr-3 w-44 -translate-y-1/2">
-          <div
-            className={cn(
-              "overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg",
-              menuOpen
-                ? "scale-100 opacity-100 blur-0"
-                : "scale-[0.98] opacity-0 blur-[10px]",
-              "transition-all duration-200 ease-out",
-              "pointer-events-none",
-              menuOpen && "pointer-events-auto",
-            )}
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              setProfileOpen(true);
+            }}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-violet-50 hover:text-violet-600"
           >
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                setProfileOpen(true);
-              }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-violet-50 hover:text-violet-600"
-            >
-              <UserRound className="size-4" />
-              Profile
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
-            >
-              <LogOut className="size-4" />
-              Logout
-            </button>
-          </div>
+            <UserRound className="size-4" />
+            Profile
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+          >
+            <LogOut className="size-4" />
+            Logout
+          </button>
         </div>
-      </div>
-
+      )}
       {profileOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
