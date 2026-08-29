@@ -215,7 +215,7 @@ describe("Chats Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe("Group name and participant ids are required");
+		expect(data.error.message).toBe("Group name and participant ids are required");
 	});
 
 	test("POST /chats/ - should fail creating group chat without participants", async () => {
@@ -233,7 +233,7 @@ describe("Chats Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe("Group name and participant ids are required");
+		expect(data.error.message).toBe("Group name and participant ids are required");
 	});
 
 	test("POST /chats/ - should fail creating direct chat without participant id", async () => {
@@ -250,7 +250,7 @@ describe("Chats Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe("Participant id is required");
+		expect(data.error.message).toBe("Participant id is required");
 	});
 
 	test("POST /chats/ - should fail with invalid chat type", async () => {
@@ -268,7 +268,7 @@ describe("Chats Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe("Invalid chat type");
+		expect(data.error.message).toBe("Invalid chat type");
 	});
 
 	test("POST /chats/ - should fail creating direct chat with self", async () => {

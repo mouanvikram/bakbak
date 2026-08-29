@@ -288,7 +288,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe("Invalid request");
+		expect(data.error.message).toBe("Invalid request");
 	});
 
 	test("GET /chats/:chatId/messages/search - should fail without auth", async () => {
@@ -394,7 +394,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(501);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe(
+		expect(data.error.message).toBe(
 			"This message feature needs additional database models first",
 		);
 	});
@@ -414,7 +414,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(501);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe(
+		expect(data.error.message).toBe(
 			"This message feature needs additional database models first",
 		);
 	});
@@ -619,7 +619,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(501);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe(
+		expect(data.error.message).toBe(
 			"This message feature needs additional database models first",
 		);
 	});
@@ -639,7 +639,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(501);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe(
+		expect(data.error.message).toBe(
 			"This message feature needs additional database models first",
 		);
 	});
@@ -663,7 +663,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(501);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe(
+		expect(data.error.message).toBe(
 			"This message feature needs additional database models first",
 		);
 	});
@@ -680,7 +680,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(501);
 		const data = (await res.json()) as any;
-		expect(data.message).toBe(
+		expect(data.error.message).toBe(
 			"This message feature needs additional database models first",
 		);
 	});

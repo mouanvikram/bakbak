@@ -4,6 +4,7 @@ import { jwtService } from "../services/service.container";
 import type { AccessTokenPayload } from "../helpers/jwt.service";
 import logger from "@lib/logger";
 import { userIdSchema } from "@bakbak/contracts";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 export const authMiddleware = (
 	req: AuthRequest,
@@ -14,15 +15,19 @@ export const authMiddleware = (
 		const authHeaders = req.headers.authorization;
 
 		if (!authHeaders || !authHeaders.startsWith("Bearer ")) {
-			return res.status(401).json({
-				error: "Invalid Request",
-			});
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.UNAUTHORIZED,
+				"Invalid request",
+			);
 		}
 		const token = authHeaders.split(" ")[1];
 		if (!token) {
-			return res.status(403).json({
-				message: "Missing Token",
-			});
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.UNAUTHORIZED,
+				"Missing token",
+			);
 		}
 
 		const payload = jwtService.verifyJwt<AccessTokenPayload>(token);
@@ -32,9 +37,21 @@ export const authMiddleware = (
 		};
 
 		next();
-	} catch (error: any) {
-		return res.status(401).json({
-			message: "Invalid or expired token",
+	} catch (error) {
+		if (error instanceof AppError) {
+			return res.status(error.statusCode).json({
+				error: {
+					code: error.code,
+					message: error.message,
+				},
+			});
+		}
+
+		return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+			error: {
+				code: ERROR_CODES.UNAUTHORIZED,
+				message: "Invalid or expired token",
+			},
 		});
 	}
 };

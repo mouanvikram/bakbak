@@ -13,7 +13,7 @@ import {
 	sendMessageResponseSchema,
 	getUnreadCountResponseSchema,
 } from "@bakbak/contracts";
-import { HTTP_STATUS } from "../../errors/app-error";
+import { HTTP_STATUS, AppError, ERROR_CODES } from "../../errors/app-error";
 
 const getString = (value: unknown) =>
 	typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -49,9 +49,11 @@ export class MessageController {
 			const type = getMessageType(req.body.type);
 
 			if (!currentUserId || !chatId || !type) {
-				return res.status(400).json({
-					message: "Invalid request",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid request",
+				);
 			}
 
 			const response = await this.messageService.sendMessage({
@@ -77,9 +79,11 @@ export class MessageController {
 			const chatId = getString(req.params.chatId);
 
 			if (!currentUserId || !chatId) {
-				return res.status(400).json({
-					message: "Invalid request",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid request",
+				);
 			}
 
 			const response = await this.messageService.listMessages({
@@ -103,9 +107,11 @@ export class MessageController {
 			const messageId = getString(req.params.messageId);
 
 			if (!currentUserId || !messageId) {
-				return res.status(400).json({
-					message: "Invalid request",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid request",
+				);
 			}
 
 			const response = await this.messageService.getMessage({
@@ -128,9 +134,11 @@ export class MessageController {
 			const text = getString(req.body.text);
 
 			if (!currentUserId || !messageId || !text) {
-				return res.status(400).json({
-					message: "Invalid request",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid request",
+				);
 			}
 
 			const response = await this.messageService.editMessage({
@@ -155,9 +163,11 @@ export class MessageController {
 			const messageId = getString(req.params.messageId);
 
 			if (!currentUserId || !messageId) {
-				return res.status(400).json({
-					message: "Invalid request",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid request",
+				);
 			}
 
 			const response = await this.messageService.deleteMessage({
@@ -181,9 +191,11 @@ export class MessageController {
 			const chatId = getString(req.params.chatId);
 
 			if (!currentUserId || !chatId) {
-				return res.status(400).json({
-					message: "Invalid request",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid request",
+				);
 			}
 
 			const response = await this.messageService.markChatRead({
@@ -209,9 +221,11 @@ export class MessageController {
 			const query = getString(req.query.q);
 
 			if (!currentUserId || !chatId || !query) {
-				return res.status(400).json({
-					message: "Invalid request",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid request",
+				);
 			}
 
 			const response = await this.messageService.searchMessages({
@@ -240,9 +254,11 @@ export class MessageController {
 			const chatId = getString(req.params.chatId);
 
 			if (!currentUserId || !chatId) {
-				return res.status(400).json({
-					message: "Invalid request",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid request",
+				);
 			}
 
 			const count = await this.messageService.getUnreadCount({
@@ -260,7 +276,10 @@ export class MessageController {
 
 	notImplemented = async (req: AuthRequest, res: Response) => {
 		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-			message: "This message feature needs additional database models first",
+			error: {
+				code: ERROR_CODES.NOT_IMPLEMENTED,
+				message: "This message feature needs additional database models first",
+			},
 		});
 	};
 }

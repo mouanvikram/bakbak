@@ -217,8 +217,8 @@ describe("Users Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
-		expect(Array.isArray(data.issues)).toBe(true);
+		expect(data.error.code).toBe("VALIDATION_ERROR");
+		expect(Array.isArray(data.error.details)).toBe(true);
 	});
 
 	test("GET /users/search - should return matching users", async () => {

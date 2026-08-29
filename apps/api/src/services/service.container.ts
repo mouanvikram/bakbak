@@ -22,10 +22,11 @@ import { UploadService } from "../uploads/service";
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
+import { env } from "../../lib/config";
 
 export const userRepository = new UserRepository();
 export const pwdService = new PasswordService();
-export const jwtService = new JwtService(process.env.JWT_SECRET!);
+export const jwtService = new JwtService(env.JWT_SECRET);
 export const emailService = new EmailService();
 export const emailRepository = new EmailRepository();
 export const refreshTokenRepository = new RefreshTokenRepository();

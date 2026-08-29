@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import type { ChatService } from "./service";
 import { validateResponse } from "../middleware/validate";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import {
 	addParticipantResponseSchema,
 	createChatResponseSchema,
@@ -50,15 +51,19 @@ export class ChatController {
 		const chatType = getString(req.body.type)?.toUpperCase();
 
 		if (!currentUserId) {
-			return res.status(400).json({
-				message: "Invalid user",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid user",
+			);
 		}
 
 		if (!chatType || !["DIRECT", "GROUP"].includes(chatType)) {
-			return res.status(400).json({
-				message: "Invalid chat type",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid chat type",
+			);
 		}
 
 		let response;
@@ -69,19 +74,25 @@ export class ChatController {
 				getString(req.body.userId);
 
 			if (!participantId) {
-				return res.status(400).json({
-					message: "Participant id is required",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Participant id is required",
+				);
 			}
 
 			const directValidation = createDirectChatRequestSchema.safeParse({
+				type: chatType,
 				participantId,
 			});
 
 			if (!directValidation.success) {
 				return res.status(400).json({
-					message: "Validation failed",
-					issues: directValidation.error.issues,
+					error: {
+						code: ERROR_CODES.VALIDATION_ERROR,
+						message: "Validation failed",
+						details: directValidation.error.issues,
+					},
 				});
 			}
 
@@ -97,9 +108,11 @@ export class ChatController {
 					: getStringArray(req.body.memberIds);
 
 			if (!name || participantIds.length === 0) {
-				return res.status(400).json({
-					message: "Group name and participant ids are required",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Group name and participant ids are required",
+				);
 			}
 
 			const groupValidation = createGroupChatRequestSchema.safeParse({
@@ -110,8 +123,11 @@ export class ChatController {
 
 			if (!groupValidation.success) {
 				return res.status(400).json({
-					message: "Validation failed",
-					issues: groupValidation.error.issues,
+					error: {
+						code: ERROR_CODES.VALIDATION_ERROR,
+						message: "Validation failed",
+						details: groupValidation.error.issues,
+					},
 				});
 			}
 
@@ -131,9 +147,11 @@ export class ChatController {
 		const chatId = getString(req.params.chatId);
 
 		if (!currentUserId || !chatId) {
-			return res.status(400).json({
-				message: "Invalid request",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid request",
+			);
 		}
 
 		const response = await this.chatService.getChat({
@@ -148,9 +166,11 @@ export class ChatController {
 		const currentUserId = req.user?.userId;
 
 		if (!currentUserId) {
-			return res.status(400).json({
-				message: "Invalid user",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid user",
+			);
 		}
 
 		const response = await this.chatService.listChats({
@@ -169,9 +189,11 @@ export class ChatController {
 		const chatId = getString(req.params.chatId);
 
 		if (!currentUserId || !chatId) {
-			return res.status(400).json({
-				message: "Invalid request",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid request",
+			);
 		}
 
 		const response = await this.chatService.updateChat({
@@ -189,9 +211,11 @@ export class ChatController {
 		const chatId = getString(req.params.chatId);
 
 		if (!currentUserId || !chatId) {
-			return res.status(400).json({
-				message: "Invalid request",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid request",
+			);
 		}
 
 		const response = await this.chatService.deleteChat({
@@ -211,9 +235,11 @@ export class ChatController {
 			getString(req.body.memberId);
 
 		if (!currentUserId || !chatId || !participantId) {
-			return res.status(400).json({
-				message: "Invalid request",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid request",
+			);
 		}
 
 		const response = await this.chatService.addParticipant({
@@ -231,9 +257,11 @@ export class ChatController {
 		const userId = getString(req.params.userId);
 
 		if (!currentUserId || !chatId || !userId) {
-			return res.status(400).json({
-				message: "Invalid request",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid request",
+			);
 		}
 
 		const response = await this.chatService.removeParticipant({

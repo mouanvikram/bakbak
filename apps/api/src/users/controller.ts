@@ -22,7 +22,7 @@ export class UserController {
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
 				ERROR_CODES.USER_ID_NOT_VALID,
-				"",
+				"Enter a valid user id",
 			);
 		}
 		const profile = await this.userService.getMe({
@@ -37,9 +37,11 @@ export class UserController {
 		const userId = req.user?.userId;
 
 		if (!userId) {
-			return res.status(400).json({
-				error: "Enter a valid user id",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.USER_ID_NOT_VALID,
+				"Enter a valid user id",
+			);
 		}
 
 		const response = await this.userService.updateMe({
@@ -58,9 +60,11 @@ export class UserController {
 		const userId = req.user?.userId;
 
 		if (!userId) {
-			return res.status(400).json({
-				error: "Enter a valid user id",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.USER_ID_NOT_VALID,
+				"Enter a valid user id",
+			);
 		}
 		const response = await this.userService.updateAvatar({
 			userId,
@@ -74,9 +78,11 @@ export class UserController {
 		const userId = req.user?.userId;
 
 		if (!userId) {
-			return res.status(400).json({
-				error: "Enter a valid user id",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.USER_ID_NOT_VALID,
+				"Enter a valid user id",
+			);
 		}
 		await this.userService.deleteMe({
 			userId,
@@ -90,9 +96,11 @@ export class UserController {
 	searchUsers = async (req: AuthRequest, res: Response) => {
 		const { query } = req.query;
 		if (typeof query !== "string") {
-			return res.status(400).json({
-				error: "Validation failed",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Validation failed",
+			);
 		}
 		const response = await this.userService.searchUsers({
 			query,
@@ -104,9 +112,11 @@ export class UserController {
 	getProfile = async (req: AuthRequest, res: Response) => {
 		const { username } = req.params;
 		if (typeof username !== "string" || !username) {
-			return res.status(400).json({
-				message: "invalid request",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid request",
+			);
 		}
 		const otherUserProfile = await this.userService.getProfile({ username });
 
@@ -120,9 +130,11 @@ export class UserController {
 		const username = req.query.username;
 
 		if (typeof username !== "string") {
-			return res.status(400).json({
-				message: "invalid request",
-			});
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"Invalid request",
+			);
 		}
 
 		const response = await this.userService.checkUsername({

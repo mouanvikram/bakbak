@@ -15,8 +15,11 @@ export function validate<T>(
 
 		if (!result.success) {
 			return res.status(400).json({
-				error: "Validation failed",
-				issues: result.error.issues,
+				error: {
+					code: ERROR_CODES.VALIDATION_ERROR,
+					message: "Validation failed",
+					details: result.error.issues,
+				},
 			});
 		}
 
@@ -31,10 +34,11 @@ export function validateUserId() {
 		});
 
 		if (!result.success) {
-			return res.status(404).json({
-				error: "User Id must be of type UUID",
-				issues: result.error.issues,
-			});
+			throw new AppError(
+				HTTP_STATUS.NOT_FOUND,
+				ERROR_CODES.USER_ID_NOT_VALID,
+				"User Id must be of type UUID",
+			);
 		}
 
 		next();

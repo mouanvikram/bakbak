@@ -4,9 +4,10 @@ import {
 	type AccessTokenPayload,
 	JwtService,
 } from "../src/helpers/jwt.service";
+import { env } from "../lib/config";
 
 export function authHeader(userId: string, username: string) {
-	const jwtService = new JwtService(process.env.JWT_SECRET!);
+	const jwtService = new JwtService(env.JWT_SECRET);
 	const token = jwtService.signJwt<AccessTokenPayload>(
 		{
 			sub: userId,

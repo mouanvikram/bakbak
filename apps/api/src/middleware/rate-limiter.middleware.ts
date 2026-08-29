@@ -69,7 +69,7 @@ export const rateLimiterMiddleware = (
 
 		logger.warn(
 			{
-				requestId: (req as any).id,
+				requestId: req.requestId,
 				ip: req.ip,
 				path: req.path,
 				requestCount: current.timestamps.length,

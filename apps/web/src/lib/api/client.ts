@@ -62,7 +62,9 @@ export async function apiClient<T>(endpoint: string, options?: RequestInit): Pro
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.message ?? `Request failed (${res.status})`);
+    throw new Error(
+      body.error?.message ?? body.message ?? `Request failed (${res.status})`,
+    );
   }
 
   return res.json();

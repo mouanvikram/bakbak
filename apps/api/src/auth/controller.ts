@@ -58,9 +58,11 @@ export class AuthController {
 		try {
 			const { token } = req.query;
 			if (typeof token !== "string" || !token.trim()) {
-				return res.status(400).json({
-					message: "Verification token is required",
-				});
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Verification token is required",
+				);
 			}
 			const result = await this.authService.verifyEmail({ token });
 
@@ -138,10 +140,12 @@ export class AuthController {
 			const { token } = req.query;
 			const newPassword = req.body.newPassword;
 
-			if (typeof token !== "string") {
-				return res.status(400).json({
-					message: "Invalid token",
-				});
+			if (typeof token !== "string" || !token.trim()) {
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Invalid token",
+				);
 			}
 
 			const response = await this.authService.resetPassword({

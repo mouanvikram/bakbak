@@ -105,7 +105,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/signup - should fail with invalid email", async () => {
@@ -124,7 +124,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/signup - should fail with weak password", async () => {
@@ -143,7 +143,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/signup - should fail with missing firstname", async () => {
@@ -161,7 +161,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/signup - should fail with duplicate email", async () => {
@@ -217,7 +217,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/login - should login with valid credentials", async () => {
@@ -330,7 +330,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/login - should fail with weak password", async () => {
@@ -345,7 +345,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/verify-email - should verify with valid token", async () => {
@@ -394,7 +394,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/verify-email - should fail with invalid token", async () => {
@@ -892,7 +892,7 @@ describe("Auth Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error).toBe("Validation failed");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /api/v1/auth/refresh-token - new access token should be usable", async () => {
