@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { LogOut, UserRound, X, CalendarDays, Users, Mail, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/features/auth/auth-context";
+import { Avatar } from "@/components/ui/Avatar";
 
 function formatJoinDate(iso?: string | null) {
   if (!iso) return "Unknown";
@@ -11,27 +12,6 @@ function formatJoinDate(iso?: string | null) {
     month: "long",
     day: "numeric",
   });
-}
-
-function Avatar({ className }: { className?: string }) {
-  const { profile } = useAuth();
-  const avatarUrl = profile?.avatar;
-  const displayName = profile?.displayName ?? profile?.username ?? "U";
-
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-center overflow-hidden rounded-full bg-violet-100 text-sm font-medium text-violet-600",
-        className,
-      )}
-    >
-      {avatarUrl ? (
-        <img src={avatarUrl} alt={displayName} className="size-full object-cover" />
-      ) : (
-        displayName.charAt(0).toUpperCase()
-      )}
-    </div>
-  );
 }
 
 export function UserMenu() {
@@ -44,6 +24,7 @@ export function UserMenu() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const displayName = profile?.displayName ?? profile?.username ?? "User";
+  const avatarName = profile?.displayName ?? profile?.username ?? "U";
   const fullName =
     profile?.firstName && profile?.lastName
       ? `${profile.firstName} ${profile.lastName}`
@@ -97,7 +78,7 @@ export function UserMenu() {
         aria-expanded={menuOpen}
         className="rounded-full ring-2 ring-transparent transition hover:ring-violet-200"
       >
-        <Avatar className="size-10" />
+        <Avatar name={avatarName} src={profile?.avatar} className="size-10" />
       </button>
 
       {/* Fixed-position dropdown anchored just right of the avatar.
@@ -158,7 +139,7 @@ export function UserMenu() {
             </button>
 
             <div className="flex flex-col items-center gap-3 text-center">
-              <Avatar className="size-20 text-xl" />
+              <Avatar name={avatarName} src={profile?.avatar} className="size-20 text-xl" />
               <div>
                 <div className="flex items-center justify-center gap-1.5">
                   <h2 className="text-xl font-semibold text-slate-900">
