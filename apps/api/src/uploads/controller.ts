@@ -1,43 +1,98 @@
 import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import type { UploadService } from "./service";
-import { ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { validateResponse } from "../middleware/validate";
+import {
+	attachmentIdParamsSchema,
+	getAttachmentResponseSchema,
+	uploadResponseSchema,
+} from "@bakbak/contracts";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 export class UploadController {
 	constructor(private readonly uploadService: UploadService) {}
 
-	// POST /uploads — accepts multipart form-data (or a presigned-PUT flow
-	// later) and returns the created attachment.
 	upload = async (req: AuthRequest, res: Response, next: NextFunction) => {
-		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-			error: {
-				code: ERROR_CODES.NOT_IMPLEMENTED,
-				message: "Uploads are not implemented yet",
-			},
-		});
+		try {
+			const userId = req.user?.userId;
+			const file = req.file;
+
+			if (!userId) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Unauthorized",
+				);
+			}
+
+			if (!file) {
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"No file received",
+				);
+			}
+
+			const response = await this.uploadService.upload({
+				userId,
+				file: {
+					fieldname: file.fieldname,
+					originalname: file.originalname,
+					encoding: file.encoding,
+					mimetype: file.mimetype,
+					buffer: file.buffer,
+					size: file.size,
+				},
+			});
+
+			return validateResponse(res, 201, uploadResponseSchema, {
+				attachment: response,
+			});
+		} catch (error) {
+			next(error);
+		}
 	};
 
-	// GET /uploads/:attachmentId — returns attachment metadata (+ signed URL).
-	getAttachment = async (req: AuthRequest, res: Response, next: NextFunction) => {
-		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-			error: {
-				code: ERROR_CODES.NOT_IMPLEMENTED,
-				message: "Attachment lookup is not implemented yet",
-			},
-		});
+	getAttachment = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const { attachmentId } = attachmentIdParamsSchema.parse(req.params);
+
+			const response = await this.uploadService.getAttachment(attachmentId);
+
+			return validateResponse(res, 200, getAttachmentResponseSchema, {
+				attachment: response,
+			});
+		} catch (error) {
+			next(error);
+		}
 	};
 
-	// DELETE /uploads/:attachmentId
 	deleteAttachment = async (
 		req: AuthRequest,
 		res: Response,
 		next: NextFunction,
 	) => {
-		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-			error: {
-				code: ERROR_CODES.NOT_IMPLEMENTED,
-				message: "Attachment deletion is not implemented yet",
-			},
-		});
+		try {
+			const { attachmentId } = attachmentIdParamsSchema.parse(req.params);
+			const userId = req.user?.userId;
+
+			if (!userId) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Unauthorized",
+				);
+			}
+
+			await this.uploadService.delete(attachmentId, userId);
+
+			return res.status(200).json({ id: attachmentId });
+		} catch (error) {
+			next(error);
+		}
 	};
 }
