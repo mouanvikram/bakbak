@@ -18,7 +18,9 @@ import { SettingsController } from "../settings/controller";
 import { SettingsRepository } from "../settings/repository";
 import { SettingsService } from "../settings/service";
 import { UploadController } from "../uploads/controller";
+import { UploadRepository } from "../uploads/repository";
 import { UploadService } from "../uploads/service";
+import { storageProvider } from "../uploads/storage";
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
@@ -61,6 +63,7 @@ export const settingsRepository = new SettingsRepository();
 export const settingsService = new SettingsService(settingsRepository);
 export const settingsController = new SettingsController(settingsService);
 
-// uploads (skeleton — storage provider integration pending)
-export const uploadService = new UploadService();
+// uploads
+export const uploadRepository = new UploadRepository();
+export const uploadService = new UploadService(uploadRepository, storageProvider);
 export const uploadController = new UploadController(uploadService);

@@ -34,4 +34,12 @@ export const env = {
 	CORS_ORIGINS: parseOrigins(process.env.CORS_ORIGINS),
 	RATE_LIMIT_WINDOW_MS: Number(process.env.RATE_LIMIT_WINDOW_MS) || 60000,
 	RATE_LIMIT_MAX_REQUESTS: Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+	STORAGE_ENDPOINT: process.env.STORAGE_ENDPOINT ?? "localhost",
+	STORAGE_PORT: Number(process.env.STORAGE_PORT) || 9000,
+	STORAGE_USE_SSL: (process.env.STORAGE_USE_SSL ?? "false") === "true",
+	STORAGE_REGION: process.env.STORAGE_REGION ?? "us-east-1",
+	STORAGE_ACCESS_KEY: process.env.STORAGE_ACCESS_KEY ?? "minioadmin",
+	STORAGE_SECRET_KEY: process.env.STORAGE_SECRET_KEY ?? "minioadmin",
+	STORAGE_BUCKET: process.env.STORAGE_BUCKET ?? "bakbak",
+	STORAGE_PUBLIC_URL: process.env.STORAGE_PUBLIC_URL ?? "",
 };
