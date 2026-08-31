@@ -7,18 +7,18 @@ enum AttachmentKind {
 }
 
 model Attachment {
-  id        String        @id @default(uuid()) @db.Uuid()
-  messageId String        @db.Uuid
-  message   Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid()) @db.Uuid()
+  messageId String?  @db.Uuid
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
-  kind      AttachmentKind
-  fileName  String
-  filePath  String
-  mimeType  String
-  fileSize  Int
-  width     Int?
-  height    Int?
-  duration  Int?
+  kind     AttachmentKind
+  fileName String
+  filePath String
+  mimeType String
+  fileSize Int
+  width    Int?
+  height   Int?
+  duration Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
