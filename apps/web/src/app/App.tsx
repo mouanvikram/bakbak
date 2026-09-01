@@ -25,6 +25,13 @@ import {
   SentRequestsPage,
   SuggestionsPage,
 } from "@/features/friends/pages";
+import { ChatSidebar } from "@/features/chat/components/ChatSidebar";
+import { FriendsSidebar } from "@/features/friends/components/FriendsSidebar";
+import { SettingsSidebar } from "@/features/settings/components/SettingsSidebar";
+import { CallsSidebar } from "@/features/calls/components/CallsSidebar";
+import { ResponsivePage } from "@/components/layout/ResponsivePage";
+import { MobilePage } from "@/components/layout/MobilePage";
+import { EmptyState } from "@/components/ui/States";
 import AppLayout from "@/components/layout/AppLayout";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -97,34 +104,145 @@ function App() {
 
           {/* Settings */}
           <Route path="/settings">
-            <Route index element={<AccountPage />} />
-            <Route path="security_privacy" element={<SecurityPrivacyPage />} />
-            <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="appearance" element={<AppearancePage />} />
-            <Route path="chat_settings" element={<ChatSettingsPage />} />
-            <Route path="devices" element={<DevicesPage />} />
-            <Route path="help_support" element={<HelpSupportPage />} />
-            <Route path="about_bakbak" element={<AboutBakbakPage />} />
+            <Route
+              index
+              element={
+                <ResponsivePage mobile={<SettingsSidebar />} desktop={<AccountPage />} />
+              }
+            />
+            <Route
+              path="security_privacy"
+              element={
+                <MobilePage title="Security & Privacy">
+                  <SecurityPrivacyPage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="notifications"
+              element={
+                <MobilePage title="Notifications">
+                  <NotificationsPage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="appearance"
+              element={
+                <MobilePage title="Appearance">
+                  <AppearancePage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="chat_settings"
+              element={
+                <MobilePage title="Chat Settings">
+                  <ChatSettingsPage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="devices"
+              element={
+                <MobilePage title="Devices">
+                  <DevicesPage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="help_support"
+              element={
+                <MobilePage title="Help & Support">
+                  <HelpSupportPage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="about_bakbak"
+              element={
+                <MobilePage title="About BakBak">
+                  <AboutBakbakPage />
+                </MobilePage>
+              }
+            />
           </Route>
 
           {/* Chat */}
           <Route path="/chats">
-            <Route index element={<p>Chat Page</p>} />
+            <Route
+              index
+              element={
+                <ResponsivePage
+                  mobile={<ChatSidebar />}
+                  desktop={
+                    <div className="flex h-full items-center justify-center">
+                      <EmptyState text="Select a chat to start messaging" />
+                    </div>
+                  }
+                />
+              }
+            />
             <Route path=":id" element={<p>Chat Page</p>} />
           </Route>
 
           {/* Calls */}
           <Route path="/calls">
-            <Route index element={<p>Calls Page</p>} />
+            <Route
+              index
+              element={
+                <ResponsivePage
+                  mobile={<CallsSidebar />}
+                  desktop={
+                    <div className="flex h-full items-center justify-center">
+                      <EmptyState text="Select a call to view details" />
+                    </div>
+                  }
+                />
+              }
+            />
           </Route>
 
           {/* Friends */}
           <Route path="/friends">
-            <Route index element={<FriendsPage />} />
-            <Route path="search" element={<SearchFriendsPage />} />
-            <Route path="pending" element={<PendingRequestsPage />} />
-            <Route path="sent" element={<SentRequestsPage />} />
-            <Route path="suggestions" element={<SuggestionsPage />} />
+            <Route
+              index
+              element={
+                <ResponsivePage mobile={<FriendsSidebar />} desktop={<FriendsPage />} />
+              }
+            />
+            <Route
+              path="search"
+              element={
+                <MobilePage title="Search People">
+                  <SearchFriendsPage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="pending"
+              element={
+                <MobilePage title="Pending Requests">
+                  <PendingRequestsPage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="sent"
+              element={
+                <MobilePage title="Sent Requests">
+                  <SentRequestsPage />
+                </MobilePage>
+              }
+            />
+            <Route
+              path="suggestions"
+              element={
+                <MobilePage title="Suggestions">
+                  <SuggestionsPage />
+                </MobilePage>
+              }
+            />
           </Route>
 
           {/* Notifications */}
