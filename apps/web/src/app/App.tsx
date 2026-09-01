@@ -26,6 +26,7 @@ import {
   SuggestionsPage,
 } from "@/features/friends/pages";
 import { ChatSidebar } from "@/features/chat/components/ChatSidebar";
+import { ChatPage } from "@/features/chat/pages/ChatPage";
 import { FriendsSidebar } from "@/features/friends/components/FriendsSidebar";
 import { SettingsSidebar } from "@/features/settings/components/SettingsSidebar";
 import { CallsSidebar } from "@/features/calls/components/CallsSidebar";
@@ -183,7 +184,7 @@ function App() {
                 />
               }
             />
-            <Route path=":id" element={<p>Chat Page</p>} />
+            <Route path=":id" element={<ChatPage />} />
           </Route>
 
           {/* Calls */}
