@@ -83,7 +83,7 @@ export function UserMenu() {
         onClick={menuOpen ? () => setMenuOpen(false) : openMenu}
         aria-label="User menu"
         aria-expanded={menuOpen}
-        className="cursor-pointer rounded-full ring-2 ring-transparent transition hover:ring-violet-200"
+        className="flex cursor-pointer items-center justify-center rounded-full p-0 ring-2 ring-transparent transition hover:ring-violet-200"
       >
         <Avatar name={avatarName} src={profile?.avatar} className="size-10" />
       </button>
