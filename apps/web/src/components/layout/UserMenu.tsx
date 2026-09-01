@@ -4,6 +4,7 @@ import { LogOut, UserRound, X, CalendarDays, Users, Mail, BadgeCheck } from "luc
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/auth-context";
 import { Avatar } from "@/components/ui/Avatar";
+import { Spinner } from "@/components/ui/Spinner";
 
 function formatJoinDate(iso?: string | null) {
   if (!iso) return "Unknown";
@@ -20,6 +21,7 @@ export function UserMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const avatarRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -64,8 +66,13 @@ export function UserMenu() {
 
   async function handleLogout() {
     setMenuOpen(false);
-    await logout();
-    navigate("/login", { replace: true });
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate("/login", { replace: true });
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   return (
@@ -112,11 +119,16 @@ export function UserMenu() {
           </button>
           <button
             type="button"
+            disabled={loggingOut}
             onClick={handleLogout}
-            className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+            className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="size-4" />
-            Logout
+            {loggingOut ? (
+              <Spinner className="size-4" />
+            ) : (
+              <LogOut className="size-4" />
+            )}
+            {loggingOut ? "Logging out..." : "Logout"}
           </button>
         </div>
       )}
