@@ -5,6 +5,7 @@ import { searchUsers } from "@/features/users/api";
 import { getPendingRequests, sendFriendRequest } from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function SearchFriendsPage() {
   const [query, setQuery] = useState("");
@@ -13,6 +14,7 @@ export function SearchFriendsPage() {
   const [status, setStatus] = useState("");
   const { user } = useAuth();
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -36,12 +38,16 @@ export function SearchFriendsPage() {
   }
 
   async function handleAdd(userId: string) {
+    setBusyId(userId);
+    setStatus("");
     try {
       await sendFriendRequest(userId);
       setPendingIds((prev) => new Set(prev).add(userId));
       setStatus("Friend request sent");
     } catch {
       setStatus("Failed to send request");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -65,9 +71,10 @@ export function SearchFriendsPage() {
         <button
           type="submit"
           disabled={loading || !query.trim()}
-          className="cursor-pointer rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Search
+          {loading && <Spinner />}
+          {loading ? "Searching..." : "Search"}
         </button>
       </form>
       {loading ? (
@@ -86,9 +93,11 @@ export function SearchFriendsPage() {
                 ) : (
                   <button
                     type="button"
+                    disabled={busyId !== null}
                     onClick={() => handleAdd(u.id)}
-                    className="cursor-pointer rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm"
+                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                   >
+                    {busyId === u.id && <Spinner className="size-3.5" />}
                     Add Friend
                   </button>
                 )

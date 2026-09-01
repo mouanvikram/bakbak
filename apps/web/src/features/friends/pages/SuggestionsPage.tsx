@@ -3,12 +3,14 @@ import type { SearchUserType } from "@bakbak/contracts";
 import { getPendingRequests, getSuggestions, sendFriendRequest } from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function SuggestionsPage() {
   const [suggestions, setSuggestions] = useState<SearchUserType[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -34,12 +36,16 @@ export function SuggestionsPage() {
   }, []);
 
   async function handleAdd(userId: string) {
+    setBusyId(userId);
+    setStatus("");
     try {
       await sendFriendRequest(userId);
       setPendingIds((prev) => new Set(prev).add(userId));
       setStatus("Friend request sent");
     } catch {
       setStatus("Failed to send request");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -66,9 +72,11 @@ export function SuggestionsPage() {
                 ) : (
                   <button
                     type="button"
+                    disabled={busyId !== null}
                     onClick={() => handleAdd(u.id)}
-                    className="cursor-pointer rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm"
+                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                   >
+                    {busyId === u.id && <Spinner className="size-3.5" />}
                     Add Friend
                   </button>
                 )

@@ -137,7 +137,7 @@ export function SignupPage() {
                       <ArrowLeft size={18} /> Back
                     </button>
                     <div className="flex-1">
-                      <Button value="Sign Up" onClick={handleSignUp} disabled={loading} />
+                      <Button value="Sign Up" onClick={handleSignUp} loading={loading} />
                     </div>
                   </div>
                 </>

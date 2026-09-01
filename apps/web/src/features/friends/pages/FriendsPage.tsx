@@ -5,11 +5,13 @@ import { getFriends, removeFriend } from "@/features/friends/api";
 import { createDirectChat } from "@/features/chat/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function FriendsPage() {
   const [friends, setFriends] = useState<FriendshipResponseType[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   async function load() {
@@ -31,23 +33,33 @@ export function FriendsPage() {
 
   async function handleRemove(friendId: string) {
     if (!confirm("Remove this friend?")) return;
+    setBusyId(friendId);
+    setStatus("");
     try {
       await removeFriend(friendId);
       setFriends((prev) => prev.filter((f) => f.friend.id !== friendId));
       setStatus("Friend removed");
     } catch {
       setStatus("Failed to remove friend");
+    } finally {
+      setBusyId(null);
     }
   }
 
   async function handleMessage(friendId: string) {
+    setBusyId(friendId);
+    setStatus("");
     try {
       const chat = await createDirectChat({ type: "DIRECT", participantId: friendId });
       navigate(`/chats/${chat.id}`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Failed to open chat");
+    } finally {
+      setBusyId(null);
     }
   }
+
+  const isBusy = (id: string) => busyId === id;
 
   return (
     <div className="flex h-full w-full flex-col gap-4 overflow-y-auto p-6">
@@ -70,16 +82,20 @@ export function FriendsPage() {
                 <>
                   <button
                     type="button"
+                    disabled={busyId !== null}
                     onClick={() => handleMessage(f.friend.id)}
-                    className="cursor-pointer rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm"
+                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                   >
+                    {isBusy(f.friend.id) && <Spinner className="size-3.5" />}
                     Message
                   </button>
                   <button
                     type="button"
+                    disabled={busyId !== null}
                     onClick={() => handleRemove(f.friend.id)}
-                    className="cursor-pointer rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                    className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
+                    {isBusy(f.friend.id) && <Spinner className="size-3.5" />}
                     Remove
                   </button>
                 </>

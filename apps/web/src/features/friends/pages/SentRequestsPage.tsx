@@ -3,11 +3,13 @@ import type { FriendRequestResponseType } from "@bakbak/contracts";
 import { cancelFriendRequest, getPendingRequests } from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function SentRequestsPage() {
   const [requests, setRequests] = useState<FriendRequestResponseType[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -27,12 +29,16 @@ export function SentRequestsPage() {
   }, []);
 
   async function handleCancel(requestId: string) {
+    setBusyId(requestId);
+    setStatus("");
     try {
       await cancelFriendRequest(requestId);
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
       setStatus("Request cancelled");
     } catch {
       setStatus("Failed to cancel request");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -56,9 +62,11 @@ export function SentRequestsPage() {
               actions={
                 <button
                   type="button"
+                  disabled={busyId !== null}
                   onClick={() => handleCancel(r.id)}
-                  className="cursor-pointer rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
+                  {busyId === r.id && <Spinner className="size-3.5" />}
                   Cancel
                 </button>
               }

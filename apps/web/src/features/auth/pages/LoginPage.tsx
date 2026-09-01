@@ -85,8 +85,9 @@ export function LoginPage() {
 
             {/* Login */}
             <Button
-              value={loading ? "Logging in ...." : "Login"}
-              disabled={loading}
+              value="Login"
+              loading={loading}
+              loadingText="Logging in..."
               onClick={handleLogin}
             />
 

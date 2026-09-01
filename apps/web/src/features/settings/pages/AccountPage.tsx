@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-context";
 import { updateProfile } from "@/features/users/api";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function AccountPage() {
   const { profile, refreshUser } = useAuth();
@@ -60,7 +61,8 @@ export function AccountPage() {
         </label>
         <div className="flex items-center justify-end gap-3">
           {saved && <span className="text-sm text-green-600">Saved!</span>}
-          <button type="button" onClick={handleSave} disabled={loading} className="cursor-pointer rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={handleSave} disabled={loading} className="flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50">
+            {loading && <Spinner />}
             {loading ? "Saving..." : "Save Changes"}
           </button>
         </div>

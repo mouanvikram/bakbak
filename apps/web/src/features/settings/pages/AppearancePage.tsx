@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSettings, updateAppearance } from "@/features/settings/api";
 import type { AppearanceSettingsType } from "@bakbak/contracts";
+import { Spinner } from "@/components/ui/Spinner";
 
 export function AppearancePage() {
   const [settings, setSettings] = useState<AppearanceSettingsType>({
@@ -50,7 +51,7 @@ export function AppearancePage() {
           <span className="text-sm font-semibold text-gray-900">Theme</span>
           <div className="flex gap-3">
             {(["light", "dark", "system"] as const).map((option) => (
-              <button key={option} type="button" onClick={() => setSettings((s) => ({ ...s, theme: option }))} className={`flex-1 rounded-lg border px-4 py-3 text-sm font-semibold capitalize transition ${settings.theme === option ? "border-[#805FF8] bg-violet-50 text-[#805FF8]" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"}`}>{option}</button>
+              <button key={option} type="button" disabled={saving} onClick={() => setSettings((s) => ({ ...s, theme: option }))} className={`flex-1 cursor-pointer rounded-lg border px-4 py-3 text-sm font-semibold capitalize transition disabled:cursor-not-allowed disabled:opacity-60 ${settings.theme === option ? "border-[#805FF8] bg-violet-50 text-[#805FF8]" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"}`}>{option}</button>
             ))}
           </div>
         </div>
@@ -58,13 +59,14 @@ export function AppearancePage() {
           <span className="text-sm font-semibold text-gray-900">Font Size</span>
           <div className="flex gap-3">
             {(["small", "medium", "large"] as const).map((option) => (
-              <button key={option} type="button" onClick={() => setSettings((s) => ({ ...s, fontSize: option }))} className={`flex-1 rounded-lg border px-4 py-3 text-sm font-semibold capitalize transition ${settings.fontSize === option ? "border-[#805FF8] bg-violet-50 text-[#805FF8]" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"}`}>{option}</button>
+              <button key={option} type="button" disabled={saving} onClick={() => setSettings((s) => ({ ...s, fontSize: option }))} className={`flex-1 cursor-pointer rounded-lg border px-4 py-3 text-sm font-semibold capitalize transition disabled:cursor-not-allowed disabled:opacity-60 ${settings.fontSize === option ? "border-[#805FF8] bg-violet-50 text-[#805FF8]" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"}`}>{option}</button>
             ))}
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 pt-4">
           {saved && <span className="text-sm text-green-600">Saved!</span>}
-          <button type="button" onClick={handleSave} disabled={saving} className="cursor-pointer rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={handleSave} disabled={saving} className="flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50">
+            {saving && <Spinner />}
             {saving ? "Saving..." : "Save Preferences"}
           </button>
         </div>
