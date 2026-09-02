@@ -73,10 +73,13 @@ describe("Avatar pre-signup upload", () => {
 		expect(data.avatarToken.length).toBeGreaterThan(0);
 	});
 
-	test("POST /api/v1/auth/avatar - should accept JPEG and WebP", async () => {
+	test("POST /api/v1/auth/avatar - should accept JPEG, WebP, AVIF and GIF", async () => {
 		const cases: Array<[string, string]> = [
 			["avatar.jpg", "image/jpeg"],
 			["avatar.webp", "image/webp"],
+			["avatar.avif", "image/avif"],
+			["avatar.gif", "image/gif"],
+			["avatar.bmp", "image/bmp"],
 		];
 		for (const [file, mime] of cases) {
 			const res = await fetch(`${baseUrl()}/api/v1/auth/avatar`, {
@@ -92,7 +95,7 @@ describe("Avatar pre-signup upload", () => {
 	test("POST /api/v1/auth/avatar - should reject unsupported file types", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/auth/avatar`, {
 			method: "POST",
-			body: makeForm("avatar.gif", Buffer.from("fake"), "image/gif"),
+			body: makeForm("avatar.tiff", Buffer.from("fake"), "image/tiff"),
 		});
 
 		expect(res.status).toBe(400);

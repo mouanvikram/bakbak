@@ -5,7 +5,14 @@ import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
 export const MAX_AVATAR_SIZE = 10 * 1024 * 1024; // 10 MB
 
-const ALLOWED_AVATAR_MIME = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_AVATAR_MIME = [
+	"image/jpeg",
+	"image/png",
+	"image/webp",
+	"image/avif",
+	"image/gif",
+	"image/bmp",
+];
 
 export const avatarUpload = multer({
 	storage: multer.memoryStorage(),
@@ -19,7 +26,7 @@ export const avatarUpload = multer({
 				new AppError(
 					HTTP_STATUS.BAD_REQUEST,
 					ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
-					"Avatar must be a JPEG, PNG or WebP image",
+					"Avatar must be a JPEG, PNG, WebP, AVIF, GIF or BMP image",
 				),
 			);
 		}
