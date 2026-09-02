@@ -135,7 +135,7 @@ export class MessageService {
 		// Non-TEXT types may omit text: the media payload will live on the
 		// attachment (uploads module), text acts as an optional caption.
 
-		const message = await this.messageRepository.create({
+		const message = await this.messageRepository.createWithChatTouch({
 			data: {
 				type: dto.type,
 				text,
@@ -151,15 +151,6 @@ export class MessageService {
 				},
 			},
 			include: messageInclude,
-		});
-
-		await this.messageRepository.updateChat({
-			where: {
-				id: dto.chatId,
-			},
-			data: {
-				lastMessageAt: message.createdAt,
-			},
 		});
 
 		return await this.serializeMessage(message);

@@ -8,6 +8,23 @@ export class MessageRepository {
 		return await prisma.message.create(args);
 	}
 
+	// Creates the message and bumps the chat's lastMessageAt in one
+	// transaction so the send is never half-persisted.
+	async createWithChatTouch<T extends Prisma.MessageCreateArgs>(
+		args: Prisma.SelectSubset<T, Prisma.MessageCreateArgs>,
+	) {
+		return prisma.$transaction(async (tx) => {
+			const message = await tx.message.create(args);
+
+			await tx.chat.update({
+				where: { id: message.chatId },
+				data: { lastMessageAt: message.createdAt },
+			});
+
+			return message;
+		});
+	}
+
 	async findUnique<T extends Prisma.MessageFindUniqueArgs>(
 		args: Prisma.SelectSubset<T, Prisma.MessageFindUniqueArgs>,
 	) {
@@ -36,12 +53,6 @@ export class MessageRepository {
 		args?: Prisma.SelectSubset<T, Prisma.MessageCountArgs>,
 	) {
 		return await prisma.message.count(args);
-	}
-
-	async updateChat<T extends Prisma.ChatUpdateArgs>(
-		args: Prisma.SelectSubset<T, Prisma.ChatUpdateArgs>,
-	) {
-		return await prisma.chat.update(args);
 	}
 
 	async findParticipant<T extends Prisma.ChatParticipantFindFirstArgs>(
