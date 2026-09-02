@@ -168,6 +168,7 @@ export async function createTestMessage(
 
 export async function cleanupDatabase() {
 	await prisma.message.deleteMany({});
+	await prisma.attachment.deleteMany({});
 	await prisma.chatParticipant.deleteMany({});
 	await prisma.chat.deleteMany({});
 	await prisma.friendship.deleteMany({});
