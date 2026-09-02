@@ -4,32 +4,32 @@ import { SectionSidebar } from "./SectionSidebar";
 
 function AppLayout() {
   return (
-    <div className="bg-background h-screen w-full overflow-hidden">
+    <div className="h-screen w-full overflow-hidden bg-white">
       {/* Desktop / Tablet layout */}
       <div className="flex h-full">
         {/* Primary navigation */}
-        <aside className="hidden h-full w-20 shrink-0 bg-gray-100 px-1 py-2 md:flex">
+        <aside className="hidden h-full w-20 shrink-0 border-r border-gray-200 bg-white md:flex">
           <PrimaryNav />
         </aside>
 
         {/* Secondary navigation + content */}
         <div className="flex min-w-0 flex-1">
           {/* Current section navigation */}
-          <aside className="hidden h-full w-80 flex-1 shrink-0 bg-gray-100 py-2 pr-1 lg:flex">
+          <aside className="hidden h-full w-80 shrink-0 border-r border-gray-200 bg-white lg:flex">
             <SectionSidebar />
           </aside>
 
           {/* Page content */}
-          <main className="min-w-0 flex-3 overflow-hidden bg-gray-100 pr-2 pt-2 pb-20 lg:flex lg:pb-2">
-            <div className="flex h-full w-full flex-col overflow-y-auto rounded-lg bg-white shadow-md">
+          <main className="min-w-0 flex-1 overflow-hidden bg-white pb-16 lg:pb-0">
+            <div className="flex h-full w-full flex-col overflow-y-auto bg-white">
               <Outlet />
             </div>
           </main>
         </div>
       </div>
 
-      {/* Mobile primary navigation */}
-      <aside className="bg-background fixed inset-x-0 bottom-0 z-50 flex h-16 border-t md:hidden">
+      {/* Mobile primary navigation — flush with the page content above it */}
+      <aside className="fixed inset-x-0 bottom-0 z-50 flex h-16 border-t border-gray-200 bg-white md:hidden">
         <PrimaryNav />
       </aside>
     </div>

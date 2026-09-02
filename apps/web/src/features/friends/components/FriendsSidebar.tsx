@@ -26,7 +26,7 @@ const navigation: Record<string, SidebarOption[]> = {
     {
       label: "Friends",
       desc: "People you're connected with",
-      path: "/friends",
+      path: "/friends/list",
       icon: UserRoundCheck,
     },
     {
@@ -64,12 +64,12 @@ export function FriendsSidebar() {
   }
 
   return (
-    <nav className="flex h-full w-full flex-col overflow-y-auto rounded-lg bg-white p-3 shadow-md">
-      <div className="mb-3 px-2">
-        <h2 className="text-xl font-semibold">Friends</h2>
+    <nav className="flex h-full w-full flex-col overflow-y-auto bg-white">
+      <div className="px-4 py-3">
+        <h2 className="text-lg font-bold text-slate-900">Friends</h2>
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col">
         {options.map((option) => {
           return (
             <NavLink
@@ -78,10 +78,10 @@ export function FriendsSidebar() {
               end
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-4 text-sm transition-colors",
+                  "flex items-center gap-3 px-4 py-3.5 text-sm transition-colors",
                   isActive && "bg-violet-50 text-violet-600",
                   !isActive &&
-                    "text-muted-foreground hover:bg-slate-50 hover:text-slate-900",
+                    "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                 )
               }
             >
@@ -94,7 +94,7 @@ export function FriendsSidebar() {
                       className={cn(
                         "flex w-10 items-center justify-center",
                         isActive && "text-violet-600",
-                        !isActive && "text-muted-foreground",
+                        !isActive && "text-gray-400",
                       )}
                     >
                       <Icon

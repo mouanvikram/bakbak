@@ -14,12 +14,12 @@ export function CallsSidebar() {
   }, [search]);
 
   return (
-    <aside className="flex h-full w-full flex-col rounded-lg bg-white p-3 shadow-md">
-      <div className="mb-3 px-2">
-        <h2 className="text-xl font-semibold">Calls</h2>
+    <aside className="flex h-full w-full flex-col bg-white">
+      <div className="px-4 py-3">
+        <h2 className="text-lg font-bold text-slate-900">Calls</h2>
       </div>
 
-      <div className="relative mb-3">
+      <div className="relative mb-2 px-3">
         <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
         <input
           type="search"
@@ -30,7 +30,7 @@ export function CallsSidebar() {
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
         {filteredCalls.length > 0 ? (
           filteredCalls.map((call) => <CallItem key={call.id} call={call} />)
         ) : (
@@ -45,7 +45,7 @@ function CallItem({ call }: { call: Call }) {
   return (
     <button
       type="button"
-      className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+      className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
     >
       <div className="flex size-10 shrink-0">
         <Avatar name={call.user.name} />
