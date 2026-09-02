@@ -3,11 +3,13 @@ import { Background } from "@/components/ui/Background";
 import { Button } from "@/components/ui/Button";
 import { Divider } from "@/components/ui/Divider";
 import { Input } from "@/components/ui/Input";
-import { ArrowLeft, ArrowRight, AtSign, Mail, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, AtSign, Mail, User, Trash2 } from "lucide-react";
 import { PasswordInput } from "@/components/ui/PasswordInput";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Branding } from "@/components/ui/Branding";
 import { useAuth } from "@/features/auth/auth-context";
+import { ImageCropModal } from "@/components/ImageCropModal";
+import { uploadAvatar } from "@/features/auth/api";
 
 interface SignupFormData {
   firstname: string;
@@ -17,7 +19,6 @@ interface SignupFormData {
   email: string;
   password: string;
   bio: string;
-  avatarUrl: string;
 }
 
 export function SignupPage() {
@@ -25,12 +26,45 @@ export function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<SignupFormData>({
-    firstname: "", lastname: "", displayname: "", username: "", email: "", password: "", bio: "", avatarUrl: "",
+    firstname: "", lastname: "", displayname: "", username: "", email: "", password: "", bio: "",
   });
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarToken, setAvatarToken] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = event.target;
     setUser((previous) => ({ ...previous, [name]: value }));
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("Only JPG, PNG or WebP images are allowed");
+      return;
+    }
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async function handleCropConfirm(blob: Blob) {
+    const file = cropSrc ? new File([blob], "avatar.webp", { type: "image/webp" }) : null;
+    try {
+      const name = file?.name ?? "avatar.webp";
+      const result = await uploadAvatar(blob, name);
+      setAvatarToken(result.avatarToken);
+      setAvatarPreview(URL.createObjectURL(blob));
+      setCropSrc(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Avatar upload failed");
+      setCropSrc(null);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   const { signup } = useAuth();
@@ -39,13 +73,19 @@ export function SignupPage() {
     setLoading(true);
     setError(null);
     try {
-      await signup(user);
+      await signup({ ...user, avatarToken: avatarToken ?? undefined });
       setStep(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleRemoveAvatar() {
+    setAvatarPreview(null);
+    setAvatarToken(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   return (
@@ -124,9 +164,25 @@ export function SignupPage() {
               {step === 3 && (
                 <>
                   <div className="flex flex-col items-center gap-2">
-                    <label htmlFor="avatar" className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 transition hover:border-[#805FF8] hover:text-[#805FF8]">Avatar</label>
-                    <input id="avatar" name="avatar" type="file" accept="image/png,image/jpeg,image/webp" className="hidden" />
-                    <p className="text-xs text-gray-400">Upload a profile picture</p>
+                    {avatarPreview ? (
+                      <div className="relative">
+                        <img src={avatarPreview} alt="Avatar preview" className="h-20 w-20 rounded-full border border-gray-200 object-cover" />
+                        <button
+                          type="button"
+                          onClick={handleRemoveAvatar}
+                          className="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600"
+                          aria-label="Remove avatar"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <label htmlFor="avatar" className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 transition hover:border-[#805FF8] hover:text-[#805FF8]">Avatar</label>
+                        <input ref={fileInputRef} id="avatar" name="avatar" type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleFileChange} />
+                      </>
+                    )}
+                    <p className="text-xs text-gray-400">{avatarToken ? "Avatar ready" : "Upload a profile picture"}</p>
                   </div>
                   <div className="flex w-full flex-col gap-2">
                     <label htmlFor="bio" className="text-md font-semibold text-gray-900">Bio</label>
@@ -141,6 +197,16 @@ export function SignupPage() {
                     </div>
                   </div>
                 </>
+              )}
+              {cropSrc && (
+                <ImageCropModal
+                  imageSrc={cropSrc}
+                  onCancel={() => {
+                    setCropSrc(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  onConfirm={handleCropConfirm}
+                />
               )}
             </div>
             {step !== 4 && <Divider />}

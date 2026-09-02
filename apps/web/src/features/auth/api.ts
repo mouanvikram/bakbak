@@ -3,6 +3,7 @@ import type {
   LoginResponseType,
   SignUpRequestType,
   SignUpResponseType,
+  AvatarUploadResponseType,
   ResendVerificationRequestType,
   ResendVerificationResponseType,
   ForgotPasswordRequestType,
@@ -28,6 +29,28 @@ export function signup(data: SignUpRequestType): Promise<SignUpResponseType> {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+export async function uploadAvatar(
+  blob: Blob,
+  fileName: string,
+): Promise<AvatarUploadResponseType> {
+  const formData = new FormData();
+  formData.append("file", blob, fileName);
+
+  const res = await fetch("/api/v1/auth/avatar", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      body.error?.message ?? body.message ?? `Upload failed (${res.status})`,
+    );
+  }
+
+  return res.json();
 }
 
 export function verifyEmail(token: string): Promise<{ message: string }> {
