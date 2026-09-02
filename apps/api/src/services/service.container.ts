@@ -21,6 +21,10 @@ import { UploadController } from "../uploads/controller";
 import { UploadRepository } from "../uploads/repository";
 import { UploadService } from "../uploads/service";
 import { storageProvider } from "../uploads/storage";
+import {
+	AvatarController,
+} from "../avatar/controller";
+import { avatarTokenStore } from "../avatar/avatar-token.store";
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
@@ -32,6 +36,7 @@ export const jwtService = new JwtService(env.JWT_SECRET);
 export const emailService = new EmailService();
 export const emailRepository = new EmailRepository();
 export const refreshTokenRepository = new RefreshTokenRepository();
+export const uploadRepository = new UploadRepository();
 export const authService = new AuthService(
 	userRepository,
 	pwdService,
@@ -39,8 +44,12 @@ export const authService = new AuthService(
 	emailService,
 	emailRepository,
 	refreshTokenRepository,
+	avatarTokenStore,
+	storageProvider,
+	uploadRepository,
 );
 export const authController = new AuthController(authService);
+export const avatarController = new AvatarController(avatarTokenStore);
 export const userService = new UserService(userRepository);
 export const userController = new UserController(userService);
 
@@ -64,6 +73,5 @@ export const settingsService = new SettingsService(settingsRepository);
 export const settingsController = new SettingsController(settingsService);
 
 // uploads
-export const uploadRepository = new UploadRepository();
 export const uploadService = new UploadService(uploadRepository, storageProvider);
 export const uploadController = new UploadController(uploadService);

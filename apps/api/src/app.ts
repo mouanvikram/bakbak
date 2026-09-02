@@ -16,14 +16,15 @@ import friendRoutes from "./friends/routes";
 import messageRoutes from "./messages/routes";
 import settingsRoutes from "./settings/routes";
 import uploadRoutes from "./uploads/routes";
+import avatarRoutes from "./avatar/routes";
 
 const app: Express = express();
 
-// app.use(requestIdMiddleware);
+app.use(requestIdMiddleware);
 
-// app.use(requestLoggerMiddleware);
+app.use(requestLoggerMiddleware);
 
-// app.use(rateLimiterMiddleware);
+app.use(rateLimiterMiddleware);
 
 app.use(
 	cors({
@@ -40,6 +41,8 @@ app.use(express.json({ limit: "10kb" }));
 
 // 1. Auth
 app.use("/api/v1/auth", authRoutes);
+// 1.0. Avatar pre-signup upload (mounted before auth routes; no auth required)
+app.use("/api/v1/auth", avatarRoutes);
 // 1.1. Uploads (skeleton — storage provider integration pending)
 app.use("/api/v1/uploads", uploadRoutes);
 // 2. Users

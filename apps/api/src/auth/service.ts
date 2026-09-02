@@ -29,6 +29,14 @@ import type {
 	LogoutRequestType,
 	LogoutResponseType,
 } from "@bakbak/contracts";
+import type { StorageProvider } from "../uploads/storage.provider";
+import type { UploadRepository } from "../uploads/repository";
+import type { AvatarTokenStore } from "../avatar/avatar-token.store";
+import {
+	extensionFrom,
+	kindFromExtension,
+	kindFromMime,
+} from "../uploads/file-type";
 
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
@@ -40,6 +48,9 @@ export class AuthService {
 		private readonly emailService: EmailService,
 		private readonly emailRepository: EmailRepository,
 		private readonly refreshTokenRepository: RefreshTokenRepository,
+		private readonly avatarTokenStore: AvatarTokenStore,
+		private readonly storageProvider: StorageProvider,
+		private readonly uploadRepository: UploadRepository,
 	) {}
 
 	async register(dto: SignUpRequestType): Promise<SignUpResponseType> {
@@ -59,6 +70,10 @@ export class AuthService {
 		// hash password service
 		const hashedPassword = await this.pwdService.hash(dto.password);
 
+		// resolve a pending avatar file (if any) from the pre-signup upload
+		const avatarUrl =
+			(await this.resolveAvatar(dto.avatarToken)) ?? dto.avatarUrl ?? null;
+
 		const token = crypto.randomBytes(32).toString("hex");
 		// send verification email
 		// URL service
@@ -73,7 +88,7 @@ export class AuthService {
 				create: {
 					firstName: dto.firstname,
 					lastName: dto.lastname,
-					avatar: dto.avatarUrl,
+					avatar: avatarUrl,
 					displayName: dto.displayname,
 					bio: dto.bio, 
 				},
@@ -110,6 +125,49 @@ export class AuthService {
 		return {
 			message: "Verification email sent successfully",
 		} as SignUpResponseType;
+	}
+
+	/**
+	 * Takes a pending avatar token from the pre-signup upload and writes the
+	 * file to object storage + the database, returning a public URL. This runs
+	 * only once signup completes (it is called from register), so abandoned
+	 * signups never persist anything.
+	 */
+	private async resolveAvatar(avatarToken: string | undefined): Promise<string | null> {
+		if (!avatarToken) return null;
+
+		const file = this.avatarTokenStore.consume(avatarToken);
+		if (!file) return null;
+
+		try {
+			const key = this.buildAvatarKey(file.originalname);
+			await this.storageProvider.upload(key, file.buffer, file.mimetype);
+
+			await this.uploadRepository.create({
+				kind:
+					kindFromMime(file.mimetype) ??
+					kindFromExtension(extensionFrom(file.originalname)),
+				fileName: file.originalname,
+				filePath: key,
+				mimeType: file.mimetype,
+				fileSize: file.size,
+			});
+
+			return this.storageProvider.getSignedUrl(key, 3600);
+		} catch (error) {
+			// A failed avatar write must not block account creation.
+			logger.error(
+				{ err: error, avatarToken },
+				"Failed to persist pending avatar on signup",
+			);
+			return null;
+		}
+	}
+
+	private buildAvatarKey(originalName: string): string {
+		const ext = extensionFrom(originalName);
+		const uuid = crypto.randomUUID();
+		return `avatars/${uuid}${ext ? `.${ext}` : ""}`;
 	}
 
 	async login(dto: LoginRequestType): Promise<LoginResponseType> {
