@@ -2,8 +2,11 @@ import { verificationEmail } from "@lib/emails.template/verify-email";
 import { Resend } from "resend";
 import logger from "@logger";
 import { resetPasswordEmail } from "@lib/emails.template/reset-password";
+import { env } from "../../lib/config";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const DEV_EMAIL = "mouanvikram@gmail.com";
 
 export class EmailService {
 	async sendEmail(dto: {
@@ -11,10 +14,12 @@ export class EmailService {
 		subject: string;
 		html: string;
 	}): Promise<void> {
+		const recipient = env.NODE_ENV === "production" ? (dto.to ?? DEV_EMAIL) : DEV_EMAIL;
+
 		try {
 			const { data, error } = await resend.emails.send({
 				from: "onboarding@resend.dev",
-				to: "mouanvikram@gmail.com", //replace this with dto.to in production
+				to: recipient,
 				subject: dto.subject,
 				html: dto.html,
 			});
