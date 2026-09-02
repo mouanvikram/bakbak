@@ -38,7 +38,16 @@ export const signUpRequestSchema = z.object({
 	displayname: safeString(100, 1),
 	bio: safeString(500).optional(),
 	avatarUrl: safeString(150).optional(),
+	avatarToken: z.string().uuid().optional(),
 });
+
+export const avatarUploadResponseSchema = z.object({
+	avatarToken: z.uuid(),
+});
+
+export type AvatarUploadResponseType = z.infer<
+	typeof avatarUploadResponseSchema
+>;
 
 export const signUpResponseSchema = okResponseSchema;
 
