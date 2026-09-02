@@ -9,7 +9,9 @@ export function PendingRequestsPage() {
   const [requests, setRequests] = useState<FriendRequestResponseType[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busy, setBusy] = useState<
+    { id: string; action: "accept" | "reject" } | null
+  >(null);
 
   async function load() {
     setLoading(true);
@@ -29,7 +31,7 @@ export function PendingRequestsPage() {
   }, []);
 
   async function handleAccept(requestId: string) {
-    setBusyId(requestId);
+    setBusy({ id: requestId, action: "accept" });
     setStatus("");
     try {
       await acceptFriendRequest(requestId);
@@ -38,12 +40,12 @@ export function PendingRequestsPage() {
     } catch {
       setStatus("Failed to accept request");
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   }
 
   async function handleReject(requestId: string) {
-    setBusyId(requestId);
+    setBusy({ id: requestId, action: "reject" });
     setStatus("");
     try {
       await rejectFriendRequest(requestId);
@@ -52,11 +54,12 @@ export function PendingRequestsPage() {
     } catch {
       setStatus("Failed to reject request");
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   }
 
-  const isBusy = (id: string) => busyId === id;
+  const isLoading = (id: string, action: "accept" | "reject") =>
+    busy?.id === id && busy.action === action;
 
   return (
     <div className="flex h-full w-full flex-col gap-4 overflow-y-auto p-6">
@@ -79,20 +82,20 @@ export function PendingRequestsPage() {
                 <>
                   <button
                     type="button"
-                    disabled={busyId !== null}
+                    disabled={busy !== null}
                     onClick={() => handleAccept(r.id)}
                     className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isBusy(r.id) && <Spinner className="size-3.5" />}
+                    {isLoading(r.id, "accept") && <Spinner className="size-3.5" />}
                     Accept
                   </button>
                   <button
                     type="button"
-                    disabled={busyId !== null}
+                    disabled={busy !== null}
                     onClick={() => handleReject(r.id)}
                     className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isBusy(r.id) && <Spinner className="size-3.5" />}
+                    {isLoading(r.id, "reject") && <Spinner className="size-3.5" />}
                     Reject
                   </button>
                 </>

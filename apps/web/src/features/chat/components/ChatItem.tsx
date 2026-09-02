@@ -3,15 +3,23 @@ import type { ChatResponseType } from "@bakbak/contracts";
 import { CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
+import { useAuth } from "@/features/auth/auth-context";
 
 export function ChatItem({ chat }: { chat: ChatResponseType }) {
+  const { user } = useAuth();
+  const currentUserId = user?.id;
   const lastMessage = chat.messages?.[0];
+  // For direct chats, show the *other* participant — participants isn't ordered,
+  // so participants[0] can be the current user.
+  const otherParticipant = chat.participants?.find(
+    (p) => p.user?.id !== currentUserId,
+  );
   const displayName = chat.type === "DIRECT"
-    ? chat.participants?.[0]?.user?.profile?.displayName ?? chat.participants?.[0]?.user?.username ?? "Unknown"
+    ? otherParticipant?.user?.profile?.displayName ?? otherParticipant?.user?.username ?? "Unknown"
     : chat.name ?? "Group";
   const avatarSrc =
     chat.type === "DIRECT"
-      ? chat.participants?.[0]?.user?.profile?.avatar ?? undefined
+      ? otherParticipant?.user?.profile?.avatar ?? undefined
       : undefined;
 
   return (
@@ -19,7 +27,7 @@ export function ChatItem({ chat }: { chat: ChatResponseType }) {
       to={`/chats/${chat.id}`}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors",
+          "flex items-center gap-3 px-3 py-2.5 transition-colors",
           isActive ? "bg-violet-50" : "hover:bg-slate-50",
         )
       }
