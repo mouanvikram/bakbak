@@ -7,6 +7,10 @@ model User {
 
   isEmailVerified Boolean @default(false)
 
+  // Brute-force login protection
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 
