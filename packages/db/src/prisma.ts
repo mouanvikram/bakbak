@@ -5,7 +5,10 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../prisma/generated/prisma/client";
 
 // Single source of truth: the repo-root .env file.
-config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../../../.env") });
+config({
+	path: resolve(dirname(fileURLToPath(import.meta.url)), "../../../.env"),
+	quiet: true,
+});
 
 const connectionString = `${process.env.DATABASE_URL}`;
 

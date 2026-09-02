@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import dotenv from "dotenv";
 
-dotenv.config({ path: resolve(import.meta.dir, "../../../.env") });
+dotenv.config({ path: resolve(import.meta.dir, "../../../.env"), quiet: true });
 
 const DEFAULT_CORS_ORIGINS = [
 	"http://localhost:5173",

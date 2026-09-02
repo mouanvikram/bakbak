@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --hot run index.ts | bunx pino-pretty",
+    "dev": "cd ../.. && bun --watch apps/api/index.ts | bunx pino-pretty",
     "test": "bun test --serial --preload ./tests/setup.ts tests/"
   },
   "devDependencies": {
