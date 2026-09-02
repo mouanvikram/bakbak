@@ -2,8 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Info, Phone, SendHorizontal, Video } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
+import { useSocket } from "@/features/chat/socket-context";
 import { getChat } from "@/features/chat/api";
-import { listMessages, sendMessage, markChatRead } from "@/features/messages/api";
+import {
+  listMessages,
+  sendMessage,
+  markChatRead,
+} from "@/features/messages/api";
 import type { ChatResponseType } from "@bakbak/contracts";
 import type { MessageResponseType } from "@bakbak/contracts";
 import { Avatar } from "@/components/ui/Avatar";
@@ -18,17 +23,29 @@ function formatTime(iso: string) {
   });
 }
 
+interface TypingUser {
+  userId: string;
+  username: string;
+}
+
 export function ChatPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const socket = useSocket();
   const [chat, setChat] = useState<ChatResponseType | null>(null);
   const [messages, setMessages] = useState<MessageResponseType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
+  // userId -> timer that drops a stale "typing" indicator if no stop arrives.
+  const typingExpiry = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
 
   const currentUserId = user?.id;
 
@@ -58,12 +75,149 @@ export function ChatPage() {
     };
   }, [id]);
 
+  // Real-time events from Socket.IO
+  useEffect(() => {
+    if (!socket || !id) return;
+
+    const s = socket;
+    const timers = typingExpiry.current;
+
+    // Switching chats: drop any state carried over from the previous room.
+    setTypingUsers([]);
+    setOnlineUsers(new Set());
+
+    const clearTypingUser = (uid: string) => {
+      const t = timers.get(uid);
+      if (t) {
+        clearTimeout(t);
+        timers.delete(uid);
+      }
+      setTypingUsers((prev) => prev.filter((u) => u.userId !== uid));
+    };
+
+    const onConnect = () => {
+      // Auto-join at connect time covers existing chats; re-emit so a chat
+      // opened before the socket finished connecting is joined too.
+      s.emit("chat:join", id);
+    };
+
+    const onPresenceState = (data: { chatId: string; online: string[] }) => {
+      if (data.chatId !== id) return;
+      setOnlineUsers(new Set(data.online));
+    };
+
+    const onNewMessage = (message: MessageResponseType) => {
+      if (message.chatId !== id) return;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev;
+        return [...prev, message].sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+      });
+      // If the incoming message is from someone else, mark as read.
+      if (message.senderId !== currentUserId) {
+        void markChatRead(id ?? "").catch(() => {});
+      }
+    };
+
+    const onMessageEdited = (message: MessageResponseType) => {
+      if (message.chatId !== id) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === message.id ? message : m)),
+      );
+    };
+
+    const onMessageDeleted = (message: MessageResponseType) => {
+      if (message.chatId !== id) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === message.id ? message : m)),
+      );
+    };
+
+    const onTyping = (data: {
+      chatId: string;
+      userId: string;
+      username: string;
+      isTyping: boolean;
+    }) => {
+      if (data.chatId !== id) return;
+      if (data.userId === currentUserId) return;
+      if (!data.isTyping) {
+        clearTypingUser(data.userId);
+        return;
+      }
+      setTypingUsers((prev) =>
+        prev.some((u) => u.userId === data.userId)
+          ? prev
+          : [...prev, { userId: data.userId, username: data.username }],
+      );
+      // Safety net in case the matching "stopped typing" event is missed.
+      const existing = timers.get(data.userId);
+      if (existing) clearTimeout(existing);
+      timers.set(
+        data.userId,
+        setTimeout(() => clearTypingUser(data.userId), 6_000),
+      );
+    };
+
+    const onPresence = (data: { userId: string; online: boolean }) => {
+      if (!id) return;
+      // Ignore own presence.
+      if (data.userId === currentUserId) return;
+      setOnlineUsers((prev) => {
+        const next = new Set(prev);
+        if (data.online) next.add(data.userId);
+        else next.delete(data.userId);
+        return next;
+      });
+    };
+
+    s.on("connect", onConnect);
+    s.on("presence:state", onPresenceState);
+    s.on("message:new", onNewMessage);
+    s.on("message:edited", onMessageEdited);
+    s.on("message:deleted", onMessageDeleted);
+    s.on("typing", onTyping);
+    s.on("presence", onPresence);
+
+    return () => {
+      s.off("connect", onConnect);
+      s.off("presence:state", onPresenceState);
+      s.off("message:new", onNewMessage);
+      s.off("message:edited", onMessageEdited);
+      s.off("message:deleted", onMessageDeleted);
+      s.off("typing", onTyping);
+      s.off("presence", onPresence);
+      for (const t of timers.values()) clearTimeout(t);
+      timers.clear();
+    };
+  }, [id, currentUserId, socket]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages, loading]);
 
   useEffect(() => {
+    if (!id || !socket) return;
+    // Ensure this socket is in the chat's room. This matters for chats that
+    // were created *after* the socket initially connected (e.g. starting a
+    // new conversation) — auto-join at connect time won't have covered them.
+    if (socket.connected) {
+      socket.emit("chat:join", id);
+    }
+    // Tell the room we've stopped typing when navigating away.
+    return () => {
+      if (socket.connected) {
+        socket.emit("typing", { chatId: id, isTyping: false });
+      }
+    };
+  }, [id, socket]);
+
+  useEffect(() => {
     if (!id) return;
+    // The server broadcasts the read receipt to the other participants as a
+    // side effect of this call, so there's nothing to emit over the socket.
     void markChatRead(id).catch(() => {});
   }, [id]);
 
@@ -72,15 +226,33 @@ export function ChatPage() {
     if (!id || !content || sending) return;
     setSending(true);
     setError("");
+    // Stop typing indicator when sending.
+    if (socket && socket.connected) {
+      socket.emit("typing", { chatId: id, isTyping: false });
+    }
     try {
       const res = await sendMessage(id, { text: content });
-      setMessages((prev) => [...prev, res]);
+      // REST call returns the saved message; add it locally.
       setText("");
+      // The socket may also deliver it; dedupe on id in onNewMessage.
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === res.id)) return prev;
+        return [...prev, res].sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+      });
     } catch {
       setError("Failed to send message");
     } finally {
       setSending(false);
     }
+  }
+
+  function handleTyping(typing: boolean) {
+    if (!id) return;
+    if (!socket || !socket.connected) return;
+    socket.emit("typing", { chatId: id, isTyping: typing });
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -97,11 +269,14 @@ export function ChatPage() {
   const otherParticipant = chat?.participants?.find(
     (p) => p.user.id !== currentUserId,
   );
+  const otherOnline = otherParticipant
+    ? onlineUsers.has(otherParticipant.user.id)
+    : false;
   const displayName =
     chat?.type === "DIRECT"
-      ? otherParticipant?.user.profile?.displayName ??
+      ? (otherParticipant?.user.profile?.displayName ??
         otherParticipant?.user.username ??
-        "Unknown"
+        "Unknown")
       : (chat?.name ?? "Group");
   const avatarSrc =
     chat?.type === "DIRECT"
@@ -110,8 +285,17 @@ export function ChatPage() {
   const subtitle = chat
     ? chat.type === "GROUP"
       ? `${chat.participants?.length ?? 0} participants`
-      : "Friend on BakBak"
+      : otherOnline
+        ? "Online"
+        : "Offline"
     : "";
+
+  const typingLabel =
+    typingUsers.length === 1
+      ? `${typingUsers[0].username} is typing...`
+      : typingUsers.length > 1
+        ? "Several people are typing..."
+        : "";
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -171,10 +355,7 @@ export function ChatPage() {
       </div>
 
       {/* Messages */}
-      <div
-        className="bg-cover bg-center min-h-0 flex-1 overflow-y-auto"
-        style={{ backgroundImage: "url('/images/backgrounds/chat_bg_light.png')" }}
-      >
+      <div className="chat-surface min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <LoadingState text="Loading messages..." />
         ) : error && messages.length === 0 ? (
@@ -215,7 +396,7 @@ export function ChatPage() {
                         : "rounded-bl-md bg-white text-gray-900",
                     )}
                   >
-                    <p className="whitespace-pre-wrap break-words">
+                    <p className="wrap-break-words whitespace-pre-wrap">
                       {m.deleted ? "This message was deleted" : (m.text ?? "")}
                     </p>
                     <div
@@ -230,6 +411,12 @@ export function ChatPage() {
                 </div>
               );
             })}
+            {typingLabel && (
+              <div className="flex items-center gap-2 px-1 py-1 text-xs text-gray-500">
+                <Spinner className="size-3" />
+                <span>{typingLabel}</span>
+              </div>
+            )}
             <div ref={bottomRef} className="h-1 w-full" />
           </div>
         )}
@@ -245,11 +432,15 @@ export function ChatPage() {
         <div className="flex items-end gap-2">
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setText(value);
+              handleTyping(value.trim().length > 0);
+            }}
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder="Type a message"
-            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10"
+            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10"
           />
           <button
             type="button"

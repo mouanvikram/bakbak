@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { changePassword } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/auth-context";
+import { getSettings, updatePrivacy } from "@/features/settings/api";
 import { Spinner } from "@/components/ui/Spinner";
 
 export function SecurityPrivacyPage() {
@@ -12,10 +13,30 @@ export function SecurityPrivacyPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [twoFactor, setTwoFactor] = useState(false);
+  const [twoFactorSaving, setTwoFactorSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+
+  useEffect(() => {
+    getSettings()
+      .then((res) => setTwoFactor(res.privacy.twoFactorEnabled))
+      .catch(() => {});
+  }, []);
+
+  async function handleToggleTwoFactor() {
+    const next = !twoFactor;
+    setTwoFactor(next);
+    setTwoFactorSaving(true);
+    try {
+      await updatePrivacy({ twoFactorEnabled: next });
+    } catch {
+      setTwoFactor(!next);
+    } finally {
+      setTwoFactorSaving(false);
+    }
+  }
 
   async function handleChangePassword() {
     setError("");
@@ -84,7 +105,7 @@ export function SecurityPrivacyPage() {
               <p className="font-semibold text-gray-900">Enable 2FA Authentication</p>
               <p className="text-sm text-gray-500">Add an extra layer of security to your account</p>
             </div>
-            <button type="button" onClick={() => setTwoFactor(!twoFactor)} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${twoFactor ? "bg-[#805FF8]" : "bg-gray-200"}`}>
+            <button type="button" disabled={twoFactorSaving} onClick={handleToggleTwoFactor} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${twoFactor ? "bg-[#805FF8]" : "bg-gray-200"}`}>
               <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${twoFactor ? "translate-x-5" : "translate-x-1"}`} />
             </button>
           </div>
