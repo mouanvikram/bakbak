@@ -11,7 +11,7 @@ import {
   verifyEmail as apiVerifyEmail,
   logout as apiLogout,
 } from "./api";
-import { getMe } from "@/features/users/api";
+import { getMe, deleteMe } from "@/features/users/api";
 import { AuthContext } from "./auth-context";
 import {
   clearTokens as clearStoredTokens,
@@ -91,6 +91,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    await deleteMe();
+    clearStoredTokens();
+    setUser(null);
+    setProfile(null);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -102,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         verifyEmail,
         logout,
+        deleteAccount,
         refreshUser,
       }}
     >

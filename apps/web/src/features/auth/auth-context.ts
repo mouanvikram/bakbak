@@ -15,6 +15,7 @@ export interface AuthContextValue {
   signup: (data: SignUpRequestType) => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
