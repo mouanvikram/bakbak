@@ -3,10 +3,12 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run --parallel dev:frontend dev:backend dev:prisma",
+    "dev": "bun run --parallel dev:frontend dev:backend dev:prisma dev:minio",
     "dev:frontend": "bun --cwd apps/web dev",
     "dev:backend": "bun --hot apps/api/index.ts",
-    "dev:prisma": "bun --cwd packages/db dev"
+    "dev:prisma": "bun --cwd packages/db dev",
+    "dev:minio": "powershell -NoProfile -Command '. $PROFILE; start-minio'",
+    "minio:stop": "Get-Process minio -ErrorAction SilentlyContinue | Stop-Process"
   },
   "devDependencies": {
     "@types/bun": "latest",

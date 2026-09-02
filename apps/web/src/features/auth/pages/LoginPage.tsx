@@ -61,6 +61,7 @@ export function LoginPage() {
                 type="text"
                 placeholder="me@example.com"
                 value={identifier}
+                disabled={loading}
                 onChange={(event) => {
                   setIdentifier(event.target.value);
                 }}
@@ -70,6 +71,7 @@ export function LoginPage() {
                 name="password"
                 placeholder="Enter your password"
                 value={password}
+                disabled={loading}
                 onChange={(event) => {
                   setPassword(event.target.value);
                 }}
@@ -78,7 +80,11 @@ export function LoginPage() {
 
             {/* Forgot password */}
             <div className="text-right">
-              <Link to="/forgot-password" className="text-sm text-[#4C18EF]">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-[#4C18EF]"
+                aria-disabled={loading}
+              >
                 Forgot Password?
               </Link>
             </div>

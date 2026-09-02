@@ -34,13 +34,14 @@ export function PasswordInput({
           id={name}
           name={name}
           type={showPassword ? "text" : "password"}
-          className="h-12 w-full rounded-lg border border-gray-200 bg-white pr-11 pl-11 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10"
+          className="h-12 w-full rounded-lg border border-gray-200 bg-white pr-11 pl-11 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10 disabled:cursor-not-allowed disabled:opacity-50"
         />
 
         <button
           type="button"
           onClick={() => setShowPassword((value) => !value)}
-          className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-gray-400 transition hover:text-gray-600"
+          disabled={props.disabled}
+          className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-gray-400 transition hover:text-gray-600 disabled:cursor-not-allowed"
           aria-label={showPassword ? "Hide password" : "Show password"}
         >
           {showPassword ? (

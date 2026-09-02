@@ -32,7 +32,7 @@ export function Input({
           id={name}
           name={name}
           type={type}
-          className={`h-12 w-full rounded-lg border border-gray-200 bg-white pr-4 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10 ${icon ? "pl-11" : "pl-4"} `}
+          className={`h-12 w-full rounded-lg border border-gray-200 bg-white pr-4 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10 disabled:cursor-not-allowed disabled:opacity-50 ${icon ? "pl-11" : "pl-4"} `}
         />
       </div>
     </div>

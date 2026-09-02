@@ -251,6 +251,16 @@ function App() {
             <Route index element={<p>Notifications Page</p>} />
           </Route>
         </Route>
+
+        {/* Fallback: redirect to a sensible page depending on auth state */}
+        <Route
+          path="*"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/chats" replace />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
