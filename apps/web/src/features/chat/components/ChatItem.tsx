@@ -9,6 +9,10 @@ export function ChatItem({ chat }: { chat: ChatResponseType }) {
   const displayName = chat.type === "DIRECT"
     ? chat.participants?.[0]?.user?.profile?.displayName ?? chat.participants?.[0]?.user?.username ?? "Unknown"
     : chat.name ?? "Group";
+  const avatarSrc =
+    chat.type === "DIRECT"
+      ? chat.participants?.[0]?.user?.profile?.avatar ?? undefined
+      : undefined;
 
   return (
     <NavLink
@@ -21,7 +25,7 @@ export function ChatItem({ chat }: { chat: ChatResponseType }) {
       }
     >
       <div className="relative shrink-0">
-        <Avatar name={displayName} />
+        <Avatar name={displayName} src={avatarSrc} />
       </div>
 
       <div className="min-w-0 flex-1">

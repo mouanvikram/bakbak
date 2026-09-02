@@ -43,7 +43,7 @@ const chatBaseSchema = z.object({
 	directKey: safeString(100).nullish(),
 	name: safeString(100).nullish(),
 	description: safeString(500).nullish(),
-	avatar: safeString(150).nullish(),
+	avatar: safeString(1024).nullish(),
 	createdById: z.string().nullish(),
 	lastMessageAt: z.string().nullish(),
 	createdAt: z.string(),
@@ -76,7 +76,7 @@ export type CreateDirectChatRequestType = z.infer<
 export const createGroupChatRequestSchema = z.object({
 	name: safeString(100, 1),
 	participantIds: z.array(z.uuid()).min(1),
-	avatar: safeString(150).optional(),
+	avatar: safeString(1024).optional(),
 });
 
 export type CreateGroupChatRequestType = z.infer<
@@ -99,7 +99,7 @@ export type GetChatResponseType = z.infer<typeof getChatResponseSchema>;
 
 export const updateChatRequestSchema = z.object({
 	name: safeString(100).optional(),
-	avatar: safeString(150).nullish(),
+	avatar: safeString(1024).nullish(),
 });
 
 export const updateChatResponseSchema = chatResponseSchema;

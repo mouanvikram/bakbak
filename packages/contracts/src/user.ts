@@ -16,7 +16,7 @@ export const userProfileSchema = z.object({
 	firstName: safeString(100).nullish(),
 	lastName: safeString(100).nullish(),
 	bio: safeString(500).nullish(),
-	avatar: safeString(150).nullish(),
+	avatar: safeString(1024).nullish(),
 	displayName: safeString(100).nullish(),
 	joinedAt: z.string(),
 	friendsCount: z.number().int().nonnegative(),
@@ -56,11 +56,11 @@ export type UpdateProfileResponseType = z.infer<
 >;
 
 export const updateAvatarRequestSchema = z.object({
-	avatar: safeString(150),
+	avatar: safeString(1024),
 });
 
 export const updateAvatarResponseSchema = z.object({
-	avatar: safeString(150).nullish(),
+	avatar: safeString(1024).nullish(),
 });
 
 export type UpdateAvatarRequestType = UserIdType &

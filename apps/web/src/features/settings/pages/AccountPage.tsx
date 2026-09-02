@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/auth-context";
-import { updateProfile } from "@/features/users/api";
+import { updateProfile, uploadAvatar } from "@/features/users/api";
+import { ImageCropModal } from "@/components/ImageCropModal";
 import { Spinner } from "@/components/ui/Spinner";
 
 export function AccountPage() {
@@ -11,6 +12,10 @@ export function AccountPage() {
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (profile) {
@@ -22,6 +27,7 @@ export function AccountPage() {
   }, [profile]);
 
   async function handleSave() {
+    setError("");
     setLoading(true);
     setSaved(false);
     try {
@@ -29,8 +35,39 @@ export function AccountPage() {
       await refreshUser();
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
       setLoading(false);
+    }
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif", "image/bmp"].includes(file.type)) {
+      setError("Only JPG, PNG, WebP, AVIF, GIF or BMP images are allowed");
+      return;
+    }
+    setError("");
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async function handleCropConfirm(blob: Blob) {
+    setUploading(true);
+    setError("");
+    try {
+      await uploadAvatar(blob, "avatar.webp");
+      await refreshUser();
+      setCropSrc(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Avatar upload failed");
+      setCropSrc(null);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -40,7 +77,57 @@ export function AccountPage() {
         <h1 className="text-2xl font-semibold text-gray-900">Account</h1>
         <p className="text-sm text-gray-500">Manage your profile information</p>
       </div>
+
+      {error && (
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+      )}
+
       <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">Profile Picture</h2>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              {profile?.avatar ? (
+                <img
+                  src={profile.avatar}
+                  alt="Profile"
+                  className="h-24 w-24 rounded-full border border-gray-200 object-cover"
+                />
+              ) : (
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-violet-100 text-2xl font-semibold text-violet-600">
+                  {(displayName || firstName || "?").charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="avatar"
+                  className={`flex cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-2.5 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                >
+                  Upload photo
+                </label>
+                <input
+                  ref={fileInputRef}
+                  id="avatar"
+                  name="avatar"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/bmp"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  disabled={uploading}
+                />
+              </div>
+              {uploading && (
+                <span className="flex items-center gap-2 text-sm text-gray-500">
+                  <Spinner /> Uploading...
+                </span>
+              )}
+              <p className="text-xs text-gray-400">JPG, PNG, WebP, AVIF, GIF or BMP, up to 10 MB.</p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2">
             <span className="text-sm font-semibold text-gray-900">First Name</span>
@@ -61,12 +148,23 @@ export function AccountPage() {
         </label>
         <div className="flex items-center justify-end gap-3">
           {saved && <span className="text-sm text-green-600">Saved!</span>}
-          <button type="button" onClick={handleSave} disabled={loading} className="flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={handleSave} disabled={loading || uploading} className="flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50">
             {loading && <Spinner />}
             {loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
+
+      {cropSrc && (
+        <ImageCropModal
+          imageSrc={cropSrc}
+          onCancel={() => {
+            setCropSrc(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          }}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }

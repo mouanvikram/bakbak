@@ -3,13 +3,14 @@ import { Background } from "@/components/ui/Background";
 import { Button } from "@/components/ui/Button";
 import { Divider } from "@/components/ui/Divider";
 import { Input } from "@/components/ui/Input";
-import { ArrowLeft, ArrowRight, AtSign, Mail, User, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, AtSign, Check, Loader2, Mail, User, Trash2, X } from "lucide-react";
 import { PasswordInput } from "@/components/ui/PasswordInput";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Branding } from "@/components/ui/Branding";
 import { useAuth } from "@/features/auth/auth-context";
 import { ImageCropModal } from "@/components/ImageCropModal";
 import { uploadAvatar } from "@/features/auth/api";
+import { checkUsername } from "@/features/users/api";
 
 interface SignupFormData {
   firstname: string;
@@ -21,9 +22,21 @@ interface SignupFormData {
   bio: string;
 }
 
+type UsernameStatus =
+  | { state: "idle" }
+  | { state: "checking" }
+  | { state: "available" }
+  | { state: "unavailable"; suggestion: string };
+
+function buildSuggestion(username: string): string {
+  const base = username.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 20) || "user";
+  return `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
 export function SignupPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<SignupFormData>({
     firstname: "", lastname: "", displayname: "", username: "", email: "", password: "", bio: "",
@@ -31,18 +44,63 @@ export function SignupPage() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarToken, setAvatarToken] = useState<string | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>({ state: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const runUsernameCheck = useCallback(async (username: string) => {
+    if (!username) {
+      setUsernameStatus({ state: "idle" });
+      return;
+    }
+    setUsernameStatus({ state: "checking" });
+    try {
+      const { available } = await checkUsername(username);
+      if (available) {
+        setUsernameStatus({ state: "available" });
+      } else {
+        setUsernameStatus({ state: "unavailable", suggestion: buildSuggestion(username) });
+      }
+    } catch {
+      setUsernameStatus({ state: "unavailable", suggestion: buildSuggestion(username) });
+    }
+  }, []);
+
+  function handleUsernameChange(value: string) {
+    setUser((previous) => ({ ...previous, username: value }));
+    setUsernameStatus({ state: "checking" });
+
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+
+    if (!value.trim()) {
+      setUsernameStatus({ state: "idle" });
+      return;
+    }
+    usernameCheckRef.current = setTimeout(() => {
+      runUsernameCheck(value.trim());
+    }, 300);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    };
+  }, []);
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = event.target;
+    if (name === "username") {
+      handleUsernameChange(value);
+      return;
+    }
     setUser((previous) => ({ ...previous, [name]: value }));
   }
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setError("Only JPG, PNG or WebP images are allowed");
+    if (!["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif", "image/bmp"].includes(file.type)) {
+      setError("Only JPG, PNG, WebP, AVIF, GIF or BMP images are allowed");
       return;
     }
     setError(null);
@@ -53,6 +111,8 @@ export function SignupPage() {
 
   async function handleCropConfirm(blob: Blob) {
     const file = cropSrc ? new File([blob], "avatar.webp", { type: "image/webp" }) : null;
+    setUploading(true);
+    setError(null);
     try {
       const name = file?.name ?? "avatar.webp";
       const result = await uploadAvatar(blob, name);
@@ -63,6 +123,7 @@ export function SignupPage() {
       setError(err instanceof Error ? err.message : "Avatar upload failed");
       setCropSrc(null);
     } finally {
+      setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -87,6 +148,43 @@ export function SignupPage() {
     setAvatarToken(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
+
+  function goToStep3() {
+    setError(null);
+    if (usernameStatus.state !== "available") {
+      setError("Username must be available before continuing.");
+      return;
+    }
+    setStep(3);
+  }
+
+  function useSuggestion() {
+    if (usernameStatus.state !== "unavailable") return;
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    setUser((previous) => ({ ...previous, username: usernameStatus.suggestion }));
+    setUsernameStatus({ state: "checking" });
+    usernameCheckRef.current = setTimeout(() => {
+      runUsernameCheck(usernameStatus.suggestion);
+    }, 300);
+  }
+
+  const passwordChecks = [
+    { label: "12+ characters", met: user.password.length >= 12 },
+    { label: "Uppercase letter", met: /[A-Z]/.test(user.password) },
+    { label: "Lowercase letter", met: /[a-z]/.test(user.password) },
+    { label: "Number", met: /[0-9]/.test(user.password) },
+    { label: "Special character", met: /[^A-Za-z0-9]/.test(user.password) },
+  ];
+  const passwordFilled = passwordChecks.every((c) => c.met);
+
+  const step1Valid = [user.firstname, user.lastname, user.displayname].every(
+    (field) => field.trim().length > 0,
+  );
+  const step2Valid =
+    user.username.trim().length >= 4 &&
+    usernameStatus.state === "available" &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email) &&
+    passwordFilled;
 
   return (
     <Background>
@@ -136,26 +234,71 @@ export function SignupPage() {
               {step === 1 && (
                 <>
                   <div className="grid w-full grid-cols-2 gap-3">
-                    <Input label="First Name" name="firstname" type="text" placeholder="First name" icon={<User size={18} />} value={user.firstname} onChange={handleChange} />
-                    <Input label="Last Name" name="lastname" type="text" placeholder="Last name" icon={<User size={18} />} value={user.lastname} onChange={handleChange} />
+                    <Input label="First Name" name="firstname" type="text" placeholder="First name" icon={<User size={18} />} value={user.firstname} onChange={handleChange} disabled={loading} />
+                    <Input label="Last Name" name="lastname" type="text" placeholder="Last name" icon={<User size={18} />} value={user.lastname} onChange={handleChange} disabled={loading} />
                   </div>
-                  <Input label="Display Name" name="displayname" type="text" placeholder="How should we call you?" icon={<User size={18} />} value={user.displayname} onChange={handleChange} />
-                  <button type="button" onClick={() => setStep(2)} className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-2 font-medium text-gray-700 transition hover:bg-gray-50 active:translate-y-px">
+                  <Input label="Display Name" name="displayname" type="text" placeholder="How should we call you?" icon={<User size={18} />} value={user.displayname} onChange={handleChange} disabled={loading} />
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    disabled={!step1Valid || loading}
+                    className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-2 font-medium text-gray-700 transition hover:bg-gray-50 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+                  >
                     Choose Username <ArrowRight size={18} />
                   </button>
                 </>
               )}
               {step === 2 && (
                 <>
-                  <Input label="Username" name="username" type="text" placeholder="username" icon={<AtSign size={18} />} value={user.username} onChange={handleChange} />
-                  <Input label="Email" name="email" type="email" placeholder="you@example.com" icon={<Mail size={18} />} value={user.email} onChange={handleChange} />
-                  <PasswordInput label="Password" name="password" placeholder="Create a password" value={user.password} onChange={handleChange} />
-                  <p className="-mt-2 text-xs text-gray-400">Use at least 12 characters with a mix of uppercase, lowercase, numbers & symbols</p>
+                  <div className="flex w-full flex-col gap-1">
+                    <Input label="Username" name="username" type="text" placeholder="username" icon={<AtSign size={18} />} value={user.username} onChange={handleChange} disabled={loading} />
+                    {usernameStatus.state === "checking" && (
+                      <p className="text-xs text-gray-400">Checking availability...</p>
+                    )}
+                    {usernameStatus.state === "available" && (
+                      <p className="flex items-center gap-1 text-xs text-green-600">
+                        <Check size={14} /> Username is available
+                      </p>
+                    )}
+                    {usernameStatus.state === "unavailable" && (
+                      <div className="flex flex-col gap-1">
+                        <p className="flex items-center gap-1 text-xs text-red-500">
+                          <X size={14} /> Username is not available
+                        </p>
+                        <button
+                          type="button"
+                          onClick={useSuggestion}
+                          disabled={loading}
+                          className="self-start text-xs font-medium text-[#4C18EF] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Try instead: {usernameStatus.suggestion}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <Input label="Email" name="email" type="email" placeholder="you@example.com" icon={<Mail size={18} />} value={user.email} onChange={handleChange} disabled={loading} />
+                  <PasswordInput label="Password" name="password" placeholder="Create a password" value={user.password} onChange={handleChange} disabled={loading} />
+                  <div className={`-mt-2 flex flex-col gap-1 rounded-lg p-2 transition ${passwordFilled ? "bg-green-50" : "bg-gray-50"}`}>
+                    <p className="text-xs text-gray-500">Password requirements:</p>
+                    <ul className="grid grid-cols-2 gap-1">
+                      {passwordChecks.map((check) => (
+                        <li key={check.label} className={`flex items-center gap-1.5 text-xs ${check.met ? "font-medium text-green-600" : "text-gray-400"}`}>
+                          {check.met ? <Check size={13} /> : <X size={13} />}
+                          {check.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                   <div className="flex gap-3">
-                    <button type="button" onClick={() => setStep(1)} className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]">
+                    <button type="button" onClick={() => setStep(1)} disabled={loading} className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
                       <ArrowLeft size={18} /> Back
                     </button>
-                    <button type="button" onClick={() => setStep(3)} className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-2 font-medium text-gray-700 transition hover:bg-gray-50 active:translate-y-px">
+                    <button
+                      type="button"
+                      onClick={goToStep3}
+                      disabled={!step2Valid || loading}
+                      className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-2 font-medium text-gray-700 transition hover:bg-gray-50 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+                    >
                       Upload Picture <ArrowRight size={18} />
                     </button>
                   </div>
@@ -166,34 +309,45 @@ export function SignupPage() {
                   <div className="flex flex-col items-center gap-2">
                     {avatarPreview ? (
                       <div className="relative">
-                        <img src={avatarPreview} alt="Avatar preview" className="h-20 w-20 rounded-full border border-gray-200 object-cover" />
-                        <button
-                          type="button"
-                          onClick={handleRemoveAvatar}
-                          className="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600"
-                          aria-label="Remove avatar"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {uploading ? (
+                          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-gray-200 bg-gray-50">
+                            <Loader2 className="size-6 animate-spin text-[#805FF8]" />
+                          </div>
+                        ) : (
+                          <img src={avatarPreview} alt="Avatar preview" className="h-20 w-20 rounded-full border border-gray-200 object-cover" />
+                        )}
+                        {!uploading && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveAvatar}
+                            disabled={loading}
+                            className={`absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600 ${loading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                            aria-label="Remove avatar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <>
-                        <label htmlFor="avatar" className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 transition hover:border-[#805FF8] hover:text-[#805FF8]">Avatar</label>
-                        <input ref={fileInputRef} id="avatar" name="avatar" type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleFileChange} />
+                        <label htmlFor="avatar" className={`flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 transition hover:border-[#805FF8] hover:text-[#805FF8] ${loading || uploading ? "cursor-not-allowed opacity-50 hover:border-gray-300 hover:text-gray-400" : "cursor-pointer"}`}>{uploading ? <Loader2 className="size-6 animate-spin text-[#805FF8]" /> : "Avatar"}</label>
+                        <input ref={fileInputRef} id="avatar" name="avatar" type="file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/bmp" className="hidden" onChange={handleFileChange} disabled={loading || uploading} />
                       </>
                     )}
-                    <p className="text-xs text-gray-400">{avatarToken ? "Avatar ready" : "Upload a profile picture"}</p>
+                    <p className="text-xs text-gray-400">
+                      {uploading ? "Uploading..." : avatarToken ? "Avatar ready" : "Upload a profile picture"}
+                    </p>
                   </div>
                   <div className="flex w-full flex-col gap-2">
                     <label htmlFor="bio" className="text-md font-semibold text-gray-900">Bio</label>
-                    <textarea id="bio" name="bio" rows={3} maxLength={160} placeholder="Tell us a little about yourself..." className="w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10" value={user.bio} onChange={handleChange} />
+                    <textarea id="bio" name="bio" rows={3} maxLength={160} placeholder="Tell us a little about yourself..." className="w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10 disabled:cursor-not-allowed disabled:opacity-50" value={user.bio} onChange={handleChange} disabled={loading || uploading} />
                   </div>
                   <div className="flex gap-3">
-                    <button type="button" onClick={() => setStep(2)} className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]" disabled={loading}>
+                    <button type="button" onClick={() => setStep(2)} className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50" disabled={loading || uploading}>
                       <ArrowLeft size={18} /> Back
                     </button>
                     <div className="flex-1">
-                      <Button value="Sign Up" onClick={handleSignUp} loading={loading} />
+                      <Button value="Sign Up" onClick={handleSignUp} loading={loading} disabled={uploading} />
                     </div>
                   </div>
                 </>

@@ -42,7 +42,7 @@ export const profileSnippetSchema = z.object({
 	displayName: z.string().nullish(),
 	firstName: z.string().nullish(),
 	lastName: z.string().nullish(),
-	avatar: z.string().nullish(),
+	avatar: safeString(1024).nullish(),
 	bio: z.string().nullish(),
 });
 
@@ -50,7 +50,7 @@ export const profileCoreSchema = z.object({
 	displayName: z.string().nullish(),
 	firstName: z.string().nullish(),
 	lastName: z.string().nullish(),
-	avatar: z.string().nullish(),
+	avatar: safeString(1024).nullish(),
 });
 
 export const userSummarySchema = z.object({

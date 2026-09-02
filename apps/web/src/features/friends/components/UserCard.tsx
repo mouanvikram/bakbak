@@ -23,7 +23,7 @@ export function UserCard({
   return (
     <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center gap-3">
-        <Avatar name={getDisplayName(user)} />
+        <Avatar name={getDisplayName(user)} src={user.profile?.avatar ?? undefined} />
         <div>
           <div className="text-sm font-medium text-gray-900">
             {getDisplayName(user)}

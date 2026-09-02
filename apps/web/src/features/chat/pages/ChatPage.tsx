@@ -196,9 +196,16 @@ export function ChatPage() {
                   )}
                 >
                   {!mine && chat?.type === "GROUP" && (
-                    <span className="mb-0.5 px-1 text-[11px] font-medium text-slate-500">
-                      {senderName}
-                    </span>
+                    <div className="mb-0.5 flex items-center gap-1.5">
+                      <Avatar
+                        name={senderName}
+                        src={m.sender.profile?.avatar ?? undefined}
+                        className="size-5"
+                      />
+                      <span className="px-1 text-[11px] font-medium text-slate-500">
+                        {senderName}
+                      </span>
+                    </div>
                   )}
                   <div
                     className={cn(

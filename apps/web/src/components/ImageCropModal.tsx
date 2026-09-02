@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
 import Cropper from "react-easy-crop";
-import { Area } from "react-easy-crop";
+import type { Area } from "react-easy-crop";
 import { Button } from "@/components/ui/Button";
 
 interface ImageCropModalProps {
   imageSrc: string;
   onCancel: () => void;
-  onConfirm: (blob: Blob) => void;
+  onConfirm: (blob: Blob) => void | Promise<void>;
   aspect?: number;
 }
 
@@ -71,7 +71,7 @@ export function ImageCropModal({
     setProcessing(true);
     try {
       const blob = await getCroppedImg(imageSrc, croppedAreaPixels, "image/webp");
-      onConfirm(blob);
+      await onConfirm(blob);
     } finally {
       setProcessing(false);
     }
