@@ -19,9 +19,14 @@ import type {
 	UserIdType,
 } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import type { StorageProvider } from "../uploads/storage.provider";
+import { resolveAvatarUrl } from "../uploads/avatar-url";
 
 export class FriendService {
-	constructor(private readonly friendRepository: FriendRepository) {}
+	constructor(
+		private readonly friendRepository: FriendRepository,
+		private readonly storageProvider: StorageProvider,
+	) {}
 
 	private serializeDateFields<T extends { createdAt: Date; updatedAt: Date }>(
 		record: T,
@@ -33,10 +38,29 @@ export class FriendService {
 		};
 	}
 
-	private serializeRequest<
-		T extends FriendRequest & { createdAt: Date; updatedAt: Date },
+	private async serializeRequest<
+		T extends FriendRequest &
+			{
+				createdAt: Date;
+				updatedAt: Date;
+				sender?: { profile?: { avatar?: string | null } | null };
+				receiver?: { profile?: { avatar?: string | null } | null };
+			},
 	>(request: T) {
-		return this.serializeDateFields(request);
+		const serialized = this.serializeDateFields(request);
+		if (serialized.sender?.profile?.avatar !== undefined) {
+			serialized.sender.profile.avatar = await resolveAvatarUrl(
+				serialized.sender.profile.avatar,
+				this.storageProvider,
+			);
+		}
+		if (serialized.receiver?.profile?.avatar !== undefined) {
+			serialized.receiver.profile.avatar = await resolveAvatarUrl(
+				serialized.receiver.profile.avatar,
+				this.storageProvider,
+			);
+		}
+		return serialized;
 	}
 
 	//requests
@@ -81,7 +105,7 @@ export class FriendService {
 				},
 			});
 
-			return this.serializeRequest(request);
+			return await this.serializeRequest(request);
 		} catch (error) {
 			if (
 				error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -148,7 +172,7 @@ export class FriendService {
 			},
 		);
 
-		return this.serializeRequest(request);
+		return await this.serializeRequest(request);
 	}
 
 	async acceptRequest(
@@ -190,7 +214,7 @@ export class FriendService {
 			);
 		}
 
-		return this.serializeRequest(request);
+		return await this.serializeRequest(request);
 	}
 
 	async rejectRequest(
@@ -232,7 +256,7 @@ export class FriendService {
 			},
 		);
 
-		return this.serializeRequest(request);
+		return await this.serializeRequest(request);
 	}
 
 	//friends
@@ -243,16 +267,31 @@ export class FriendService {
 			OR: [{ user1Id: dto.userId }, { user2Id: dto.userId }],
 		});
 
-		return friendships.map((friendship) => {
-			const friend =
-				friendship.user1Id === dto.userId ? friendship.user2 : friendship.user1;
+		return Promise.all(
+			friendships.map(async (friendship) => {
+				const friend =
+					friendship.user1Id === dto.userId
+						? friendship.user2
+						: friendship.user1;
 
-			return {
-				friendshipId: friendship.id,
-				createdAt: friendship.createdAt.toISOString(),
-				friend,
-			};
-		});
+				return {
+					friendshipId: friendship.id,
+					createdAt: friendship.createdAt.toISOString(),
+					friend: {
+						...friend,
+						profile: friend.profile
+							? {
+									...friend.profile,
+									avatar: await resolveAvatarUrl(
+										friend.profile.avatar,
+										this.storageProvider,
+									),
+								}
+							: friend.profile,
+					},
+				};
+			}),
+		);
 	}
 
 	async removeFriend(
@@ -295,7 +334,9 @@ export class FriendService {
 			status: FriendRequestStatus.PENDING,
 		});
 
-		return requests.map((request) => this.serializeRequest(request));
+		return Promise.all(
+			requests.map((request) => this.serializeRequest(request)),
+		);
 	}
 
 	async getOutgoingRequests(id: string): Promise<FriendRequestResponseType[]> {
@@ -304,7 +345,9 @@ export class FriendService {
 			status: FriendRequestStatus.PENDING,
 		});
 
-		return requests.map((request) => this.serializeRequest(request));
+		return Promise.all(
+			requests.map((request) => this.serializeRequest(request)),
+		);
 	}
 
 	// Status
@@ -329,6 +372,22 @@ export class FriendService {
 
 	async getSuggestions(dto: UserIdType): Promise<GetSuggestionsResponseType> {
 		const suggestions = await this.friendRepository.findSuggestions(dto.userId);
-		return { suggestions };
+
+		const resolved = await Promise.all(
+			suggestions.map(async (user) => ({
+				...user,
+				profile: user.profile
+					? {
+							...user.profile,
+							avatar: await resolveAvatarUrl(
+								user.profile.avatar,
+								this.storageProvider,
+							),
+						}
+					: user.profile,
+			})),
+		);
+
+		return { suggestions: resolved };
 	}
 }

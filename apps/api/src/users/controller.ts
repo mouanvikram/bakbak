@@ -74,6 +74,40 @@ export class UserController {
 		return validateResponse(res, 200, updateAvatarResponseSchema, response);
 	};
 
+	uploadAvatar = async (req: AuthRequest, res: Response) => {
+		const userId = req.user?.userId;
+		const file = req.file;
+
+		if (!userId) {
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.USER_ID_NOT_VALID,
+				"Enter a valid user id",
+			);
+		}
+		if (!file) {
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.VALIDATION_ERROR,
+				"No avatar file received",
+			);
+		}
+
+		const response = await this.userService.uploadAvatar({
+			userId,
+			file: {
+				fieldname: file.fieldname,
+				originalname: file.originalname,
+				encoding: file.encoding,
+				mimetype: file.mimetype,
+				buffer: file.buffer,
+				size: file.size,
+			},
+		});
+
+		return validateResponse(res, 200, updateAvatarResponseSchema, response);
+	};
+
 	deleteMe = async (req: AuthRequest, res: Response) => {
 		const userId = req.user?.userId;
 

@@ -50,22 +50,25 @@ export const authService = new AuthService(
 );
 export const authController = new AuthController(authService);
 export const avatarController = new AvatarController(avatarTokenStore);
-export const userService = new UserService(userRepository);
+export const userService = new UserService(userRepository, storageProvider);
 export const userController = new UserController(userService);
 
 // friends
 export const friendRepository = new FriendRepository();
-export const friendService = new FriendService(friendRepository);
+export const friendService = new FriendService(friendRepository, storageProvider);
 export const friendController = new FriendController(friendService);
 
 // chat service
 export const chatRepository = new ChatRepository();
-export const chatService = new ChatService(chatRepository);
+export const chatService = new ChatService(chatRepository, storageProvider);
 export const chatController = new ChatController(chatService);
 
 // message service
 export const messageRepository = new MessageRepository();
-export const messageService = new MessageService(messageRepository);
+export const messageService = new MessageService(
+	messageRepository,
+	storageProvider,
+);
 export const messageController = new MessageController(messageService);
 // settings
 export const settingsRepository = new SettingsRepository();

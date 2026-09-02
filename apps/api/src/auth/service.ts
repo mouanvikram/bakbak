@@ -32,6 +32,7 @@ import type {
 import type { StorageProvider } from "../uploads/storage.provider";
 import type { UploadRepository } from "../uploads/repository";
 import type { AvatarTokenStore } from "../avatar/avatar-token.store";
+import { titleCaseName } from "../helpers/name-case";
 import {
 	extensionFrom,
 	kindFromExtension,
@@ -86,10 +87,10 @@ export class AuthService {
 			passwordHash: hashedPassword,
 			profile: {
 				create: {
-					firstName: dto.firstname,
-					lastName: dto.lastname,
+					firstName: titleCaseName(dto.firstname),
+					lastName: titleCaseName(dto.lastname),
 					avatar: avatarUrl,
-					displayName: dto.displayname,
+					displayName: titleCaseName(dto.displayname),
 					bio: dto.bio, 
 				},
 			},
@@ -153,7 +154,9 @@ export class AuthService {
 				fileSize: file.size,
 			});
 
-			return this.storageProvider.getSignedUrl(key, 3600);
+			// Persist the durable storage key; it is resolved to a fetchable
+			// signed URL when the profile is served (see UserService).
+			return key;
 		} catch (error) {
 			// A failed avatar write must not block account creation.
 			logger.error(
@@ -163,7 +166,6 @@ export class AuthService {
 			return null;
 		}
 	}
-
 	private buildAvatarKey(originalName: string): string {
 		const ext = extensionFrom(originalName);
 		const uuid = crypto.randomUUID();

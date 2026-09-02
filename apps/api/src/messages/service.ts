@@ -10,6 +10,8 @@ import type {
 	SendMessageDto,
 } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import type { StorageProvider } from "../uploads/storage.provider";
+import { resolveAvatarUrl } from "../uploads/avatar-url";
 
 const messageUserSelect = {
 	id: true,
@@ -31,31 +33,53 @@ const messageInclude = {
 } satisfies Prisma.MessageInclude;
 
 export class MessageService {
-	constructor(private readonly messageRepository: MessageRepository) {}
+	constructor(
+		private readonly messageRepository: MessageRepository,
+		private readonly storageProvider: StorageProvider,
+	) {}
 
-	private serializeMessage<T extends { createdAt: Date; updatedAt: Date }>(
-		message: T,
-	) {
-		return {
+	private async serializeMessage<
+		T extends {
+			createdAt: Date;
+			updatedAt: Date;
+			sender?: { profile?: { avatar?: string | null } | null };
+		},
+	>(message: T) {
+		const serialized = {
 			...message,
 			createdAt: message.createdAt.toISOString(),
 			updatedAt: message.updatedAt.toISOString(),
 		};
+		if (serialized.sender?.profile?.avatar !== undefined) {
+			serialized.sender.profile.avatar = await resolveAvatarUrl(
+				serialized.sender.profile.avatar,
+				this.storageProvider,
+			);
+		}
+		return serialized;
 	}
 
-	private serializeParticipant<
+	private async serializeParticipant<
 		T extends {
 			joinedAt: Date;
 			mutedUntil: Date | null;
 			leftAt: Date | null;
+			user?: { profile?: { avatar?: string | null } | null };
 		},
 	>(participant: T) {
-		return {
+		const serialized = {
 			...participant,
 			joinedAt: participant.joinedAt.toISOString(),
 			mutedUntil: participant.mutedUntil?.toISOString() ?? null,
 			leftAt: participant.leftAt?.toISOString() ?? null,
 		};
+		if (serialized.user?.profile?.avatar !== undefined) {
+			serialized.user.profile.avatar = await resolveAvatarUrl(
+				serialized.user.profile.avatar,
+				this.storageProvider,
+			);
+		}
+		return serialized;
 	}
 
 	private async requireActiveParticipant(chatId: string, userId: string) {
@@ -138,7 +162,7 @@ export class MessageService {
 			},
 		});
 
-		return this.serializeMessage(message);
+		return await this.serializeMessage(message);
 	}
 
 	async listMessages(dto: ChatMessagesDto) {
@@ -158,14 +182,14 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		return messages.map((message) => this.serializeMessage(message));
+		return Promise.all(messages.map((message) => this.serializeMessage(message)));
 	}
 
 	async getMessage(dto: MessageIdDto) {
 		const message = await this.requireVisibleMessage(dto.messageId);
 		await this.requireActiveParticipant(message.chatId, dto.currentUserId);
 
-		return this.serializeMessage(message);
+		return await this.serializeMessage(message);
 	}
 
 	async editMessage(dto: EditMessageDto) {
@@ -201,7 +225,7 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		return this.serializeMessage(updated);
+		return await this.serializeMessage(updated);
 	}
 
 	async deleteMessage(dto: MessageIdDto) {
@@ -228,7 +252,7 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		return this.serializeMessage(deleted);
+		return await this.serializeMessage(deleted);
 	}
 
 	async markChatRead(dto: MarkChatReadDto) {
@@ -269,7 +293,7 @@ export class MessageService {
 				},
 			});
 
-			return this.serializeParticipant(participant);
+			return await this.serializeParticipant(participant);
 		}
 
 		const message = await this.messageRepository.findFirst({
@@ -308,7 +332,7 @@ export class MessageService {
 			},
 		});
 
-		return this.serializeParticipant(participant);
+		return await this.serializeParticipant(participant);
 	}
 
 	async searchMessages(dto: SearchMessagesDto) {
@@ -341,7 +365,7 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		return messages.map((message) => this.serializeMessage(message));
+		return Promise.all(messages.map((message) => this.serializeMessage(message)));
 	}
 
 	async getUnreadCount(dto: ChatMessagesDto) {

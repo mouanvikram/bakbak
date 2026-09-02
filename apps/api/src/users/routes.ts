@@ -3,6 +3,10 @@ import { authMiddleware } from "../middleware/auth.middleware";
 import { userController } from "../services/service.container";
 import { validate } from "../middleware/validate";
 import {
+	avatarMulterErrorHandler,
+	avatarUploadMiddleware,
+} from "../avatar/avatar.middleware";
+import {
 	checkUsernameRequestSchema,
 	getProfileRequestSchema,
 	searchUsersRequestSchema,
@@ -31,6 +35,13 @@ router.patch(
 	"/me/avatar",
 	validate(updateAvatarRequestSchema),
 	userController.updateAvatar,
+);
+
+router.post(
+	"/me/avatar",
+	avatarUploadMiddleware,
+	avatarMulterErrorHandler,
+	userController.uploadAvatar,
 );
 
 router.delete("/me", userController.deleteMe);

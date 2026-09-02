@@ -109,4 +109,25 @@ export class UserRepository {
 			where,
 		});
 	}
+
+	async deleteSentMessages(userId: string) {
+		return prisma.message.deleteMany({
+			where: { senderId: userId },
+		});
+	}
+
+	async getSentMessageFilePaths(userId: string) {
+		const messages = await prisma.message.findMany({
+			where: { senderId: userId },
+			select: {
+				attachments: {
+					select: { filePath: true },
+				},
+			},
+		});
+
+		return messages.flatMap((message) =>
+			message.attachments.map((attachment) => attachment.filePath),
+		);
+	}
 }

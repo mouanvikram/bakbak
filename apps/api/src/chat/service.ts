@@ -9,6 +9,8 @@ import type {
 	UpdateChatDto,
 } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import type { StorageProvider } from "../uploads/storage.provider";
+import { resolveAvatarUrl } from "../uploads/avatar-url";
 
 const chatUserSelect = {
 	id: true,
@@ -74,7 +76,10 @@ const participantInclude = {
 } satisfies Prisma.ChatParticipantInclude;
 
 export class ChatService {
-	constructor(private readonly chatRepository: ChatRepository) {}
+	constructor(
+		private readonly chatRepository: ChatRepository,
+		private readonly storageProvider: StorageProvider,
+	) {}
 
 	private serializeMessage<T extends { createdAt: Date; updatedAt: Date }>(
 		message: T,
@@ -86,22 +91,37 @@ export class ChatService {
 		};
 	}
 
-	private serializeParticipant<
+	private async resolveUserAvatar<U extends {
+		profile?: { avatar?: string | null } | null;
+	}>(user: U): Promise<U> {
+		const avatar = user.profile?.avatar;
+		if (avatar !== undefined && user.profile) {
+			user.profile.avatar = await resolveAvatarUrl(avatar, this.storageProvider);
+		}
+		return user;
+	}
+
+	private async serializeParticipant<
 		T extends {
 			joinedAt: Date;
 			mutedUntil: Date | null;
 			leftAt?: Date | null;
+			user?: { profile?: { avatar?: string | null } | null };
 		},
 	>(participant: T) {
-		return {
+		const serialized = {
 			...participant,
 			joinedAt: participant.joinedAt.toISOString(),
 			mutedUntil: participant.mutedUntil?.toISOString() ?? null,
 			leftAt: participant.leftAt?.toISOString() ?? null,
 		};
+		if (serialized.user) {
+			await this.resolveUserAvatar(serialized.user);
+		}
+		return serialized;
 	}
 
-	private serializeChat<
+	private async serializeChat<
 		T extends {
 			createdAt: Date;
 			updatedAt: Date;
@@ -110,18 +130,31 @@ export class ChatService {
 				joinedAt: Date;
 				mutedUntil: Date | null;
 				leftAt?: Date | null;
+				user?: { profile?: { avatar?: string | null } | null };
 			}>;
 			messages?: Array<{ createdAt: Date; updatedAt: Date }>;
+			createdBy?: { profile?: { avatar?: string | null } | null } | null;
 		},
 	>(chat: T) {
+		const participants = chat.participants
+			? await Promise.all(
+					chat.participants.map((participant) =>
+						this.serializeParticipant(participant),
+					),
+				)
+			: undefined;
+
+		const createdBy = chat.createdBy
+			? await this.resolveUserAvatar(chat.createdBy)
+			: undefined;
+
 		return {
 			...chat,
 			createdAt: chat.createdAt.toISOString(),
 			updatedAt: chat.updatedAt.toISOString(),
 			lastMessageAt: chat.lastMessageAt?.toISOString() ?? null,
-			participants: chat.participants?.map((participant) =>
-				this.serializeParticipant(participant),
-			),
+			createdBy,
+			participants,
 			messages: chat.messages?.map((message) => this.serializeMessage(message)),
 		};
 	}
@@ -226,7 +259,7 @@ export class ChatService {
 			include: getChatInclude(),
 		});
 
-		return this.serializeChat(chat);
+		return await this.serializeChat(chat);
 	};
 
 	createGroupChat = async (dto: CreateGroupChatDto) => {
@@ -278,7 +311,7 @@ export class ChatService {
 			include: getChatInclude(),
 		});
 
-		return this.serializeChat(chat);
+		return await this.serializeChat(chat);
 	};
 
 	listChats = async (dto: ListChatsDto) => {
@@ -305,7 +338,7 @@ export class ChatService {
 			include: getChatInclude(),
 		});
 
-		return chats.map((chat) => this.serializeChat(chat));
+		return Promise.all(chats.map((chat) => this.serializeChat(chat)));
 	};
 
 	getChat = async (dto: ChatIdDto) => {
@@ -326,7 +359,7 @@ export class ChatService {
 			);
 		}
 
-		return this.serializeChat(chat);
+		return await this.serializeChat(chat);
 	};
 
 	updateChat = async (dto: UpdateChatDto) => {
@@ -381,7 +414,7 @@ export class ChatService {
 			);
 		}
 
-		return this.serializeChat(
+		return await this.serializeChat(
 			await this.chatRepository.update({
 				where: {
 					id: dto.chatId,
@@ -447,7 +480,7 @@ export class ChatService {
 			include: participantInclude,
 		});
 
-		return this.serializeParticipant(participant);
+		return await this.serializeParticipant(participant);
 	};
 
 	removeParticipant = async (dto: ParticipantDto) => {
@@ -495,7 +528,7 @@ export class ChatService {
 			include: participantInclude,
 		});
 
-		return this.serializeParticipant(participant);
+		return await this.serializeParticipant(participant);
 	};
 
 	deleteChat = async (dto: ChatIdDto) => {
@@ -547,6 +580,6 @@ export class ChatService {
 			},
 		});
 
-		return this.serializeChat(chatDeleted);
+		return await this.serializeChat(chatDeleted);
 	};
 }
