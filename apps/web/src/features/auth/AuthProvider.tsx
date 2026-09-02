@@ -9,31 +9,16 @@ import {
   login as apiLogin,
   signup as apiSignup,
   verifyEmail as apiVerifyEmail,
-  refreshToken as apiRefreshToken,
   logout as apiLogout,
 } from "./api";
 import { getMe } from "@/features/users/api";
 import { AuthContext } from "./auth-context";
-
-const ACCESS_TOKEN_KEY = "bakbak_access_token";
-const REFRESH_TOKEN_KEY = "bakbak_refresh_token";
-
-function getStoredTokens() {
-  return {
-    accessToken: localStorage.getItem(ACCESS_TOKEN_KEY),
-    refreshToken: localStorage.getItem(REFRESH_TOKEN_KEY),
-  };
-}
-
-function storeTokens(accessToken: string, refreshToken: string) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-}
-
-function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-}
+import {
+  clearTokens as clearStoredTokens,
+  dedupeRefresh,
+  getStoredTokens,
+  storeTokens as storeStoredTokens,
+} from "@/lib/api/tokens";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<LoginResponseType["user"] | null>(null);
@@ -54,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setUser(null);
       setProfile(null);
-      clearTokens();
+      clearStoredTokens();
     }
   }, []);
 
@@ -65,17 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    apiRefreshToken({ refreshToken })
-      .then((tokens) => {
-        storeTokens(tokens.accessToken, tokens.refreshToken);
-        return getMe();
-      })
+    dedupeRefresh()
+      .then(() => getMe())
       .then((me) => {
         setProfile(me.profile);
         setUser({ id: me.profile.id, identifier: me.profile.username });
       })
       .catch(() => {
-        clearTokens();
+        clearStoredTokens();
         setUser(null);
         setProfile(null);
       })
@@ -84,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (data: LoginRequestType) => {
     const response = await apiLogin(data);
-    storeTokens(response.accessToken, response.refreshToken);
+    storeStoredTokens(response.accessToken, response.refreshToken);
     setUser(response.user);
     const me = await getMe();
     setProfile(me.profile);
@@ -103,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiLogout({ refreshToken: refreshToken ?? undefined });
     } finally {
-      clearTokens();
+      clearStoredTokens();
       setUser(null);
       setProfile(null);
     }
