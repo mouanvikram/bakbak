@@ -1,5 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import logger from "@lib/logger";
+import logger from "@logger";
 
 export function registerConnection(
     io: Server,

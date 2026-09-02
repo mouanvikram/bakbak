@@ -5,7 +5,7 @@ import app from "./src/app";
 import { env } from "./lib/config";
 import { initializeWebSocket } from "./src/websocket";
 import { refreshTokenRepository } from "./src/services/service.container";
-import logger from "@lib/logger";
+import logger from "@logger";
 
 const REFRESH_TOKEN_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 

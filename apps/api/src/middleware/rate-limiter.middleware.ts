@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../../lib/config";
-import logger from "@lib/logger";
+import logger from "@logger";
 
 interface ClientWindow {
 	timestamps: number[];

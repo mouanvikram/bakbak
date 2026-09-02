@@ -2,7 +2,7 @@ import type { AuthRequest } from "../auth/controller";
 import type { NextFunction, Response } from "express";
 import { jwtService } from "../services/service.container";
 import type { AccessTokenPayload } from "../helpers/jwt.service";
-import logger from "@lib/logger";
+import logger from "@logger";
 import { userIdSchema } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 
