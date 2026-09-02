@@ -67,6 +67,16 @@ export class UploadService {
 			);
 		}
 
+		// Storage keys are namespaced by userId (e.g. "userId/uuid.ext").
+		// Reject if the requesting user does not own this attachment.
+		if (!attachment.filePath.startsWith(`${userId}/`)) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.FORBIDDEN,
+				"You do not have permission to delete this attachment",
+			);
+		}
+
 		await this.storageProvider.delete(attachment.filePath);
 		await this.uploadRepository.deleteById(attachmentId);
 
