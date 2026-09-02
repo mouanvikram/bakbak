@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Navigate, Routes } from "react-router";
 import { useAuth } from "@/features/auth/auth-context";
+import { SocketProvider } from "@/features/chat/socket-context";
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -34,6 +35,24 @@ import { ResponsivePage } from "@/components/layout/ResponsivePage";
 import { MobilePage } from "@/components/layout/MobilePage";
 import { EmptyState } from "@/components/ui/States";
 import AppLayout from "@/components/layout/AppLayout";
+import { useIsDesktop } from "@/lib/use-media-query";
+
+/**
+ * Section landing routes: on desktop the sidebar lives in its own column, so
+ * jump straight to the default detail page. On mobile the landing *is* the
+ * list of options and tapping one navigates to its page.
+ */
+function ResponsiveIndex({
+  mobile,
+  redirectTo,
+}: {
+  mobile: React.ReactNode;
+  redirectTo: string;
+}) {
+  const isDesktop = useIsDesktop();
+  if (isDesktop) return <Navigate to={redirectTo} replace />;
+  return <>{mobile}</>;
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -91,7 +110,9 @@ function App() {
         <Route
           element={
             <ProtectedRoute>
-              <AppLayout />
+              <SocketProvider>
+                <AppLayout />
+              </SocketProvider>
             </ProtectedRoute>
           }
         >
@@ -108,7 +129,18 @@ function App() {
             <Route
               index
               element={
-                <ResponsivePage mobile={<SettingsSidebar />} desktop={<AccountPage />} />
+                <ResponsiveIndex
+                  mobile={<SettingsSidebar />}
+                  redirectTo="/settings/account"
+                />
+              }
+            />
+            <Route
+              path="account"
+              element={
+                <MobilePage title="Account">
+                  <AccountPage />
+                </MobilePage>
               }
             />
             <Route
@@ -209,7 +241,18 @@ function App() {
             <Route
               index
               element={
-                <ResponsivePage mobile={<FriendsSidebar />} desktop={<FriendsPage />} />
+                <ResponsiveIndex
+                  mobile={<FriendsSidebar />}
+                  redirectTo="/friends/list"
+                />
+              }
+            />
+            <Route
+              path="list"
+              element={
+                <MobilePage title="Friends">
+                  <FriendsPage />
+                </MobilePage>
               }
             />
             <Route

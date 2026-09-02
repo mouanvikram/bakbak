@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   UserRound,
@@ -8,8 +9,11 @@ import {
   MessageCircle,
   CircleHelp,
   CircleAlert,
+  LogOut,
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
+import { useAuth } from "@/features/auth/auth-context";
+import { Spinner } from "@/components/ui/Spinner";
 
 type SidebarOption = {
   label: string;
@@ -23,7 +27,7 @@ const navigation: Record<string, SidebarOption[]> = {
     {
       label: "Account",
       desc: "Profile, username, and email",
-      path: "/settings",
+      path: "/settings/account",
       icon: UserRound,
     },
     {
@@ -73,6 +77,9 @@ const navigation: Record<string, SidebarOption[]> = {
 
 export function SettingsSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const section = Object.keys(navigation).find((basePath) =>
     location.pathname.startsWith(basePath),
@@ -84,13 +91,23 @@ export function SettingsSidebar() {
     return null;
   }
 
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate("/login", { replace: true });
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
   return (
-    <nav className="flex h-full w-full flex-col overflow-y-auto rounded-lg bg-white p-3 shadow-md">
-      <div className="mb-3 px-2">
-        <h2 className="text-xl font-semibold">Settings</h2>
+    <nav className="flex h-full w-full flex-col overflow-y-auto bg-white">
+      <div className="px-4 py-3">
+        <h2 className="text-lg font-bold text-slate-900">Settings</h2>
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col">
         {options.map((option) => {
           return (
             <NavLink
@@ -99,10 +116,10 @@ export function SettingsSidebar() {
               end
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-4 text-sm transition-colors",
+                  "flex items-center gap-3 px-4 py-3.5 text-sm transition-colors",
                   isActive && "bg-violet-50 text-violet-600",
                   !isActive &&
-                    "text-muted-foreground hover:bg-slate-50 hover:text-slate-900",
+                    "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                 )
               }
             >
@@ -115,7 +132,7 @@ export function SettingsSidebar() {
                       className={cn(
                         "flex w-10 items-center justify-center",
                         isActive && "text-violet-600",
-                        !isActive && "text-muted-foreground",
+                        !isActive && "text-gray-400",
                       )}
                     >
                       <Icon
@@ -150,6 +167,30 @@ export function SettingsSidebar() {
             </NavLink>
           );
         })}
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="flex items-center gap-3 border-t border-gray-100 px-4 py-3.5 text-left text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <div className="flex w-10 items-center justify-center">
+            {loggingOut ? (
+              <Spinner className="size-6 shrink-0" />
+            ) : (
+              <LogOut className="size-6 shrink-0" />
+            )}
+          </div>
+
+          <div className="flex flex-col">
+            <span className="font-semibold">
+              {loggingOut ? "Logging out..." : "Logout"}
+            </span>
+            <span className="text-sm text-red-400">
+              Sign out of your account
+            </span>
+          </div>
+        </button>
       </div>
     </nav>
   );
