@@ -187,12 +187,19 @@ export class AuthService {
 
 		// Reject attempts while the account is locked (checked before the
 		// password round-trip to avoid burning CPU on a locked account).
-		if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
-			throw new AppError(
-				HTTP_STATUS.TOO_MANY_REQUESTS,
-				ERROR_CODES.ACCOUNT_LOCKED,
-				"Too many failed attempts. Account is temporarily locked.",
-			);
+		if (user.lockedUntil) {
+			if (user.lockedUntil.getTime() > Date.now()) {
+				throw new AppError(
+					HTTP_STATUS.TOO_MANY_REQUESTS,
+					ERROR_CODES.ACCOUNT_LOCKED,
+					"Too many failed attempts. Account is temporarily locked.",
+				);
+			}
+			// Lockout has expired — clear the stale state so the user
+			// gets a fresh attempt window.
+			await this.userRepository.resetLoginFailures(user.id);
+			user.failedLoginAttempts = 0;
+			user.lockedUntil = null;
 		}
 
 		// matching password
