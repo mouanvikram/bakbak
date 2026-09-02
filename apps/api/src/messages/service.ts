@@ -12,6 +12,12 @@ import type {
 import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
 import type { StorageProvider } from "../uploads/storage.provider";
 import { resolveAvatarUrl } from "../uploads/avatar-url";
+import {
+	broadcastMessage,
+	broadcastMessageEdited,
+	broadcastMessageDeleted,
+	broadcastReadReceipt,
+} from "../websocket/emitter";
 
 const messageUserSelect = {
 	id: true,
@@ -153,7 +159,15 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		return await this.serializeMessage(message);
+		const serialized = await this.serializeMessage(message);
+
+		try {
+			broadcastMessage(dto.chatId, serialized);
+		} catch {
+			// WebSocket may not be initialised in test runners.
+		}
+
+		return serialized;
 	}
 
 	async listMessages(dto: ChatMessagesDto) {
@@ -216,7 +230,15 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		return await this.serializeMessage(updated);
+		const serialized = await this.serializeMessage(updated);
+
+		try {
+			broadcastMessageEdited(message.chatId, serialized);
+		} catch {
+			// WebSocket may not be initialised in test runners.
+		}
+
+		return serialized;
 	}
 
 	async deleteMessage(dto: MessageIdDto) {
@@ -243,7 +265,15 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		return await this.serializeMessage(deleted);
+		const serialized = await this.serializeMessage(deleted);
+
+		try {
+			broadcastMessageDeleted(message.chatId, serialized);
+		} catch {
+			// WebSocket may not be initialised in test runners.
+		}
+
+		return serialized;
 	}
 
 	async markChatRead(dto: MarkChatReadDto) {
@@ -284,6 +314,14 @@ export class MessageService {
 				},
 			});
 
+			try {
+				if (messageId) {
+					broadcastReadReceipt(dto.chatId, dto.currentUserId, messageId);
+				}
+			} catch {
+				// WebSocket may not be initialised in test runners.
+			}
+
 			return await this.serializeParticipant(participant);
 		}
 
@@ -322,6 +360,12 @@ export class MessageService {
 				},
 			},
 		});
+
+		try {
+			broadcastReadReceipt(dto.chatId, dto.currentUserId, message.id);
+		} catch {
+			// WebSocket may not be initialised in test runners.
+		}
 
 		return await this.serializeParticipant(participant);
 	}
