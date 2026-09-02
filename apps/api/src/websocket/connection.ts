@@ -1,15 +1,13 @@
 import type { Server, Socket } from "socket.io";
+import logger from "@lib/logger";
 
 export function registerConnection(
     io: Server,
     socket: Socket,
 ) {
-    console.log(`Socket connected: ${socket.id}`);
+    logger.info({ socketId: socket.id }, "Socket connected");
 
     socket.on("disconnect", (reason) => {
-        console.log(
-            `Socket disconnected: ${socket.id}`,
-            reason,
-        );
+        logger.info({ socketId: socket.id, reason }, "Socket disconnected");
     });
 }
