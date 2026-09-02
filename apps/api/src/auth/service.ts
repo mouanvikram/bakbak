@@ -185,6 +185,16 @@ export class AuthService {
 			);
 		}
 
+		// Reject attempts while the account is locked (checked before the
+		// password round-trip to avoid burning CPU on a locked account).
+		if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+			throw new AppError(
+				HTTP_STATUS.TOO_MANY_REQUESTS,
+				ERROR_CODES.ACCOUNT_LOCKED,
+				"Too many failed attempts. Account is temporarily locked.",
+			);
+		}
+
 		// matching password
 		const matches = await this.pwdService.verify(
 			dto.password,
@@ -192,12 +202,21 @@ export class AuthService {
 		);
 
 		if (!matches) {
+			const failedAttempts = user.failedLoginAttempts + 1;
+			if (failedAttempts >= env.LOGIN_MAX_ATTEMPTS) {
+				await this.userRepository.lockLoginFor(user.id);
+			} else {
+				await this.userRepository.recordFailedLogin(user.id);
+			}
+
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
 				ERROR_CODES.INVALID_CREDENTIALS,
 				"Invalid credentials",
 			);
 		}
+
+		await this.userRepository.resetLoginFailures(user.id);
 
 		if (!user.isEmailVerified) {
 			throw new AppError(
@@ -272,19 +291,7 @@ export class AuthService {
 			);
 		}
 
-		await this.userRepository.updateBy(
-			{
-				id: verification.userId,
-			},
-			{
-				isEmailVerified: true,
-			},
-		);
-
-		await this.emailRepository.deleteAll({
-			userId: verification.userId,
-			type: VerificationTokenType.EMAIL_VERIFICATION,
-		});
+		await this.emailRepository.markVerifiedAndClearTokens(verification.userId);
 
 		return {
 			message: "Email verified successfully",
@@ -596,18 +603,11 @@ export class AuthService {
 
 		const passwordHash = await this.pwdService.hash(dto.newPassword);
 
-		await this.userRepository.updateBy(
-			{
-				id: token.userId,
-			},
-			{
-				passwordHash,
-			},
+		await this.emailRepository.resetPasswordAndClearToken(
+			token.userId,
+			passwordHash,
+			token.id,
 		);
-
-		await this.emailRepository.deleteAll({
-			id: token.id,
-		});
 
 		return {
 			message: "Password reset successful",

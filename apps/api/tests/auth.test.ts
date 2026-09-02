@@ -348,6 +348,69 @@ describe("Auth Endpoints", () => {
 		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
+	test("POST /api/v1/auth/login - should lock the account after repeated failures", async () => {
+		const user = await createTestUser({
+			email: `lock-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+		const body = (password: string) =>
+			JSON.stringify({ identifier: user.email, password });
+
+		for (let i = 0; i < 5; i++) {
+			const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: body("WrongPass123!"),
+			});
+			expect(res.status).toBe(401);
+		}
+
+		const locked = await prisma.user.findUnique({
+			where: { id: user.id },
+		});
+		expect(locked?.lockedUntil).not.toBeNull();
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: body("TestPass123!"),
+		});
+		expect(res.status).toBe(429);
+		const data = (await res.json()) as any;
+		expect(data.error.code).toBe("ACCOUNT_LOCKED");
+	}, 45000);
+
+	test("POST /api/v1/auth/login - successful login resets failed attempts", async () => {
+		const user = await createTestUser({
+			email: `reset-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+		const body = (password: string) =>
+			JSON.stringify({ identifier: user.email, password });
+
+		for (let i = 0; i < 3; i++) {
+			const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: body("WrongPass123!"),
+			});
+			expect(res.status).toBe(401);
+		}
+
+		const ok = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: body("TestPass123!"),
+		});
+		expect(ok.status).toBe(200);
+
+		const record = await prisma.user.findUnique({
+			where: { id: user.id },
+		});
+		expect(record?.failedLoginAttempts).toBe(0);
+		expect(record?.lockedUntil).toBeNull();
+	}, 45000);
+
 	test("POST /api/v1/auth/verify-email - should verify with valid token", async () => {
 		const user = await createTestUser({
 			email: `verify-${Date.now()}@example.com`,

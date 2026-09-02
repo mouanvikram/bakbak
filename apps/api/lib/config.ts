@@ -34,6 +34,8 @@ export const env = {
 	CORS_ORIGINS: parseOrigins(process.env.CORS_ORIGINS),
 	RATE_LIMIT_WINDOW_MS: Number(process.env.RATE_LIMIT_WINDOW_MS) || 60000,
 	RATE_LIMIT_MAX_REQUESTS: Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+	LOGIN_MAX_ATTEMPTS: Number(process.env.LOGIN_MAX_ATTEMPTS) || 5,
+	LOGIN_LOCKOUT_MS: Number(process.env.LOGIN_LOCKOUT_MS) || 15 * 60 * 1000,
 	STORAGE_ENDPOINT: process.env.STORAGE_ENDPOINT ?? "localhost",
 	STORAGE_PORT: Number(process.env.STORAGE_PORT) || 9000,
 	STORAGE_USE_SSL: (process.env.STORAGE_USE_SSL ?? "false") === "true",

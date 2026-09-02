@@ -1,4 +1,5 @@
 import { prisma, Prisma } from "@bakbak/db";
+import { env } from "../../lib/config";
 export class UserRepository {
 	// will work every type id,email, username
 	async findBy(where: Prisma.UserWhereUniqueInput) {
@@ -95,6 +96,33 @@ export class UserRepository {
 		return prisma.user.update({
 			where,
 			data,
+		});
+	}
+
+	async recordFailedLogin(userId: string) {
+		return prisma.user.update({
+			where: { id: userId },
+			data: { failedLoginAttempts: { increment: 1 } },
+		});
+	}
+
+	async lockLoginFor(userId: string) {
+		return prisma.user.update({
+			where: { id: userId },
+			data: {
+				failedLoginAttempts: 0,
+				lockedUntil: new Date(Date.now() + env.LOGIN_LOCKOUT_MS),
+			},
+		});
+	}
+
+	async resetLoginFailures(userId: string) {
+		return prisma.user.update({
+			where: { id: userId },
+			data: {
+				failedLoginAttempts: 0,
+				lockedUntil: null,
+			},
 		});
 	}
 
