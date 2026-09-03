@@ -1,5 +1,5 @@
 import { prisma, Prisma } from "@bakbak/db";
-import { env } from "../../lib/config";
+import { env } from "@/config";
 export class UserRepository {
 	// will work every type id,email, username
 	async findBy(where: Prisma.UserWhereUniqueInput) {

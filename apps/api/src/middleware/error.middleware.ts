@@ -1,7 +1,7 @@
 import type { ErrorRequestHandler } from "express";
 import { Prisma } from "@bakbak/db";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
-import logger from "@logger";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
+import logger from "@/lib/logger";
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 	if (err?.type === "entity.too.large") {

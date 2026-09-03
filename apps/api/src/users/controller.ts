@@ -11,7 +11,7 @@ import {
 	updateAvatarResponseSchema,
 	updateProfileResponseSchema,
 } from "@bakbak/contracts";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
 export class UserController {
 	constructor(private readonly userService: UserService) {}

@@ -3,7 +3,7 @@ import type { AuthRequest } from "../auth/controller";
 import type { AvatarTokenStore } from "./avatar-token.store";
 import { validateResponse } from "../middleware/validate";
 import { avatarUploadResponseSchema } from "@bakbak/contracts";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
 export class AvatarController {
 	constructor(private readonly avatarTokenStore: AvatarTokenStore) {}

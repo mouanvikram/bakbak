@@ -1,7 +1,7 @@
 import multer from "multer";
 import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { kindFromMime } from "../uploads/file-type";
 
 export const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB

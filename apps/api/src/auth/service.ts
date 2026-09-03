@@ -6,9 +6,9 @@ import crypto from "crypto";
 import type { EmailRepository } from "../helpers/email.repository";
 import type { RefreshTokenRepository } from "../helpers/refresh_token.repository";
 import { VerificationTokenType } from "@bakbak/db";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
-import { env } from "../../lib/config";
-import logger from "@logger";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
+import { env } from "@/config";
+import logger from "@/lib/logger";
 import type {
 	ChangePasswordRequestType,
 	ChangePasswordResponseType,

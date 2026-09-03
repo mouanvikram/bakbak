@@ -28,7 +28,7 @@ import { avatarTokenStore } from "../avatar/avatar-token.store";
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
-import { env } from "../../lib/config";
+import { env } from "@/config";
 
 export const userRepository = new UserRepository();
 export const pwdService = new PasswordService();

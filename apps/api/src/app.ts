@@ -3,7 +3,7 @@ import { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import { env } from "../lib/config";
+import { env } from "@/config";
 import { errorHandler } from "./middleware/error.middleware";
 import { requestIdMiddleware } from "./middleware/request-id.middleware";
 import { requestLoggerMiddleware } from "./middleware/request-logger.middleware";

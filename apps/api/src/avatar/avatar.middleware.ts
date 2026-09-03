@@ -1,7 +1,7 @@
 import multer from "multer";
 import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
 export const MAX_AVATAR_SIZE = 10 * 1024 * 1024; // 10 MB
 

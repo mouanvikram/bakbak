@@ -4,7 +4,7 @@ import {
 	type AccessTokenPayload,
 	JwtService,
 } from "../src/helpers/jwt.service";
-import { env } from "../lib/config";
+import { env } from "@/config";
 
 export function authHeader(userId: string, username: string) {
 	const jwtService = new JwtService(env.JWT_SECRET);

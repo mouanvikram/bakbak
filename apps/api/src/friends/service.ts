@@ -18,7 +18,7 @@ import type {
 	SendFriendRequestResponseType,
 	UserIdType,
 } from "@bakbak/contracts";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "../uploads/storage.provider";
 import { resolveAvatarUrl } from "../uploads/avatar-url";
 

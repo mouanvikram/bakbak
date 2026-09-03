@@ -1,10 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ZodType } from "zod";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { AuthRequest } from "../auth/controller";
 import { userIdSchema } from "@bakbak/contracts";
-import logger from "@logger";
-import { env } from "../../lib/config";
+import logger from "@/lib/logger";
+import { env } from "@/config";
 
 export function validate<T>(
 	schema: ZodType<T>,

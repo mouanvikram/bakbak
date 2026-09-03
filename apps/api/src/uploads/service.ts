@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { UploadDto } from "@bakbak/contracts";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "./storage.provider";
 import type { UploadRepository } from "./repository";
 import {

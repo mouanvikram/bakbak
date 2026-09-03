@@ -18,7 +18,7 @@ import type {
 	UserIdType,
 } from "@bakbak/contracts";
 import type { UploadFile } from "@bakbak/contracts";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { resolveAvatarUrl, AVATAR_URL_TTL_SECONDS } from "../uploads/avatar-url";
 import { titleCaseName } from "../helpers/name-case";
 

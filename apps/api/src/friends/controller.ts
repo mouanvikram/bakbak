@@ -2,7 +2,7 @@ import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import type { FriendService } from "./service";
 import { validateResponse } from "../middleware/validate";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import {
 	acceptFriendRequestResponseSchema,
 	cancelFriendRequestResponseSchema,

@@ -1,4 +1,4 @@
-import { env } from "../../lib/config";
+import { env } from "@/config";
 import type { StorageProvider } from "./storage.provider";
 import { S3StorageProvider } from "./storage-s3";
 

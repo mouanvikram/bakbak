@@ -1,6 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import { prisma } from "@bakbak/db";
-import logger from "@logger";
+import logger from "@/lib/logger";
 import type { AuthenticatedSocket } from "./auth";
 
 const TYPING_THROTTLE_MS = 3_000;

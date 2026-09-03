@@ -13,7 +13,7 @@ import {
 	sendMessageResponseSchema,
 	getUnreadCountResponseSchema,
 } from "@bakbak/contracts";
-import { HTTP_STATUS, AppError, ERROR_CODES } from "../../errors/app-error";
+import { HTTP_STATUS, AppError, ERROR_CODES } from "@/errors/app-error";
 
 const getString = (value: unknown) =>
 	typeof value === "string" && value.trim() ? value.trim() : undefined;

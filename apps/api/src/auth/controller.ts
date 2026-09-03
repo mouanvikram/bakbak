@@ -12,7 +12,7 @@ import {
 	refreshTokenResponseSchema,
 } from "@bakbak/contracts";
 import { validateResponse } from "../middleware/validate";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "../../errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
 export interface AuthRequest extends Request {
 	user?: {

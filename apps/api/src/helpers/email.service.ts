@@ -1,8 +1,8 @@
-import { verificationEmail } from "@lib/emails.template/verify-email";
+import { verificationEmail } from "@/email/templates/verify-email";
 import { Resend } from "resend";
-import logger from "@logger";
-import { resetPasswordEmail } from "@lib/emails.template/reset-password";
-import { env } from "../../lib/config";
+import logger from "@/lib/logger";
+import { resetPasswordEmail } from "@/email/templates/reset-password";
+import { env } from "@/config";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
