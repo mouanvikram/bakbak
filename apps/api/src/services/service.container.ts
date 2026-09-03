@@ -1,9 +1,9 @@
 import { AuthController } from "../auth/controller";
-import { EmailRepository } from "../helpers/email.repository";
-import { EmailService } from "../helpers/email.service";
-import { JwtService } from "../helpers/jwt.service";
-import { PasswordService } from "../helpers/pwd.service";
-import { RefreshTokenRepository } from "../helpers/refresh_token.repository";
+import { EmailRepository } from "../email/repository";
+import { EmailService } from "../email/service";
+import { JwtService } from "../auth/jwt.service";
+import { PasswordService } from "../auth/password.service";
+import { RefreshTokenRepository } from "../auth/refresh-token.repository";
 import { AuthService } from "../auth/service";
 import { ChatController } from "../chat/controller";
 import { ChatService } from "../chat/service";
@@ -24,7 +24,7 @@ import { storageProvider } from "../uploads/storage";
 import {
 	AvatarController,
 } from "../avatar/controller";
-import { avatarTokenStore } from "../avatar/avatar-token.store";
+import { avatarTokenStore } from "../avatar/token.store";
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";

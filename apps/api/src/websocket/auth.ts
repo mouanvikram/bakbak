@@ -1,7 +1,7 @@
 import type { Socket } from "socket.io";
 import type { ExtendedError } from "socket.io";
 import { jwtService } from "../services/service.container";
-import type { AccessTokenPayload } from "../helpers/jwt.service";
+import type { AccessTokenPayload } from "../auth/jwt.service";
 
 export interface AuthenticatedSocket extends Socket {
 	data: {

@@ -20,7 +20,7 @@ import type {
 import type { UploadFile } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { resolveAvatarUrl, AVATAR_URL_TTL_SECONDS } from "../uploads/avatar-url";
-import { titleCaseName } from "../helpers/name-case";
+import { titleCaseName } from "../lib/name-case";
 
 export class UserService {
 	constructor(

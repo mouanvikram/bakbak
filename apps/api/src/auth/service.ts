@@ -1,10 +1,10 @@
-import type { AccessTokenPayload, JwtService } from "../helpers/jwt.service";
-import type { PasswordService } from "../helpers/pwd.service";
+import type { AccessTokenPayload, JwtService } from "./jwt.service";
+import type { PasswordService } from "./password.service";
 import type { UserRepository } from "../users/repository";
-import type { EmailService } from "../helpers/email.service";
+import type { EmailService } from "../email/service";
 import crypto from "crypto";
-import type { EmailRepository } from "../helpers/email.repository";
-import type { RefreshTokenRepository } from "../helpers/refresh_token.repository";
+import type { EmailRepository } from "../email/repository";
+import type { RefreshTokenRepository } from "./refresh-token.repository";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { env } from "@/config";
@@ -31,8 +31,8 @@ import type {
 } from "@bakbak/contracts";
 import type { StorageProvider } from "../uploads/storage.provider";
 import type { UploadRepository } from "../uploads/repository";
-import type { AvatarTokenStore } from "../avatar/avatar-token.store";
-import { titleCaseName } from "../helpers/name-case";
+import type { AvatarTokenStore } from "../avatar/token.store";
+import { titleCaseName } from "../lib/name-case";
 import {
 	extensionFrom,
 	kindFromExtension,

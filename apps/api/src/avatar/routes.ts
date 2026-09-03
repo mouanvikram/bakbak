@@ -3,7 +3,7 @@ import { avatarController } from "../services/service.container";
 import {
 	avatarMulterErrorHandler,
 	avatarUploadMiddleware,
-} from "./avatar.middleware";
+} from "./middleware";
 
 const router = Router();
 

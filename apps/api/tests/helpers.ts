@@ -3,7 +3,7 @@ import type { User } from "@bakbak/db";
 import {
 	type AccessTokenPayload,
 	JwtService,
-} from "../src/helpers/jwt.service";
+} from "../src/auth/jwt.service";
 import { env } from "@/config";
 
 export function authHeader(userId: string, username: string) {

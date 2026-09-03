@@ -1,6 +1,6 @@
 import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
-import type { AvatarTokenStore } from "./avatar-token.store";
+import type { AvatarTokenStore } from "./token.store";
 import { validateResponse } from "../middleware/validate";
 import { avatarUploadResponseSchema } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
