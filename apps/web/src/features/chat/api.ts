@@ -1,6 +1,5 @@
 import type {
-  CreateDirectChatRequestType,
-  CreateGroupChatRequestType,
+  CreateChatRequestType,
   CreateChatResponseType,
   ListChatsResponseType,
   GetChatResponseType,
@@ -14,7 +13,7 @@ import type {
 import { apiClient } from "@/lib/api/client";
 
 export function createDirectChat(
-  data: CreateDirectChatRequestType,
+  data: Extract<CreateChatRequestType, { type: "DIRECT" }>,
 ): Promise<CreateChatResponseType> {
   return apiClient("/api/v1/chats", {
     method: "POST",
@@ -23,7 +22,7 @@ export function createDirectChat(
 }
 
 export function createGroupChat(
-  data: CreateGroupChatRequestType,
+  data: Extract<CreateChatRequestType, { type: "GROUP" }>,
 ): Promise<CreateChatResponseType> {
   return apiClient("/api/v1/chats", {
     method: "POST",

@@ -6,14 +6,21 @@ import { chatMessageRoutes } from "../messages/routes";
 import {
 	addParticipantRequestSchema,
 	chatIdParamsSchema,
+	chatMemberParamsSchema,
+	createChatRequestSchema,
+	listChatsQuerySchema,
 	updateChatRequestSchema,
 } from "@bakbak/contracts";
 
 const router = express.Router();
 router.use(authMiddleware);
 // Chats
-router.post("/", chatController.createChat);
-router.get("/", chatController.listChats);
+router.post("/", validate(createChatRequestSchema), chatController.createChat);
+router.get(
+	"/",
+	validate(listChatsQuerySchema, "query"),
+	chatController.listChats,
+);
 router.get(
 	"/:chatId",
 	validate(chatIdParamsSchema, "params"),
@@ -43,7 +50,7 @@ router.post(
 );
 router.delete(
 	"/:chatId/members/:userId",
-	validate(chatIdParamsSchema, "params"),
+	validate(chatMemberParamsSchema, "params"),
 	chatController.removeParticipant,
 );
 

@@ -58,30 +58,45 @@ export const chatResponseSchema = chatBaseSchema.extend({
 
 export type ChatResponseType = z.infer<typeof chatResponseSchema>;
 
-export const createDirectChatRequestSchema = z.object({
-	type: z.enum(["DIRECT", "GROUP"]),
-	participantId: z.uuid(),
-});
-
 export const chatIdParamsSchema = z.object({
 	chatId: z.uuid(),
 });
 
 export type ChatIdParamsType = z.infer<typeof chatIdParamsSchema>;
 
-export type CreateDirectChatRequestType = z.infer<
-	typeof createDirectChatRequestSchema
->;
-
-export const createGroupChatRequestSchema = z.object({
-	name: safeString(100, 1),
-	participantIds: z.array(z.uuid()).min(1),
-	avatar: safeString(1024).optional(),
+export const chatMemberParamsSchema = z.object({
+	chatId: z.uuid(),
+	userId: z.uuid(),
 });
 
-export type CreateGroupChatRequestType = z.infer<
-	typeof createGroupChatRequestSchema
->;
+export type ChatMemberParamsType = z.infer<typeof chatMemberParamsSchema>;
+
+/**
+ * Single request schema for `POST /chats`, discriminated on `type`. The
+ * route validates against this; the controller branches on the parsed value
+ * rather than re-parsing the body by hand.
+ */
+export const createChatRequestSchema = z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("DIRECT"),
+		participantId: z.uuid(),
+	}),
+	z.object({
+		type: z.literal("GROUP"),
+		name: safeString(100, 1),
+		participantIds: z.array(z.uuid()).min(1),
+		avatar: safeString(1024).optional(),
+	}),
+]);
+
+export type CreateChatRequestType = z.infer<typeof createChatRequestSchema>;
+
+export const listChatsQuerySchema = z.object({
+	limit: z.coerce.number().int().positive().max(100).default(30),
+	cursor: z.uuid().optional(),
+});
+
+export type ListChatsQueryType = z.infer<typeof listChatsQuerySchema>;
 
 export const createChatResponseSchema = chatResponseSchema;
 

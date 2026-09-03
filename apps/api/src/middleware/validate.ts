@@ -10,18 +10,23 @@ export function validate<T>(
 	schema: ZodType<T>,
 	source: "body" | "params" | "query" = "body",
 ) {
-	return (req: Request, res: Response, next: NextFunction) => {
+	return (req: Request, _res: Response, next: NextFunction) => {
 		const result = schema.safeParse(req[source]);
 
 		if (!result.success) {
-			return res.status(400).json({
-				error: {
-					code: ERROR_CODES.VALIDATION_ERROR,
-					message: "Validation failed",
-					details: result.error.issues,
-				},
-			});
+			return next(
+				new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Validation failed",
+					result.error.issues,
+				),
+			);
 		}
+
+		// Expose the parsed (and coerced) value; handlers read `req.valid[source]`
+		// instead of the raw, untyped `req[source]`.
+		req.valid = { ...req.valid, [source]: result.data };
 
 		next();
 	};

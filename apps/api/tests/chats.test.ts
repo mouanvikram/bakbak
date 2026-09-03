@@ -99,42 +99,6 @@ describe("Chats Endpoints", () => {
 		expect(data.participants).toHaveLength(2);
 	});
 
-	test("POST /chats/ - should create direct chat with receiverId alias", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...(await authHeader(userA.id, userA.username)),
-			},
-			body: JSON.stringify({
-				type: "DIRECT",
-				receiverId: userB.id,
-			}),
-		});
-
-		expect(res.status).toBe(201);
-		const data = (await res.json()) as any;
-		expect(data).toHaveProperty("type", "DIRECT");
-	});
-
-	test("POST /chats/ - should create direct chat with userId alias", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...(await authHeader(userA.id, userA.username)),
-			},
-			body: JSON.stringify({
-				type: "DIRECT",
-				userId: userB.id,
-			}),
-		});
-
-		expect(res.status).toBe(201);
-		const data = (await res.json()) as any;
-		expect(data).toHaveProperty("type", "DIRECT");
-	});
-
 	test("POST /chats/ - should reuse existing direct chat (idempotent)", async () => {
 		await createTestDirectChat(userA.id, userB.id);
 
@@ -181,25 +145,6 @@ describe("Chats Endpoints", () => {
 		expect(data.participants).toHaveLength(3);
 	});
 
-	test("POST /chats/ - should create group chat with memberIds alias", async () => {
-		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...(await authHeader(userA.id, userA.username)),
-			},
-			body: JSON.stringify({
-				type: "GROUP",
-				name: "Test Group",
-				memberIds: [userB.id, userC.id],
-			}),
-		});
-
-		expect(res.status).toBe(201);
-		const data = (await res.json()) as any;
-		expect(data).toHaveProperty("type", "GROUP");
-	});
-
 	test("POST /chats/ - should fail creating group chat without name", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
 			method: "POST",
@@ -215,7 +160,7 @@ describe("Chats Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error.message).toBe("Group name and participant ids are required");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /chats/ - should fail creating group chat without participants", async () => {
@@ -233,7 +178,7 @@ describe("Chats Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error.message).toBe("Group name and participant ids are required");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /chats/ - should fail creating direct chat without participant id", async () => {
@@ -250,7 +195,7 @@ describe("Chats Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error.message).toBe("Participant id is required");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /chats/ - should fail with invalid chat type", async () => {
@@ -268,7 +213,7 @@ describe("Chats Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error.message).toBe("Invalid chat type");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("POST /chats/ - should fail creating direct chat with self", async () => {
