@@ -83,7 +83,7 @@ export function ImageCropModal({
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           Crop your avatar
         </h2>
-        <div className="relative h-80 w-full overflow-hidden rounded-xl bg-gray-100">
+        <div className="relative h-80 w-full overflow-hidden rounded-lg bg-gray-100">
           <Cropper
             image={imageSrc}
             crop={crop}

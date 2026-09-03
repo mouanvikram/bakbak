@@ -3,6 +3,34 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ------------------------------------------------------------------ *
+ * Design tokens
+ *
+ * The visual language is the default Tailwind slate/violet palette plus
+ * the BakBak indigo gradient (#805FF8 → #4C18EF). These tokens name the
+ * pieces that are reused outside utility classes: brand stops, the motion
+ * curve, and the z-index ladder so overlays stack predictably.
+ * ------------------------------------------------------------------ */
+@theme {
+  --color-brand-400: #805ff8;
+  --color-brand-500: #6a3ff2;
+  --color-brand-600: #4c18ef;
+
+  /* One easing curve for everything that moves on its own; interactions
+   * that answer a tap can lean on Tailwind's default. */
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root {
+  --z-sticky: 20;
+  --z-dropdown: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+}
+
+/* ------------------------------------------------------------------ *
  * Font size preference (Settings → Appearance). rem-based utilities
  * scale from the root, so this resizes the whole app.
  * ------------------------------------------------------------------ */
@@ -22,6 +50,86 @@ body,
   height: 100%;
 }
 
+/* Every interactive control gets a pointer cursor. Browsers ship <button>
+ * with the default arrow; this is the single source of truth so individual
+ * `cursor-pointer` classes are no longer required. Disabled controls keep
+ * their not-allowed cursor via Tailwind's `disabled:` utilities. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+label:has(> input[type="checkbox"], > input[type="radio"]),
+a[href] {
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ *
+ * Accessibility floor
+ * ------------------------------------------------------------------ */
+
+/* One visible focus ring for keyboard users on every interactive element,
+ * so individual components don't each hand-roll (or forget) one. Mouse
+ * clicks stay ring-free. Text fields keep their own in-field treatment
+ * (branded border + soft ring) and are excluded here. */
+:where(a, button, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+:where(a, button, select, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Motion primitives — used by overlays that answer a user action.
+ * ------------------------------------------------------------------ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes slide-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Honour a reduced-motion request everywhere: near-instant transitions,
+ * no looping animations, no smooth scroll. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Light-mode contrast floor
+ *
+ * The app leans on the Tailwind slate/gray 400–500 steps for secondary
+ * text, timestamps, captions and icons. On white the 400s land near
+ * 2.9:1 (below WCAG AA) and the 500s only just clear it. Pull the muted
+ * ramp down ~1.5 steps so every piece of text is comfortably readable.
+ * The `.dark` remaps below are more specific, so dark is unaffected.
+ * ------------------------------------------------------------------ */
+.text-gray-400,
+.text-slate-400 {
+  color: #55606f;
+}
+.text-gray-500,
+.text-slate-500 {
+  color: #454f5e;
+}
+
 /* ------------------------------------------------------------------ *
  * Dark theme.
  *
@@ -32,17 +140,22 @@ body,
  * ------------------------------------------------------------------ */
 .dark {
   color-scheme: dark;
+  background-color: #10151b;
 }
 
-/* Surfaces */
+/* Surfaces
+ *
+ * #10151B is the dominant colour of chat_bg_dark, so the whole app sits on
+ * it and every separation is a lighter *shade of the same blue-black* — no
+ * neutral greys, no near-white hairlines. */
 .dark .bg-white {
-  background-color: #1e1e24;
+  background-color: #10151b;
 }
 .dark .bg-gray-100,
 .dark .bg-gray-50,
 .dark .bg-slate-50,
 .dark .bg-slate-100 {
-  background-color: #17171b;
+  background-color: #141b23;
 }
 
 /* Inputs / subtle fills */
@@ -50,39 +163,46 @@ body,
 .dark input.bg-gray-50,
 .dark textarea.bg-gray-50,
 .dark .bg-gray-50.rounded-lg {
-  background-color: #26262d;
+  background-color: #1b232e;
 }
 
-/* Text */
+/* Text — tuned for WCAG AA on the #10151B ground. Primary ~15:1,
+ * secondary ~11:1, muted ~7:1, faint ~5:1 (the 400s were ~3.5:1 before). */
 .dark .text-gray-900,
 .dark .text-slate-900,
 .dark .text-slate-800 {
-  color: #e8e8ec;
+  color: #ecedf1;
 }
 .dark .text-gray-800,
 .dark .text-gray-700,
 .dark .text-slate-700 {
-  color: #c8c8d0;
+  color: #cdd0d8;
 }
 .dark .text-gray-600,
 .dark .text-slate-600,
 .dark .text-gray-500,
 .dark .text-slate-500,
 .dark .text-slate-400 {
-  color: #9a9aa6;
+  color: #a2a8b3;
 }
 .dark .text-gray-400 {
-  color: #74747d;
+  color: #8b929f;
 }
 
-/* Borders */
+/* Borders — a lighter shade of #10151B, never a neutral/near-white line */
 .dark .border-gray-100,
 .dark .border-gray-200,
 .dark .border-gray-300,
 .dark .border-slate-100,
 .dark .border-slate-200,
 .dark .border {
-  border-color: #33333d;
+  border-color: #232d38;
+}
+
+/* Hairline fills (dividers, toggle tracks, progress dots) */
+.dark .bg-gray-200,
+.dark .bg-gray-300 {
+  background-color: #232d38;
 }
 
 /* Accent tints */
@@ -93,16 +213,53 @@ body,
   background-color: rgba(139, 92, 246, 0.22);
 }
 .dark .text-violet-600,
-.dark .text-violet-500 {
+.dark .text-violet-500,
+.dark .text-brand-600,
+.dark .text-brand-500,
+.dark .text-brand-400 {
   color: #a78bfa;
+}
+
+/* The brand indigo is also written as raw hex in a couple of auth-flow
+   spots. Those utilities are invisible to the class-name remaps above, so
+   lift them explicitly to the same lightened accent. */
+.dark .text-\[\#4C18EF\],
+.dark .text-\[\#805FF8\] {
+  color: #a78bfa;
+}
+.dark .bg-\[\#4C18EF\]\/10,
+.dark .bg-\[\#805FF8\]\/10,
+.dark .bg-brand-500\/10,
+.dark .bg-brand-400\/10 {
+  background-color: rgba(139, 92, 246, 0.18);
+}
+.dark .border-brand-500,
+.dark .border-brand-400 {
+  border-color: #a78bfa;
 }
 
 /* Status tints */
 .dark .bg-red-50 {
   background-color: rgba(248, 113, 113, 0.12);
 }
+.dark .bg-green-50 {
+  background-color: rgba(74, 222, 128, 0.12);
+}
+.dark .bg-amber-50 {
+  background-color: rgba(251, 191, 36, 0.12);
+}
 .dark .bg-green-100 {
   background-color: rgba(74, 222, 128, 0.15);
+}
+.dark .text-green-500,
+.dark .text-green-400 {
+  color: #4ade80;
+}
+.dark .text-amber-500 {
+  color: #fbbf24;
+}
+.dark .text-red-400 {
+  color: #f87171;
 }
 .dark .text-green-700,
 .dark .text-green-600 {
@@ -116,11 +273,16 @@ body,
   border-color: rgba(248, 113, 113, 0.3);
 }
 
-/* Hover states */
+/* Hover states — the raised-surface hover fill. Every neutral hover:bg
+ * lands here so nothing flashes white on a dark ground. */
 .dark .hover\:bg-gray-50:hover,
 .dark .hover\:bg-gray-100:hover,
-.dark .hover\:bg-slate-50:hover {
-  background-color: #2a2a32;
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: #1a222c;
+}
+.dark .hover\:bg-white:hover {
+  background-color: #10151b;
 }
 .dark .hover\:bg-violet-50:hover {
   background-color: rgba(139, 92, 246, 0.16);
@@ -130,7 +292,25 @@ body,
   background-color: rgba(248, 113, 113, 0.14);
 }
 .dark .hover\:border-gray-300:hover {
-  border-color: #45454f;
+  border-color: #303c49;
+}
+
+/* Hover-state text needs the same lightening as its resting counterpart,
+ * or it goes dark-on-dark and the label vanishes on hover. */
+.dark .hover\:text-gray-900:hover,
+.dark .hover\:text-slate-900:hover {
+  color: #ecedf1;
+}
+.dark .hover\:text-gray-700:hover,
+.dark .hover\:text-slate-700:hover,
+.dark .hover\:text-gray-600:hover,
+.dark .hover\:text-slate-600:hover {
+  color: #cdd0d8;
+}
+.dark .hover\:text-gray-500:hover,
+.dark .hover\:text-slate-500:hover,
+.dark .hover\:text-gray-400:hover {
+  color: #a2a8b3;
 }
 
 /* Placeholders */
@@ -149,6 +329,18 @@ body,
   background-position: center;
 }
 .dark .chat-surface {
-  background-color: #0e0e11;
+  background-color: #10151b;
+  background-image: url("/images/backgrounds/chat_bg_dark.png");
+}
+
+/* ------------------------------------------------------------------ *
+ * Outgoing message bubble. Gradient in light; flat violet in dark so
+ * it reads as a single fill against the #10151B conversation field.
+ * ------------------------------------------------------------------ */
+.msg-bubble-out {
+  background-image: linear-gradient(to bottom right, #805ff8, #4c18ef);
+}
+.dark .msg-bubble-out {
   background-image: none;
+  background-color: #5a34d9;
 }
