@@ -4,9 +4,20 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { config } from "dotenv";
 import { defineConfig } from "prisma/config";
+import { resolveDatabaseUrl } from "./src/resolve-db-url";
 
 // Single source of truth: the repo-root .env file.
 config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../../.env") });
+
+// `prisma generate` doesn't need a database; only migrate/studio/db push do.
+// Don't make the config throw when no URL is configured yet.
+function datasourceUrl(): string | undefined {
+  try {
+    return resolveDatabaseUrl();
+  } catch {
+    return undefined;
+  }
+}
 
 export default defineConfig({
   schema: "prisma/schema/",
@@ -14,6 +25,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: datasourceUrl(),
   },
 });

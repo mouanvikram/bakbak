@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../prisma/generated/prisma/client";
+import { resolveDatabaseUrl } from "./resolve-db-url";
 
 // Single source of truth: the repo-root .env file.
 config({
@@ -10,7 +11,7 @@ config({
 	quiet: true,
 });
 
-const connectionString = `${process.env.DATABASE_URL}`;
+const connectionString = resolveDatabaseUrl();
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });

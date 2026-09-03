@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bunx prisma studio",
     "migrate": "bunx prisma migrate dev",
+    "migrate:deploy": "bunx prisma migrate deploy",
     "generate": "bunx prisma generate",
     "reset": "bunx prisma migrate reset",
     "validate": "bunx prisma validate"
