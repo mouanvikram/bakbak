@@ -57,14 +57,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 		}
 
 		const s = getSocket();
-		connectSocket();
-		setSocket(s);
-		setConnected(s.connected);
-	}, [isAuthenticated]);
 
-	// Track live connect/disconnect so consumers re-render on state change.
-	useEffect(() => {
-		if (!socket) return;
+		// Attach the lifecycle listeners *before* kicking off the connection so
+		// a fast localhost handshake that resolves in the same tick can't slip
+		// through the gap and leave `connected` stuck at false.
 		const onConnect = () => {
 			log("provider", "connected=true");
 			setConnected(true);
@@ -73,13 +69,20 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 			log("provider", "connected=false");
 			setConnected(false);
 		};
-		socket.on("connect", onConnect);
-		socket.on("disconnect", onDisconnect);
+		s.on("connect", onConnect);
+		s.on("disconnect", onDisconnect);
+
+		connectSocket();
+		setSocket(s);
+		// Seed from the live socket in case it was already connected (e.g. this
+		// effect re-ran without a full teardown).
+		setConnected(s.connected);
+
 		return () => {
-			socket.off("connect", onConnect);
-			socket.off("disconnect", onDisconnect);
+			s.off("connect", onConnect);
+			s.off("disconnect", onDisconnect);
 		};
-	}, [socket]);
+	}, [isAuthenticated]);
 
 	return (
 		<SocketContext.Provider value={{ socket, connected }}>

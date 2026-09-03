@@ -72,8 +72,9 @@ export function searchMessages(
   chatId: string,
   query: string,
 ): Promise<SearchMessagesResponseType> {
+  // The API reads the query string from `q` (see messages controller).
   return apiClient(
-    `/api/v1/chats/${chatId}/messages/search?query=${encodeURIComponent(query)}`,
+    `/api/v1/chats/${chatId}/messages/search?q=${encodeURIComponent(query)}`,
   );
 }
 

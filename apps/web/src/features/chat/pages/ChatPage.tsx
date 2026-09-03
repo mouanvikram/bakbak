@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Info, Phone, SendHorizontal, Video } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  CheckCheck,
+  Info,
+  Phone,
+  SendHorizontal,
+  Video,
+} from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useSocket } from "@/features/chat/socket-context";
 import { getChat } from "@/features/chat/api";
@@ -12,7 +20,10 @@ import {
 import type { ChatResponseType } from "@bakbak/contracts";
 import type { MessageResponseType } from "@bakbak/contracts";
 import { Avatar } from "@/components/ui/Avatar";
-import { EmptyState, LoadingState } from "@/components/ui/States";
+import { IconButton } from "@/components/ui/IconButton";
+import { GroupInfoModal } from "@/features/chat/components/GroupInfoModal";
+import { EmptyState } from "@/components/ui/States";
+import { MessageThreadSkeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/lib/utils";
 
@@ -35,12 +46,15 @@ export function ChatPage() {
   const socket = useSocket();
   const [chat, setChat] = useState<ChatResponseType | null>(null);
   const [messages, setMessages] = useState<MessageResponseType[]>([]);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  // participantId -> id of the last message that participant has read.
+  const [readState, setReadState] = useState<Record<string, string | null>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   // userId -> timer that drops a stale "typing" indicator if no stop arrives.
   const typingExpiry = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -58,6 +72,14 @@ export function ChatPage() {
       .then(([chatRes, msgRes]) => {
         if (cancelled) return;
         setChat(chatRes);
+        setReadState(
+          Object.fromEntries(
+            (chatRes.participants ?? []).map((p) => [
+              p.userId,
+              p.lastReadMessageId ?? null,
+            ]),
+          ),
+        );
         const sorted = [...msgRes.messages].sort(
           (a, b) =>
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -161,6 +183,15 @@ export function ChatPage() {
       );
     };
 
+    const onReadReceipt = (data: {
+      chatId: string;
+      userId: string;
+      messageId: string;
+    }) => {
+      if (data.chatId !== id) return;
+      setReadState((prev) => ({ ...prev, [data.userId]: data.messageId }));
+    };
+
     const onPresence = (data: { userId: string; online: boolean }) => {
       if (!id) return;
       // Ignore own presence.
@@ -180,6 +211,7 @@ export function ChatPage() {
     s.on("message:deleted", onMessageDeleted);
     s.on("typing", onTyping);
     s.on("presence", onPresence);
+    s.on("read:receipt", onReadReceipt);
 
     return () => {
       s.off("connect", onConnect);
@@ -189,6 +221,7 @@ export function ChatPage() {
       s.off("message:deleted", onMessageDeleted);
       s.off("typing", onTyping);
       s.off("presence", onPresence);
+      s.off("read:receipt", onReadReceipt);
       for (const t of timers.values()) clearTimeout(t);
       timers.clear();
     };
@@ -297,67 +330,117 @@ export function ChatPage() {
         ? "Several people are typing..."
         : "";
 
+  // Delivery status for the messages I sent, in a 1:1 chat:
+  //   sent      — stored on the server
+  //   delivered — the other person's socket is in the room
+  //   seen      — their read pointer has reached this message
+  const isDirect = chat?.type === "DIRECT";
+  const isGroup = chat?.type === "GROUP";
+  const otherReadId = otherParticipant
+    ? (readState[otherParticipant.user.id] ?? null)
+    : null;
+  const orderIndex = new Map(messages.map((m, i) => [m.id, i] as const));
+  const messageStatus = (
+    messageId: string,
+  ): "sent" | "delivered" | "seen" => {
+    if (!isDirect || !otherParticipant) return "sent";
+    if (otherReadId) {
+      const readAt = orderIndex.get(otherReadId);
+      const at = orderIndex.get(messageId);
+      if (readAt !== undefined && at !== undefined && readAt >= at) return "seen";
+    }
+    return otherOnline ? "delivered" : "sent";
+  };
+
   return (
     <div className="flex h-full w-full flex-col">
       {/* Mobile header */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-2 py-2 lg:hidden">
-        <button
-          type="button"
-          aria-label="Back"
+      <header className="flex shrink-0 items-center gap-1 border-b border-gray-100 bg-white px-2 py-2 lg:hidden">
+        <IconButton
+          label="Go back"
+          size="sm"
+          className="-ml-0.5 text-gray-600"
           onClick={() => navigate(-1)}
-          className="flex cursor-pointer items-center justify-center rounded-full p-1 text-gray-600 transition hover:bg-gray-100"
         >
           <ArrowLeft className="size-5" />
+        </IconButton>
+        <button
+          type="button"
+          disabled={!isGroup}
+          onClick={() => setInfoOpen(true)}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 text-left disabled:cursor-default"
+        >
+          <Avatar
+            name={displayName}
+            src={avatarSrc}
+            className="size-8"
+            online={isDirect && otherOnline}
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-gray-900">
+              {displayName}
+            </p>
+            <p className="truncate text-[11px] text-gray-500">{subtitle}</p>
+          </div>
         </button>
-        <Avatar name={displayName} src={avatarSrc} className="size-8" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-gray-900">
-            {displayName}
-          </p>
-          <p className="truncate text-[11px] text-gray-500">{subtitle}</p>
-        </div>
-      </div>
+        {isGroup && (
+          <IconButton
+            label="Group info"
+            size="sm"
+            aria-haspopup="dialog"
+            className="text-gray-500"
+            onClick={() => setInfoOpen(true)}
+          >
+            <Info className="size-5" />
+          </IconButton>
+        )}
+      </header>
 
       {/* Desktop header */}
-      <div className="hidden shrink-0 items-center justify-between gap-3 border-b border-gray-100 bg-white px-4 py-3 lg:flex">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar name={displayName} src={avatarSrc} className="size-10" />
+      <header className="hidden shrink-0 items-center justify-between gap-3 border-b border-gray-100 bg-white px-4 py-2.5 lg:flex">
+        <button
+          type="button"
+          disabled={!isGroup}
+          onClick={() => setInfoOpen(true)}
+          className="flex min-w-0 items-center gap-3 rounded-lg text-left transition-colors enabled:hover:bg-slate-50 disabled:cursor-default"
+        >
+          <Avatar
+            name={displayName}
+            src={avatarSrc}
+            className="size-10"
+            online={isDirect && otherOnline}
+          />
           <div className="min-w-0">
             <h2 className="truncate font-semibold text-gray-900">
               {displayName}
             </h2>
             <p className="truncate text-xs text-gray-500">{subtitle}</p>
           </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            aria-label="Call"
-            className="flex cursor-pointer items-center justify-center rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-violet-600"
-          >
+        </button>
+        <div className="flex items-center gap-0.5">
+          <IconButton label="Voice call" className="hover:text-violet-600">
             <Phone className="size-5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Video call"
-            className="flex cursor-pointer items-center justify-center rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-violet-600"
-          >
+          </IconButton>
+          <IconButton label="Video call" className="hover:text-violet-600">
             <Video className="size-5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Chat info"
-            className="flex cursor-pointer items-center justify-center rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-violet-600"
-          >
-            <Info className="size-5" />
-          </button>
+          </IconButton>
+          {isGroup && (
+            <IconButton
+              label="Group info"
+              aria-haspopup="dialog"
+              className="hover:text-violet-600"
+              onClick={() => setInfoOpen(true)}
+            >
+              <Info className="size-5" />
+            </IconButton>
+          )}
         </div>
-      </div>
+      </header>
 
       {/* Messages */}
       <div className="chat-surface min-h-0 flex-1 overflow-y-auto">
         {loading ? (
-          <LoadingState text="Loading messages..." />
+          <MessageThreadSkeleton />
         ) : error && messages.length === 0 ? (
           <EmptyState text={error} />
         ) : messages.length === 0 ? (
@@ -392,7 +475,7 @@ export function ChatPage() {
                     className={cn(
                       "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm",
                       mine
-                        ? "rounded-br-md bg-linear-to-br from-[#805FF8] to-[#4C18EF] text-white"
+                        ? "msg-bubble-out rounded-br-md text-white"
                         : "rounded-bl-md bg-white text-gray-900",
                     )}
                   >
@@ -405,7 +488,20 @@ export function ChatPage() {
                         mine ? "text-white/70" : "text-gray-400",
                       )}
                     >
-                      {formatTime(m.createdAt)}
+                      <span>{formatTime(m.createdAt)}</span>
+                      {mine && !m.deleted && (() => {
+                        const status = messageStatus(m.id);
+                        if (status === "sent")
+                          return <Check className="size-3.5 shrink-0" />;
+                        return (
+                          <CheckCheck
+                            className={cn(
+                              "size-3.5 shrink-0",
+                              status === "seen" && "text-sky-300",
+                            )}
+                          />
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -440,7 +536,7 @@ export function ChatPage() {
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder="Type a message"
-            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10"
+            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
           />
           <button
             type="button"
@@ -457,6 +553,19 @@ export function ChatPage() {
           </button>
         </div>
       </div>
+
+      {infoOpen && chat && isGroup && (
+        <GroupInfoModal
+          chat={chat}
+          currentUserId={currentUserId}
+          onClose={() => setInfoOpen(false)}
+          onUpdated={setChat}
+          onLeave={() => {
+            setInfoOpen(false);
+            navigate("/chats");
+          }}
+        />
+      )}
     </div>
   );
 }

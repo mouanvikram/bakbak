@@ -11,6 +11,19 @@ import type {
   RemoveParticipantResponseType,
 } from "@bakbak/contracts";
 import { apiClient } from "@/lib/api/client";
+import { uploadFile } from "@/lib/api/upload";
+
+/**
+ * Uploads a group photo and returns its storage key (to save on the chat)
+ * plus a signed URL (to preview right away).
+ */
+export async function uploadGroupAvatar(
+  blob: Blob,
+  fileName: string,
+): Promise<{ key: string; url: string }> {
+  const attachment = await uploadFile(blob, fileName);
+  return { key: attachment.filePath, url: attachment.url };
+}
 
 export function createDirectChat(
   data: Extract<CreateChatRequestType, { type: "DIRECT" }>,
