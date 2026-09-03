@@ -30,7 +30,7 @@ function PrimaryNav() {
   return (
     <nav className="flex h-full w-full flex-col items-center bg-white">
       {/* Navigation */}
-      <div className="flex w-full flex-1 flex-row items-center justify-around py-1 md:flex-col md:justify-start md:gap-1 md:px-1">
+      <div className="flex w-full flex-1 flex-row items-center justify-around gap-1 px-1 py-1 md:flex-col md:justify-start md:gap-1 md:p-2">
         {sideOptions.map((option) => {
           const Icon = option.icon;
 
@@ -38,18 +38,17 @@ function PrimaryNav() {
             <NavLink
               key={option.path}
               to={option.path}
+              aria-label={option.label}
               className={({ isActive }) =>
                 cn(
-                  "flex flex-col items-center justify-center gap-1 px-3 py-2 text-xs transition-colors",
-                  "md:w-full md:gap-1 md:py-3",
-                  isActive && "bg-violet-50 text-violet-600",
-                  !isActive &&
-                    "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                  "flex flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs transition-colors md:w-full md:flex-none md:py-3",
+                  isActive
+                    ? "bg-violet-50 font-medium text-violet-600"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
                 )
               }
             >
               <Icon className="size-5" />
-
               <span className="hidden md:block">{option.label}</span>
             </NavLink>
           );

@@ -11,21 +11,21 @@ export function MobilePage({
   const navigate = useNavigate();
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-3 py-2.5 bg-white lg:hidden">
+      <header className="flex shrink-0 items-center gap-1 border-b border-gray-100 bg-white px-2 py-2 lg:hidden">
         <button
           type="button"
-          aria-label="Back"
+          aria-label="Go back"
           onClick={() => navigate(-1)}
-          className="flex cursor-pointer items-center justify-center rounded-full p-1 text-gray-600 transition hover:bg-gray-100"
+          className="-ml-0.5 flex size-9 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
         >
           <ArrowLeft className="size-5" />
         </button>
         {title && (
-          <span className="truncate text-sm font-semibold text-gray-900">
+          <h1 className="truncate text-sm font-semibold text-gray-900">
             {title}
-          </span>
+          </h1>
         )}
-      </div>
+      </header>
       <div className="min-h-0 flex-1">{children}</div>
     </div>
   );

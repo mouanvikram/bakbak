@@ -94,7 +94,7 @@ export function UserMenu() {
         <div
           ref={menuRef}
           className={cn(
-            "fixed z-50 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg",
+            "fixed z-50 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg",
             menuOpen
               ? "scale-100 opacity-100 blur-0"
               : "scale-[0.95] opacity-0 blur-[10px] pointer-events-none",

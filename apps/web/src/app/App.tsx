@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Navigate, Routes } from "react-router";
 import { useAuth } from "@/features/auth/auth-context";
 import { SocketProvider } from "@/features/chat/socket-context";
+import { PresenceProvider } from "@/features/chat/presence-context";
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -111,7 +112,9 @@ function App() {
           element={
             <ProtectedRoute>
               <SocketProvider>
-                <AppLayout />
+                <PresenceProvider>
+                  <AppLayout />
+                </PresenceProvider>
               </SocketProvider>
             </ProtectedRoute>
           }
