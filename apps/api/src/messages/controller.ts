@@ -274,12 +274,4 @@ export class MessageController {
 		}
 	};
 
-	notImplemented = async (req: AuthRequest, res: Response) => {
-		return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-			error: {
-				code: ERROR_CODES.NOT_IMPLEMENTED,
-				message: "This message feature needs additional database models first",
-			},
-		});
-	};
 }

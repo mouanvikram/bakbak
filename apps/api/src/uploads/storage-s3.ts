@@ -13,6 +13,7 @@ import type { StorageProvider } from "./storage.provider";
  * MinIO implements the S3 API). The endpoint/credentials come from env vars,
  * so switching between MinIO and AWS S3 is purely a configuration change.
  */
+
 export class S3StorageProvider implements StorageProvider {
 	private readonly client: S3Client;
 	private readonly bucket: string;
