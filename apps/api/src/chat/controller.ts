@@ -11,6 +11,7 @@ import {
 	listChatsResponseSchema,
 	removeParticipantResponseSchema,
 	updateChatResponseSchema,
+	updateChatParticipantResponseSchema,
 } from "@bakbak/contracts";
 import type {
 	AddParticipantRequestType,
@@ -18,6 +19,7 @@ import type {
 	ChatMemberParamsType,
 	CreateChatRequestType,
 	ListChatsQueryType,
+	UpdateChatParticipantRequestType,
 	UpdateChatRequestType,
 } from "@bakbak/contracts";
 
@@ -52,6 +54,7 @@ export class ChatController {
 						name: body.name,
 						participantIds: body.participantIds,
 						avatar: body.avatar,
+						description: body.description,
 					});
 
 		return validateResponse(res, 201, createChatResponseSchema, response);
@@ -91,6 +94,7 @@ export class ChatController {
 			chatId,
 			name: body.name,
 			avatar: body.avatar,
+			description: body.description,
 		});
 
 		return validateResponse(res, 200, updateChatResponseSchema, response);
@@ -117,6 +121,27 @@ export class ChatController {
 		});
 
 		return validateResponse(res, 200, addParticipantResponseSchema, response);
+	};
+
+	updateParticipantSettings = async (req: AuthRequest, res: Response) => {
+		const currentUserId = requireUserId(req);
+		const { chatId } = req.valid?.params as ChatIdParamsType;
+		const body = req.valid?.body as UpdateChatParticipantRequestType;
+
+		const response = await this.chatService.updateParticipantSettings({
+			currentUserId,
+			chatId,
+			mutedUntil: body.mutedUntil,
+			isPinned: body.isPinned,
+			isArchived: body.isArchived,
+		});
+
+		return validateResponse(
+			res,
+			200,
+			updateChatParticipantResponseSchema,
+			response,
+		);
 	};
 
 	removeParticipant = async (req: AuthRequest, res: Response) => {

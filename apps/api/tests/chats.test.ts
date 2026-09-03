@@ -84,7 +84,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...(await authHeader(userA.id, userA.username)),
+				...(authHeader(userA.id, userA.username)),
 			},
 			body: JSON.stringify({
 				type: "DIRECT",
@@ -150,7 +150,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...(await authHeader(userA.id, userA.username)),
+				...authHeader(userA.id, userA.username),
 			},
 			body: JSON.stringify({
 				type: "GROUP",
@@ -186,7 +186,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...(await authHeader(userA.id, userA.username)),
+				...authHeader(userA.id, userA.username),
 			},
 			body: JSON.stringify({
 				type: "DIRECT",
@@ -203,7 +203,7 @@ describe("Chats Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...(await authHeader(userA.id, userA.username)),
+				...authHeader(userA.id, userA.username),
 			},
 			body: JSON.stringify({
 				type: "INVALID",

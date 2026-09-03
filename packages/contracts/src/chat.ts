@@ -64,17 +64,9 @@ export const chatIdParamsSchema = z.object({
 
 export type ChatIdParamsType = z.infer<typeof chatIdParamsSchema>;
 
-export const chatMemberParamsSchema = z.object({
-	chatId: z.uuid(),
-	userId: z.uuid(),
-});
-
-export type ChatMemberParamsType = z.infer<typeof chatMemberParamsSchema>;
-
 /**
- * Single request schema for `POST /chats`, discriminated on `type`. The
- * route validates against this; the controller branches on the parsed value
- * rather than re-parsing the body by hand.
+ * Single request schema for `POST /chats`, discriminated on `type`.
+ * Replaces the old per-branch schemas + hand-rolled controller parsing.
  */
 export const createChatRequestSchema = z.discriminatedUnion("type", [
 	z.object({
@@ -84,8 +76,10 @@ export const createChatRequestSchema = z.discriminatedUnion("type", [
 	z.object({
 		type: z.literal("GROUP"),
 		name: safeString(100, 1),
-		participantIds: z.array(z.uuid()).min(1),
+		// A group is at least 3 people: the creator plus two others.
+		participantIds: z.array(z.uuid()).min(2),
 		avatar: safeString(1024).optional(),
+		description: safeString(500).optional(),
 	}),
 ]);
 
@@ -97,6 +91,13 @@ export const listChatsQuerySchema = z.object({
 });
 
 export type ListChatsQueryType = z.infer<typeof listChatsQuerySchema>;
+
+export const chatMemberParamsSchema = z.object({
+	chatId: z.uuid(),
+	userId: z.uuid(),
+});
+
+export type ChatMemberParamsType = z.infer<typeof chatMemberParamsSchema>;
 
 export const createChatResponseSchema = chatResponseSchema;
 
@@ -115,6 +116,7 @@ export type GetChatResponseType = z.infer<typeof getChatResponseSchema>;
 export const updateChatRequestSchema = z.object({
 	name: safeString(100).optional(),
 	avatar: safeString(1024).nullish(),
+	description: safeString(500).nullish(),
 });
 
 export const updateChatResponseSchema = chatResponseSchema;
@@ -129,6 +131,39 @@ export type DeleteChatResponseType = z.infer<typeof deleteChatResponseSchema>;
 export const addParticipantRequestSchema = z.object({
 	participantId: z.uuid(),
 });
+
+// Per-user, per-chat preferences on the caller's own membership row.
+export const updateChatParticipantRequestSchema = z
+	.object({
+		mutedUntil: z.iso.datetime().nullish(),
+		isPinned: z.boolean().optional(),
+		isArchived: z.boolean().optional(),
+	})
+	.refine(
+		(v) =>
+			v.mutedUntil !== undefined ||
+			v.isPinned !== undefined ||
+			v.isArchived !== undefined,
+		{ message: "Nothing to update" },
+	);
+
+export type UpdateChatParticipantRequestType = z.infer<
+	typeof updateChatParticipantRequestSchema
+>;
+
+export const updateChatParticipantResponseSchema = chatParticipantSchema;
+
+export type UpdateChatParticipantResponseType = z.infer<
+	typeof updateChatParticipantResponseSchema
+>;
+
+export interface UpdateChatParticipantDto {
+	currentUserId: string;
+	chatId: string;
+	mutedUntil?: string | null;
+	isPinned?: boolean;
+	isArchived?: boolean;
+}
 
 export const addParticipantResponseSchema = chatParticipantSchema;
 
@@ -156,6 +191,7 @@ export interface CreateGroupChatDto {
 	name: string;
 	participantIds: string[];
 	avatar?: string | null;
+	description?: string | null;
 }
 
 export interface ListChatsDto {
@@ -175,4 +211,5 @@ export interface UpdateChatDto {
 	chatId: string;
 	name?: string;
 	avatar?: string | null;
+	description?: string | null;
 }

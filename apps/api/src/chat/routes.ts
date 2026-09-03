@@ -9,11 +9,13 @@ import {
 	chatMemberParamsSchema,
 	createChatRequestSchema,
 	listChatsQuerySchema,
+	updateChatParticipantRequestSchema,
 	updateChatRequestSchema,
 } from "@bakbak/contracts";
 
 const router = express.Router();
 router.use(authMiddleware);
+
 // Chats
 router.post("/", validate(createChatRequestSchema), chatController.createChat);
 router.get(
@@ -40,6 +42,14 @@ router.delete(
 
 // Messages nested under a chat: /:chatId/messages/*
 router.use("/:chatId/messages", chatMessageRoutes);
+
+// Caller's own membership preferences (mute / pin / archive)
+router.patch(
+	"/:chatId/participant",
+	validate(chatIdParamsSchema, "params"),
+	validate(updateChatParticipantRequestSchema),
+	chatController.updateParticipantSettings,
+);
 
 // Participants
 router.post(

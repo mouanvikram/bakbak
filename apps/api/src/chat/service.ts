@@ -7,6 +7,7 @@ import type {
 	ListChatsDto,
 	ParticipantDto,
 	UpdateChatDto,
+	UpdateChatParticipantDto,
 } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "../uploads/storage.provider";
@@ -125,6 +126,7 @@ export class ChatService {
 		T extends {
 			createdAt: Date;
 			updatedAt: Date;
+			avatar?: string | null;
 			lastMessageAt?: Date | null;
 			participants?: Array<{
 				joinedAt: Date;
@@ -148,11 +150,17 @@ export class ChatService {
 			? await this.resolveUserAvatar(chat.createdBy)
 			: undefined;
 
+		const avatar =
+			chat.avatar !== undefined
+				? await resolveAvatarUrl(chat.avatar, this.storageProvider)
+				: undefined;
+
 		return {
 			...chat,
 			createdAt: chat.createdAt.toISOString(),
 			updatedAt: chat.updatedAt.toISOString(),
 			lastMessageAt: chat.lastMessageAt?.toISOString() ?? null,
+			...(avatar !== undefined ? { avatar } : {}),
 			createdBy,
 			participants,
 			messages: chat.messages?.map((message) => this.serializeMessage(message)),
@@ -276,11 +284,11 @@ export class ChatService {
 			new Set([dto.currentUserId, ...dto.participantIds]),
 		);
 
-		if (participantIds.length < 2) {
+		if (participantIds.length < 3) {
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
 				ERROR_CODES.VALIDATION_ERROR,
-				"A group chat needs at least one other member",
+				"A group needs at least 3 people, including you",
 			);
 		}
 
@@ -288,6 +296,7 @@ export class ChatService {
 			data: {
 				type: ChatType.GROUP,
 				name,
+				description: dto.description?.trim() || null,
 				avatar: dto.avatar,
 				createdBy: {
 					connect: {
@@ -405,8 +414,12 @@ export class ChatService {
 		if (dto.avatar !== undefined) {
 			data.avatar = dto.avatar;
 		}
+		if (dto.description !== undefined) {
+			data.description =
+				dto.description === null ? null : dto.description.trim() || null;
+		}
 
-		if (!data.name && data.avatar === undefined) {
+		if (Object.keys(data).length === 0) {
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
 				ERROR_CODES.VALIDATION_ERROR,
@@ -525,6 +538,30 @@ export class ChatService {
 			data: {
 				leftAt: new Date(),
 			},
+			include: participantInclude,
+		});
+
+		return await this.serializeParticipant(participant);
+	};
+
+	updateParticipantSettings = async (dto: UpdateChatParticipantDto) => {
+		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
+
+		const data: Prisma.ChatParticipantUpdateInput = {};
+		if (dto.mutedUntil !== undefined) {
+			data.mutedUntil = dto.mutedUntil ? new Date(dto.mutedUntil) : null;
+		}
+		if (dto.isPinned !== undefined) data.isPinned = dto.isPinned;
+		if (dto.isArchived !== undefined) data.isArchived = dto.isArchived;
+
+		const participant = await this.chatRepository.updateParticipant({
+			where: {
+				chatId_userId: {
+					chatId: dto.chatId,
+					userId: dto.currentUserId,
+				},
+			},
+			data,
 			include: participantInclude,
 		});
 
