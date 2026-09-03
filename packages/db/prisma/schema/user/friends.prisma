@@ -31,5 +31,9 @@ model Friendship {
 
     createdAt DateTime @default(now())
 
-    @@index([user1Id, user2Id])
+    // Friendship rows are always stored with user1Id <= user2Id (see
+    // FriendRepository.acceptPendingRequest), so a single unique pair is enough
+    // to prevent duplicates.
+    @@unique([user1Id, user2Id])
+    @@index([user2Id])
 }
