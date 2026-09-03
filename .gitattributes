@@ -1,0 +1,13 @@
+# The repo is authored with LF endings. Keep lockfiles and binaries out of
+# any autocrlf line-ending conversion so they stay byte-stable across
+# checkouts and inside the Linux test container.
+bun.lock          -text
+*.lock            -text
+*.png             binary
+*.jpg             binary
+*.jpeg            binary
+*.avif            binary
+*.webp            binary
+*.ico             binary
+*.woff            binary
+*.woff2           binary

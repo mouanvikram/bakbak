@@ -2,7 +2,7 @@
 
 A real-time social chat app — direct & group messaging, friends, media sharing.
 
-> ⚠️ **Work in progress.** The backend core (auth, users, friends, chats, messages) is fully implemented and integration-tested (~112 tests). Socket.IO, media uploads, and most of the React frontend are still being built. See [Status](#-current-status) below.
+> ⚠️ **Work in progress — single-instance only.** The backend core (auth, users, friends, chats, messages), the Socket.IO realtime layer, media/avatar uploads, and the React client are all implemented and wired end-to-end (~190 HTTP integration tests). Not yet built: horizontal scaling (no Socket.IO Redis adapter — realtime assumes one process), notifications, message reactions/replies, offline support, and any deployment/CI tooling. See [Status](#-current-status) below.
 
 ---
 
@@ -11,7 +11,7 @@ A real-time social chat app — direct & group messaging, friends, media sharing
 | Layer | Tech |
 |---|---|
 | Runtime | [Bun](https://bun.sh) (monorepo workspaces) |
-| Backend | Express 5 + TypeScript, Socket.IO (wired, handlers pending) |
+| Backend | Express 5 + TypeScript, Socket.IO (presence, typing, receipts, live delivery) |
 | Database | PostgreSQL (Neon) + Prisma ORM |
 | Validation | Shared Zod contracts (`@bakbak/contracts`) — validates requests **and** responses |
 | Auth | JWT access tokens + Argon2id password hashing, email verification & password reset via Resend |
@@ -48,58 +48,71 @@ Services own business rules and authorization; controllers only translate HTTP �
 
 ## 🚀 Getting Started
 
-**Prerequisites:** Bun ≥ 1.2, PostgreSQL (local instance recommended)
+**Prerequisites:** Bun ≥ 1.2, Docker (for local Postgres + MinIO)
 
 ```bash
 # 1. Install dependencies
 bun install
 
-# 2. Configure environment
-#    apps/api/.env        → DATABASE_URL, JWT_SECRET, PORT,
-#                           CORS_ORIGINS, FRONTEND_URL, RESEND_API_KEY
-#    packages/db/.env     → DATABASE_URL
-cp apps/api/.env.example apps/api/.env   # fill in values
+# 2. Configure environment — one .env at the repo root
+cp .env.example .env      # fill in JWT_SECRET, RESEND_API_KEY, PRODUCTION_DB_URL
 
-# 3. Generate Prisma client & apply migrations
-cd packages/db && bunx prisma migrate dev
+# 3. Start local infrastructure (Postgres + MinIO) and migrate the dev DB
+bun run infra:up
+bun run db:migrate
 
-# 4. Run
-bun run dev              # from repo root — starts API on :3000
-cd apps/web && bun run dev   # frontend on :5173
+# 4. Run — API on :3000, web on :5173
+bun run dev
 
-# 5. Test (uses DATABASE_URL — point it at a local DB first!)
-cd apps/api && bun test
+# 5. Seed some users (password: Abcdefg@12345)
+bun run db:seed
+
+# 6. Test — runs in a container against a throwaway test database
+bun run test:docker
 ```
+
+`@bakbak/db` selects the connection string by `NODE_ENV`
+(`DEV_DB_URL` / `DEV_DB_TEST_URL` / `PRODUCTION_DB_URL`); the test suite is
+pinned to `DEV_DB_TEST_URL` so it can never truncate your dev or prod data.
+See [`infra/README.md`](infra/README.md).
 
 ## 📌 Current Status
 
-### ✅ Implemented (backend)
+### ✅ Implemented & wired end-to-end
 
-- **Auth** — register, login, email verification (+ resend), forgot/reset password, change password, logout, refresh-token rotation with session revocation. Argon2id hashing, SHA-256-hashed one-time tokens with expiry, anti-enumeration responses.
-- **Users** — profile read/update, avatar, user search, delete account.
-- **Friends** — send/accept/reject/cancel requests, friend list, pending requests (sent/received).
-- **Chats** — create direct chats (idempotent via unique pair key) and group chats, member management, group admin controls.
-- **Messages** — send text/image messages, cursor-based pagination (capped), unread counts, mark-as-read, soft delete, case-insensitive search.
+- **Auth** — register, login, email verification (+ resend), forgot/reset password, change password, logout, refresh-token rotation with revocation, per-account brute-force lockout. Argon2id hashing, SHA-256-hashed one-time tokens with expiry, anti-enumeration responses.
+- **Users** — profile read/update, avatar upload (incl. pre-signup), user search, delete account, coarse online / last-seen state.
+- **Friends** — send/accept/reject/cancel requests, friend list, suggestions, pending requests (sent/received).
+- **Chats** — direct chats (idempotent via unique pair key), group chats with name/description/avatar, member management, admin controls, per-member mute/pin/archive.
+- **Messages** — send text + media-type messages, cursor pagination (capped), unread counts, mark-as-read, edit, soft delete, case-insensitive search.
+- **Realtime (single instance)** — authenticated Socket.IO handshake, per-chat rooms, presence, typing indicators, read receipts, live message/edit/delete fan-out, client reconnect with backoff.
 - **Settings** — notification, appearance, chat preference, and privacy settings.
-- **Infrastructure** — global error handling with typed error codes, Zod request/response validation, pino logging.
+- **Media** — S3-compatible storage abstraction, presigned URLs, size + MIME limits.
+- **Client** — full auth flow, chat list + conversation UI, friends, settings, dark mode, avatar upload.
+- **Infrastructure** — typed error codes, Zod request/response validation, pino structured logging + request IDs, global rate limiter, graceful shutdown, `/healthz`.
 
-### 🚧 In Progress
+### 🚧 Not yet built
 
-- Socket.IO layer: authenticated handshake, rooms, presence, live message delivery
-- Media attachments (schema exists, upload pipeline pending)
-- Frontend: most routes are placeholder pages; `AuthContext` and chat/friends UI are not yet wired to the API
+- **Horizontal scaling** — no Socket.IO Redis adapter; presence, the rate limiter, and the pre-signup avatar buffer are all in-process, so realtime only works with a single backend instance.
+- **Notifications** — no in-app / email / push notifications; the `UserSettings.notify*` toggles are stored but unused.
+- **Missed-message recovery / offline support** — a client that disconnects doesn't catch up on messages sent while it was away.
+- **Message features** — reactions, replies, forwarding, pinning.
+- **Attachments in chat** — upload API exists; there is no send-attachment flow in the client, and `GET /uploads/:id` needs a chat-membership check.
+- **Deployment** — local infra is containerized (`infra/`); no production Dockerfile, CI, or readiness wiring beyond `/healthz` yet.
+- **Calls** — the Calls tab is a placeholder.
 
 ### 🗺 Roadmap
 
-1. Finish realtime messaging end-to-end (typing indicators, delivery/read receipts)
-2. Rate limiting + security hardening pass (helmet, body limits, ownership checks audit)
-3. Message features: reactions, replies, edit/delete-for-everyone, search
-4. Media uploads (images, voice notes) with compression
-5. Group admin features: promote admins, invite links
-6. Notifications (in-app + browser push)
-7. Dark mode, responsive polish, accessibility pass
-8. Dockerized local dev (Postgres + API + web), CI pipeline running lint + tests
-9. Calls (WebRTC) — stretch goal
+1. Isolated test database + CI (lint + typecheck + tests on PR)
+2. Containerize (API + web + Postgres + MinIO) and add readiness/liveness probes
+3. Redis: Socket.IO adapter + distributed rate limiter + presence (unblocks >1 instance)
+4. Idempotent message send + missed-message recovery on reconnect
+5. Fix attachment authorization; wire the attachment send flow in the client
+6. Notifications: in-app model + socket delivery + web-push; honour the settings toggles
+7. Message reactions & replies
+8. `trust proxy`, explicit CSP/security headers, magic-byte MIME validation
+9. Metrics (`/metrics`) + tracing
+10. Group admin: promote/demote, ownership transfer; calls (WebRTC) — stretch
 
 <details>
 <summary>Longer-term ideas</summary>
