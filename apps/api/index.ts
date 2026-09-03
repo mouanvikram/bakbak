@@ -1,19 +1,24 @@
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { type Request, type Response } from "express";
+import { prisma } from "@bakbak/db";
 import app from "./src/app";
 import { env } from "./src/config";
 import { initializeWebSocket } from "./src/websocket";
 import { refreshTokenRepository } from "./src/services/service.container";
+import { stopRateLimiterCleanup } from "./src/middleware/rate-limiter.middleware";
 import logger from "@/lib/logger";
 
 const REFRESH_TOKEN_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+const SHUTDOWN_GRACE_MS = 10_000;
 
 app.get("/", (_: Request, res: Response) => {
 	return res.status(200).json({
 		message: "Path is at '/' ",
 	});
 });
+
+app.get("/healthz", (_: Request, res: Response) => res.status(200).json({ status: "ok" }));
 
 const httpServer = createServer(app);
 
@@ -41,8 +46,50 @@ async function cleanUpExpiredTokens() {
 }
 
 cleanUpExpiredTokens();
-setInterval(cleanUpExpiredTokens, REFRESH_TOKEN_CLEANUP_INTERVAL_MS);
+const tokenCleanupTimer = setInterval(
+	cleanUpExpiredTokens,
+	REFRESH_TOKEN_CLEANUP_INTERVAL_MS,
+);
+tokenCleanupTimer.unref?.();
 
 httpServer.listen(env.PORT, () => {
 	logger.info(`Server is listening at http://localhost:${env.PORT}`);
 });
+
+// ── Graceful shutdown ────────────────────────────────────────────────
+let shuttingDown = false;
+
+async function shutdown(signal: string) {
+	if (shuttingDown) return;
+	shuttingDown = true;
+	logger.info({ signal }, "Shutting down");
+
+	// Stop background timers so nothing new is scheduled mid-teardown.
+	clearInterval(tokenCleanupTimer);
+	stopRateLimiterCleanup();
+
+	// Force-exit if a connection refuses to drain in time.
+	const killTimer = setTimeout(() => {
+		logger.error("Forced shutdown after grace period");
+		process.exit(1);
+	}, SHUTDOWN_GRACE_MS);
+	killTimer.unref();
+
+	try {
+		await io.close();
+		await new Promise<void>((resolve, reject) =>
+			httpServer.close((err) => (err ? reject(err) : resolve())),
+		);
+		await prisma.$disconnect();
+		clearTimeout(killTimer);
+		logger.info("Shutdown complete");
+		process.exit(0);
+	} catch (err) {
+		logger.error({ err }, "Error during shutdown");
+		process.exit(1);
+	}
+}
+
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+	process.on(signal, () => void shutdown(signal));
+}

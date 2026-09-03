@@ -26,12 +26,19 @@ function pruneOldEntries(key: string, now: number): void {
 	}
 }
 
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
 	const now = Date.now();
 	for (const key of clients.keys()) {
 		pruneOldEntries(key, now);
 	}
 }, env.RATE_LIMIT_WINDOW_MS);
+// Don't keep the event loop alive just for cleanup.
+cleanupTimer.unref?.();
+
+/** Stops the background window-pruning timer (used on graceful shutdown). */
+export function stopRateLimiterCleanup() {
+	clearInterval(cleanupTimer);
+}
 
 export const rateLimiterMiddleware = (
 	req: Request,

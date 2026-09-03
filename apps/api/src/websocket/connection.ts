@@ -34,8 +34,13 @@ export function registerConnection(io: Server, socket: Socket) {
 	const isFirstConnection = userSockets.size === 0;
 	userSockets.add(s.id);
 
-	// Personal room for targeted emits (e.g. incoming DM notifications).
-	void s.join(`user:${userId}`);
+	// Reflect coarse online state on the profile so it survives a page that
+	// isn't currently holding a socket (e.g. a REST-only client rendering a
+	// friend list). Best-effort and single-instance-accurate only — the live
+	// socket set in `presenceMap` remains the source of truth for this node.
+	if (isFirstConnection) {
+		void markPresence(userId, true);
+	}
 
 	// Auto-join every chat the user is an active participant of.
 	void joinAllChats(s, userId).then(async (chatIds) => {
@@ -138,6 +143,7 @@ export function registerConnection(io: Server, socket: Socket) {
 			const isLast = sockets.size === 0;
 			if (isLast) {
 				presenceMap.delete(userId);
+				void markPresence(userId, false);
 				const rooms = socketChatRooms.get(s.id);
 				if (rooms) {
 					for (const chatId of rooms) {
@@ -162,6 +168,22 @@ export function registerConnection(io: Server, socket: Socket) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+// Coarse online/last-seen bookkeeping on the profile row. Fire-and-forget:
+// a failed write must never disrupt the socket lifecycle, and a stale flag
+// self-corrects on the next connect/disconnect.
+async function markPresence(userId: string, online: boolean) {
+	try {
+		await prisma.userProfile.update({
+			where: { userId },
+			data: online
+				? { isOnline: true }
+				: { isOnline: false, lastSeenAt: new Date() },
+		});
+	} catch (err) {
+		logger.warn({ err, userId, online }, "Failed to persist presence flag");
+	}
+}
 
 // Distinct userIds currently connected to a chat room, derived from the live
 // socket set rather than a hand-maintained map so it can't drift out of sync.
