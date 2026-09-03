@@ -11,9 +11,8 @@ import { rateLimiterMiddleware } from "./middleware/rate-limiter.middleware";
 import authRoutes from "./auth/routes";
 import userRoutes from "./users/routes";
 import chatRoutes from "./chat/routes";
-import chatMessageRoutes from "./messages/chat.message.routes";
 import friendRoutes from "./friends/routes";
-import messageRoutes from "./messages/routes";
+import { messageRoutes } from "./messages/routes";
 import settingsRoutes from "./settings/routes";
 import uploadRoutes from "./uploads/routes";
 import avatarRoutes from "./avatar/routes";
@@ -51,10 +50,9 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/friends", friendRoutes);
 // 2.2. Settings
 app.use("/api/v1/settings", settingsRoutes);
-// 3. Chats
+// 3. Chats (includes nested /:chatId/messages routes)
 app.use("/api/v1/chats", chatRoutes);
-app.use("/api/v1/chats", chatMessageRoutes);
-// 4. Messages
+// 4. Messages (chat-agnostic item routes: /:messageId)
 app.use("/api/v1/messages", messageRoutes);
 // 5. WebSocket
 // 6. Notifications

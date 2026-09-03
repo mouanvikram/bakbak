@@ -379,46 +379,6 @@ describe("Messages Endpoints", () => {
 		expect(res.status).toBe(401);
 	});
 
-	test("POST /chats/:chatId/messages/pin - should return 501 not implemented", async () => {
-		const res = await fetch(
-			`${baseUrl()}/api/v1/chats/${chat.id}/messages/pin`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...(await authHeader(userA.id, userA.username)),
-				},
-				body: JSON.stringify({ messageId: "some-message-id" }),
-			},
-		);
-
-		expect(res.status).toBe(501);
-		const data = (await res.json()) as any;
-		expect(data.error.message).toBe(
-			"This message feature needs additional database models first",
-		);
-	});
-
-	test("POST /chats/:chatId/messages/reactions - should return 501 not implemented", async () => {
-		const res = await fetch(
-			`${baseUrl()}/api/v1/chats/${chat.id}/messages/reactions`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...(await authHeader(userA.id, userA.username)),
-				},
-				body: JSON.stringify({ messageId: "some-message-id", emoji: "👍" }),
-			},
-		);
-
-		expect(res.status).toBe(501);
-		const data = (await res.json()) as any;
-		expect(data.error.message).toBe(
-			"This message feature needs additional database models first",
-		);
-	});
-
 	test("GET /messages/:messageId - should return message details", async () => {
 		const message = await createTestMessage(chat.id, userA.id, {
 			text: "Test message",
@@ -598,91 +558,6 @@ describe("Messages Endpoints", () => {
 		});
 
 		expect(res.status).toBe(401);
-	});
-
-	test("POST /messages/:messageId/reactions - should return 501 not implemented", async () => {
-		const message = await createTestMessage(chat.id, userA.id, {
-			text: "React to me",
-		});
-
-		const res = await fetch(
-			`${baseUrl()}/api/v1/messages/${message.id}/reactions`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...(await authHeader(userA.id, userA.username)),
-				},
-				body: JSON.stringify({ emoji: "👍" }),
-			},
-		);
-
-		expect(res.status).toBe(501);
-		const data = (await res.json()) as any;
-		expect(data.error.message).toBe(
-			"This message feature needs additional database models first",
-		);
-	});
-
-	test("DELETE /messages/:messageId/reactions - should return 501 not implemented", async () => {
-		const message = await createTestMessage(chat.id, userA.id, {
-			text: "Unreact from me",
-		});
-
-		const res = await fetch(
-			`${baseUrl()}/api/v1/messages/${message.id}/reactions`,
-			{
-				method: "DELETE",
-				headers: await authHeader(userA.id, userA.username),
-			},
-		);
-
-		expect(res.status).toBe(501);
-		const data = (await res.json()) as any;
-		expect(data.error.message).toBe(
-			"This message feature needs additional database models first",
-		);
-	});
-
-	test("POST /messages/:messageId/reply - should return 501 not implemented", async () => {
-		const message = await createTestMessage(chat.id, userA.id, {
-			text: "Reply to me",
-		});
-
-		const res = await fetch(
-			`${baseUrl()}/api/v1/messages/${message.id}/reply`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...(await authHeader(userA.id, userA.username)),
-				},
-				body: JSON.stringify({ text: "Reply text" }),
-			},
-		);
-
-		expect(res.status).toBe(501);
-		const data = (await res.json()) as any;
-		expect(data.error.message).toBe(
-			"This message feature needs additional database models first",
-		);
-	});
-
-	test("PATCH /messages/:messageId/pin - should return 501 not implemented", async () => {
-		const message = await createTestMessage(chat.id, userA.id, {
-			text: "Pin me",
-		});
-
-		const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}/pin`, {
-			method: "PATCH",
-			headers: await authHeader(userA.id, userA.username),
-		});
-
-		expect(res.status).toBe(501);
-		const data = (await res.json()) as any;
-		expect(data.error.message).toBe(
-			"This message feature needs additional database models first",
-		);
 	});
 
 	test(

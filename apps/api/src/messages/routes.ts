@@ -1,33 +1,57 @@
-import express from "express";
+import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { messageController } from "../services/service.container";
 import { validate } from "../middleware/validate";
-import { editMessageRequestSchema, getMessageRequestSchema } from "@bakbak/contracts";
+import {
+	chatIdParamsSchema,
+	editMessageRequestSchema,
+	getMessageRequestSchema,
+	markChatReadRequestSchema,
+	sendMessageRequestSchema,
+} from "@bakbak/contracts";
 
-const router = express.Router();
+/**
+ * Message routes nested under a chat: `/api/v1/chats/:chatId/messages/*`.
+ * Mounted by `chatRoutes`, which already applies `authMiddleware`.
+ */
+export const chatMessageRoutes = Router({ mergeParams: true });
 
-router.use(authMiddleware);
+chatMessageRoutes.use(validate(chatIdParamsSchema, "params"));
 
-router.get(
+chatMessageRoutes.get("/search", messageController.searchMessages);
+chatMessageRoutes.get("/unread", messageController.getUnreadCount);
+chatMessageRoutes.post(
+	"/read",
+	validate(markChatReadRequestSchema),
+	messageController.markChatRead,
+);
+chatMessageRoutes.get("/", messageController.listMessages);
+chatMessageRoutes.post(
+	"/",
+	validate(sendMessageRequestSchema),
+	messageController.sendMessage,
+);
+
+/**
+ * Top-level, chat-agnostic message item routes: `/api/v1/messages/:messageId`.
+ */
+export const messageRoutes = Router();
+
+messageRoutes.use(authMiddleware);
+
+messageRoutes.get(
 	"/:messageId",
 	validate(getMessageRequestSchema, "params"),
 	messageController.getMessage,
 );
-router.patch(
+messageRoutes.patch(
 	"/:messageId",
 	validate(getMessageRequestSchema, "params"),
 	validate(editMessageRequestSchema),
 	messageController.editMessage,
 );
-router.delete(
+messageRoutes.delete(
 	"/:messageId",
 	validate(getMessageRequestSchema, "params"),
 	messageController.deleteMessage,
 );
-
-router.post("/:messageId/reactions", messageController.notImplemented);
-router.delete("/:messageId/reactions", messageController.notImplemented);
-router.post("/:messageId/reply", messageController.notImplemented);
-router.patch("/:messageId/pin", messageController.notImplemented);
-
-export default router;
