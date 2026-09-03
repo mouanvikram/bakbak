@@ -18,12 +18,6 @@ type SidebarOption = {
 const navigation: Record<string, SidebarOption[]> = {
   "/friends": [
     {
-      label: "Search People",
-      desc: "Search by name, username",
-      path: "/friends/search",
-      icon: LucideUserRoundSearch,
-    },
-    {
       label: "Friends",
       desc: "People you're connected with",
       path: "/friends/list",
@@ -40,6 +34,12 @@ const navigation: Record<string, SidebarOption[]> = {
       desc: "Friend requests you've sent",
       path: "/friends/sent",
       icon: UserArrowRight,
+    },
+    {
+      label: "Search People",
+      desc: "Search by name or username",
+      path: "/friends/search",
+      icon: LucideUserRoundSearch,
     },
     {
       label: "Suggestions",
@@ -65,11 +65,11 @@ export function FriendsSidebar() {
 
   return (
     <nav className="flex h-full w-full flex-col overflow-y-auto bg-white">
-      <div className="px-4 py-3">
+      <div className="px-5 py-3">
         <h2 className="text-lg font-bold text-slate-900">Friends</h2>
       </div>
 
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-0.5 px-2 pb-2">
         {options.map((option) => {
           return (
             <NavLink
@@ -78,7 +78,7 @@ export function FriendsSidebar() {
               end
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 px-4 py-3.5 text-sm transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors",
                   isActive && "bg-violet-50 text-violet-600",
                   !isActive &&
                     "text-slate-600 hover:bg-slate-50 hover:text-slate-900",

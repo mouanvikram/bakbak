@@ -3,7 +3,7 @@ import type { FriendRequestResponseType } from "@bakbak/contracts";
 import { acceptFriendRequest, getPendingRequests, rejectFriendRequest } from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/Button";
 
 export function PendingRequestsPage() {
   const [requests, setRequests] = useState<FriendRequestResponseType[]>([]);
@@ -80,24 +80,23 @@ export function PendingRequestsPage() {
               user={r.sender}
               actions={
                 <>
-                  <button
-                    type="button"
+                  <Button
+                    value="Accept"
+                    size="sm"
+                    fullWidth={false}
                     disabled={busy !== null}
+                    loading={isLoading(r.id, "accept")}
                     onClick={() => handleAccept(r.id)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isLoading(r.id, "accept") && <Spinner className="size-3.5" />}
-                    Accept
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <Button
+                    value="Reject"
+                    variant="secondary"
+                    size="sm"
+                    fullWidth={false}
                     disabled={busy !== null}
+                    loading={isLoading(r.id, "reject")}
                     onClick={() => handleReject(r.id)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isLoading(r.id, "reject") && <Spinner className="size-3.5" />}
-                    Reject
-                  </button>
+                  />
                 </>
               }
             />

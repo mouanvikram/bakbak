@@ -3,7 +3,7 @@ import type { FriendRequestResponseType } from "@bakbak/contracts";
 import { cancelFriendRequest, getPendingRequests } from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/Button";
 
 export function SentRequestsPage() {
   const [requests, setRequests] = useState<FriendRequestResponseType[]>([]);
@@ -60,15 +60,15 @@ export function SentRequestsPage() {
               key={r.id}
               user={r.receiver}
               actions={
-                <button
-                  type="button"
+                <Button
+                  value="Cancel"
+                  variant="secondary"
+                  size="sm"
+                  fullWidth={false}
                   disabled={busyId !== null}
+                  loading={busyId === r.id}
                   onClick={() => handleCancel(r.id)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {busyId === r.id && <Spinner className="size-3.5" />}
-                  Cancel
-                </button>
+                />
               }
             />
           ))}

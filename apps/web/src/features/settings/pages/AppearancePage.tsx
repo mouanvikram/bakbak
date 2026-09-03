@@ -25,9 +25,9 @@ export function AppearancePage() {
                 key={option}
                 type="button"
                 onClick={() => setTheme(option)}
-                className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 border px-4 py-3 text-sm font-semibold capitalize transition ${
+                className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-4 py-3 text-sm font-semibold capitalize transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
                   theme === option
-                    ? "border-[#805FF8] bg-violet-50 text-[#805FF8]"
+                    ? "border-brand-500 bg-violet-50 text-brand-500"
                     : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                 }`}
               >
@@ -46,9 +46,9 @@ export function AppearancePage() {
                 key={option}
                 type="button"
                 onClick={() => setFontSize(option)}
-                className={`flex-1 cursor-pointer border px-4 py-3 text-sm font-semibold capitalize transition ${
+                className={`flex-1 cursor-pointer rounded-lg border px-4 py-3 text-sm font-semibold capitalize transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
                   fontSize === option
-                    ? "border-[#805FF8] bg-violet-50 text-[#805FF8]"
+                    ? "border-brand-500 bg-violet-50 text-brand-500"
                     : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                 }`}
               >

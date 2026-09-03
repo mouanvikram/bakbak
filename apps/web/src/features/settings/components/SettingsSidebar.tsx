@@ -103,11 +103,11 @@ export function SettingsSidebar() {
 
   return (
     <nav className="flex h-full w-full flex-col overflow-y-auto bg-white">
-      <div className="px-4 py-3">
+      <div className="px-5 py-3">
         <h2 className="text-lg font-bold text-slate-900">Settings</h2>
       </div>
 
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-0.5 px-2 pb-2">
         {options.map((option) => {
           return (
             <NavLink
@@ -116,7 +116,7 @@ export function SettingsSidebar() {
               end
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 px-4 py-3.5 text-sm transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors",
                   isActive && "bg-violet-50 text-violet-600",
                   !isActive &&
                     "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
@@ -172,7 +172,7 @@ export function SettingsSidebar() {
           type="button"
           onClick={handleLogout}
           disabled={loggingOut}
-          className="flex items-center gap-3 border-t border-gray-100 px-4 py-3.5 text-left text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-1 flex items-center gap-3 rounded-lg px-3 py-3 text-left text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <div className="flex w-10 items-center justify-center">
             {loggingOut ? (

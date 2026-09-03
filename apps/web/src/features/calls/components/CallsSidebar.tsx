@@ -1,95 +1,25 @@
-import { useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Phone, Search, Video } from "lucide-react";
-import { Avatar } from "@/components/ui/Avatar";
-import { EmptyState } from "@/components/ui/States";
-import { calls, type Call } from "@/features/calls/data/calls";
+import { Phone } from "lucide-react";
 
+/**
+ * Calls are not implemented yet (no WebRTC signalling, no call history model).
+ * This is an intentional placeholder — see the roadmap in the README.
+ */
 export function CallsSidebar() {
-  const [search, setSearch] = useState("");
-
-  const filteredCalls = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return calls;
-    return calls.filter((call) => call.user.name.toLowerCase().includes(query));
-  }, [search]);
-
   return (
     <aside className="flex h-full w-full flex-col bg-white">
-      <div className="px-4 py-3">
+      <div className="px-5 py-3">
         <h2 className="text-lg font-bold text-slate-900">Calls</h2>
       </div>
 
-      <div className="relative mb-2 px-3">
-        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search calls..."
-          className="h-9 w-full rounded-lg bg-slate-50 pr-3 pl-9 text-sm outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-violet-200"
-        />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
-        {filteredCalls.length > 0 ? (
-          filteredCalls.map((call) => <CallItem key={call.id} call={call} />)
-        ) : (
-          <EmptyState text="No calls found" />
-        )}
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full bg-slate-100">
+          <Phone className="size-5 text-slate-400" />
+        </div>
+        <p className="text-sm font-medium text-slate-700">Calls are coming soon</p>
+        <p className="text-xs text-slate-500">
+          Voice and video calling isn&apos;t available yet.
+        </p>
       </div>
     </aside>
-  );
-}
-
-function CallItem({ call }: { call: Call }) {
-  return (
-    <button
-      type="button"
-      className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
-    >
-      <div className="flex size-10 shrink-0">
-        <Avatar name={call.user.name} />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-slate-900">
-          {call.user.name}
-        </div>
-
-        <div className="flex items-center gap-1.5 text-xs">
-          <CallStatus call={call} />
-          <span className="text-slate-400">·</span>
-          <span className="text-slate-500">{call.timestamp}</span>
-        </div>
-      </div>
-
-      {call.mode === "video" ? (
-        <Video className="size-4 shrink-0 text-slate-400" />
-      ) : (
-        <Phone className="size-4 shrink-0 text-slate-400" />
-      )}
-    </button>
-  );
-}
-
-function CallStatus({ call }: { call: Call }) {
-  if (call.type === "missed") {
-    return (
-      <span className="flex items-center gap-1 text-red-500">
-        <ArrowDownLeft className="size-3.5" />
-        Missed
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex items-center gap-1 text-slate-500">
-      {call.type === "incoming" ? (
-        <ArrowDownLeft className="size-3.5" />
-      ) : (
-        <ArrowUpRight className="size-3.5" />
-      )}
-      {call.type === "incoming" ? "Incoming" : "Outgoing"}
-    </span>
   );
 }

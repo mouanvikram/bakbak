@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/auth-context";
 import { updateProfile, uploadAvatar } from "@/features/users/api";
 import { ImageCropModal } from "@/components/ImageCropModal";
+import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 
 export function AccountPage() {
@@ -103,7 +104,7 @@ export function AccountPage() {
               <div className="flex items-center gap-2">
                 <label
                   htmlFor="avatar"
-                  className={`flex cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-2.5 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                  className={`flex cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white px-5 py-2.5 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                 >
                   Upload photo
                 </label>
@@ -131,27 +132,36 @@ export function AccountPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2">
             <span className="text-sm font-semibold text-gray-900">First Name</span>
-            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10" placeholder="Enter first name" />
+            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" placeholder="Enter first name" />
           </label>
           <label className="flex flex-col gap-2">
             <span className="text-sm font-semibold text-gray-900">Last Name</span>
-            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10" placeholder="Enter last name" />
+            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" placeholder="Enter last name" />
           </label>
         </div>
         <label className="flex flex-col gap-2">
           <span className="text-sm font-semibold text-gray-900">Display Name</span>
-          <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10" placeholder="Enter display name" />
+          <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" placeholder="Enter display name" />
         </label>
         <label className="flex flex-col gap-2">
           <span className="text-sm font-semibold text-gray-900">Bio</span>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10" placeholder="Tell us about yourself" />
+          <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" placeholder="Tell us about yourself" />
         </label>
         <div className="flex items-center justify-end gap-3">
-          {saved && <span className="text-sm text-green-600">Saved!</span>}
-          <button type="button" onClick={handleSave} disabled={loading || uploading} className="flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50">
-            {loading && <Spinner />}
-            {loading ? "Saving..." : "Save Changes"}
-          </button>
+          {saved && (
+            <span className="text-sm text-green-600" role="status">
+              Saved
+            </span>
+          )}
+          <Button
+            value="Save changes"
+            size="lg"
+            fullWidth={false}
+            loading={loading}
+            loadingText="Saving…"
+            disabled={loading || uploading}
+            onClick={handleSave}
+          />
         </div>
       </div>
 

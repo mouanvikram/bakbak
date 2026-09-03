@@ -5,7 +5,7 @@ import { searchUsers } from "@/features/users/api";
 import { getPendingRequests, sendFriendRequest } from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/Button";
 
 export function SearchFriendsPage() {
   const [query, setQuery] = useState("");
@@ -65,17 +65,19 @@ export function SearchFriendsPage() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search..."
-          className="h-12 flex-1 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-[#805FF8] focus:ring-2 focus:ring-[#805FF8]/10"
+          placeholder="Name or username"
+          aria-label="Search people"
+          className="h-12 flex-1 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
         />
-        <button
+        <Button
+          value="Search"
           type="submit"
+          size="lg"
+          fullWidth={false}
+          loading={loading}
+          loadingText="Searching…"
           disabled={loading || !query.trim()}
-          className="flex cursor-pointer items-center gap-2 rounded-xl bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-6 py-3 font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all active:translate-y-px active:shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading && <Spinner />}
-          {loading ? "Searching..." : "Search"}
-        </button>
+        />
       </form>
       {loading ? (
         <LoadingState />
@@ -91,15 +93,14 @@ export function SearchFriendsPage() {
                 pendingIds.has(u.id) ? (
                   <span className="text-xs font-semibold text-gray-400">Pending</span>
                 ) : (
-                  <button
-                    type="button"
+                  <Button
+                    value="Add friend"
+                    size="sm"
+                    fullWidth={false}
                     disabled={busyId !== null}
+                    loading={busyId === u.id}
                     onClick={() => handleAdd(u.id)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {busyId === u.id && <Spinner className="size-3.5" />}
-                    Add Friend
-                  </button>
+                  />
                 )
               }
             />

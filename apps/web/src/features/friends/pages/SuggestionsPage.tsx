@@ -3,7 +3,7 @@ import type { SearchUserType } from "@bakbak/contracts";
 import { getPendingRequests, getSuggestions, sendFriendRequest } from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/Button";
 
 export function SuggestionsPage() {
   const [suggestions, setSuggestions] = useState<SearchUserType[]>([]);
@@ -70,15 +70,14 @@ export function SuggestionsPage() {
                 pendingIds.has(u.id) ? (
                   <span className="text-xs font-semibold text-gray-400">Pending</span>
                 ) : (
-                  <button
-                    type="button"
+                  <Button
+                    value="Add friend"
+                    size="sm"
+                    fullWidth={false}
                     disabled={busyId !== null}
+                    loading={busyId === u.id}
                     onClick={() => handleAdd(u.id)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {busyId === u.id && <Spinner className="size-3.5" />}
-                    Add Friend
-                  </button>
+                  />
                 )
               }
             />

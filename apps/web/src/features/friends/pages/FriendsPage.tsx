@@ -5,7 +5,8 @@ import { getFriends, removeFriend } from "@/features/friends/api";
 import { createDirectChat } from "@/features/chat/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function FriendsPage() {
   const [friends, setFriends] = useState<FriendshipResponseType[]>([]);
@@ -14,6 +15,7 @@ export function FriendsPage() {
   const [busy, setBusy] = useState<
     { id: string; action: "message" | "remove" } | null
   >(null);
+  const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
   const navigate = useNavigate();
 
   async function load() {
@@ -34,7 +36,7 @@ export function FriendsPage() {
   }, []);
 
   async function handleRemove(friendId: string) {
-    if (!confirm("Remove this friend?")) return;
+    setPendingRemoval(null);
     setBusy({ id: friendId, action: "remove" });
     setStatus("");
     try {
@@ -47,6 +49,13 @@ export function FriendsPage() {
       setBusy(null);
     }
   }
+
+  const removalName = pendingRemoval
+    ? friends.find((f) => f.friend.id === pendingRemoval)?.friend.profile
+        ?.displayName ??
+      friends.find((f) => f.friend.id === pendingRemoval)?.friend.username ??
+      "this person"
+    : "";
 
   async function handleMessage(friendId: string) {
     setBusy({ id: friendId, action: "message" });
@@ -83,33 +92,39 @@ export function FriendsPage() {
               user={f.friend}
               actions={
                 <>
-                  <button
-                    type="button"
+                  <Button
+                    value="Message"
+                    size="sm"
+                    fullWidth={false}
                     disabled={busy !== null}
+                    loading={isLoading(f.friend.id, "message")}
                     onClick={() => handleMessage(f.friend.id)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-linear-to-br from-[#805FF8] to-[#4C18EF] px-4 py-1.5 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isLoading(f.friend.id, "message") && (
-                      <Spinner className="size-3.5" />
-                    )}
-                    Message
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <Button
+                    value="Remove"
+                    variant="danger"
+                    size="sm"
+                    fullWidth={false}
                     disabled={busy !== null}
-                    onClick={() => handleRemove(f.friend.id)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isLoading(f.friend.id, "remove") && (
-                      <Spinner className="size-3.5" />
-                    )}
-                    Remove
-                  </button>
+                    loading={isLoading(f.friend.id, "remove")}
+                    onClick={() => setPendingRemoval(f.friend.id)}
+                  />
                 </>
               }
             />
           ))}
         </div>
+      )}
+
+      {pendingRemoval && (
+        <ConfirmDialog
+          title="Remove friend?"
+          message={`${removalName} will be removed from your friends. You can send a new request later.`}
+          confirmLabel="Remove"
+          destructive
+          onConfirm={() => handleRemove(pendingRemoval)}
+          onCancel={() => setPendingRemoval(null)}
+        />
       )}
     </div>
   );
