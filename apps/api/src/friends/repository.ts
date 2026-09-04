@@ -27,6 +27,20 @@ export class FriendRepository {
 		});
 	}
 
+	/** The most recent request between two users, in either direction
+	 * (there are at most two rows thanks to the unique constraint). */
+	async findLatestRequestBetween(a: string, b: string) {
+		return await prisma.friendRequest.findFirst({
+			where: {
+				OR: [
+					{ senderId: a, receiverId: b },
+					{ senderId: b, receiverId: a },
+				],
+			},
+			orderBy: { createdAt: "desc" },
+		});
+	}
+
 	async findRequestById(id: string) {
 		return await prisma.friendRequest.findUnique({
 			where: { id },

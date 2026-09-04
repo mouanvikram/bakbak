@@ -9,6 +9,29 @@ export const safeString = (max: number, min = 1) =>
 
 export const emailSchema = z.email().max(100);
 
+/** Smallest bio we'll store — anything shorter (once trimmed) isn't worth keeping. */
+export const BIO_MIN_LENGTH = 10;
+export const BIO_MAX_LENGTH = 500;
+
+/**
+ * A user bio for write paths (signup, profile update). A bio is either absent —
+ * `null`, `undefined`, or blank/whitespace, all normalised to `null` — or a real
+ * string of {@link BIO_MIN_LENGTH}–{@link BIO_MAX_LENGTH} characters after
+ * trimming. Empty strings are never persisted.
+ */
+export const bioSchema = z
+	.string()
+	.max(BIO_MAX_LENGTH, `Bio must be ${BIO_MAX_LENGTH} characters or fewer`)
+	.regex(/^(?!.*\0)/, "Null bytes are not allowed")
+	.nullable()
+	.transform((value) => {
+		const trimmed = value?.trim() ?? "";
+		return trimmed.length === 0 ? null : trimmed;
+	})
+	.refine((value) => value === null || value.length >= BIO_MIN_LENGTH, {
+		message: `Bio must be at least ${BIO_MIN_LENGTH} characters`,
+	});
+
 export const passwordSchema = safeString(128, 12)
 	.regex(/[A-Z]/, "Password must contain an uppercase letter")
 	.regex(/[a-z]/, "Password must contain a lowercase letter")

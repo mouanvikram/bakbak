@@ -37,6 +37,10 @@ export const friendRequestIdParamsSchema = z.object({
 	requestId: z.uuid(),
 });
 
+export type FriendRequestIdParamsType = z.infer<
+	typeof friendRequestIdParamsSchema
+>;
+
 export const sendFriendRequestResponseSchema = friendRequestResponseSchema;
 
 export type SendFriendRequestRequestType = z.infer<
@@ -82,6 +86,8 @@ export type GetPendingRequestsResponseType = z.infer<
 export const friendIdParamsSchema = z.object({
 	friendId: z.uuid(),
 });
+
+export type FriendIdParamsType = z.infer<typeof friendIdParamsSchema>;
 
 export const removeFriendResponseSchema = okResponseSchema;
 

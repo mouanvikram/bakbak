@@ -81,7 +81,7 @@ describe("Users Endpoints", () => {
 		expect(data.profile).toHaveProperty("firstName", "Test");
 		expect(data.profile).toHaveProperty("lastName", "User");
 		expect(data.profile).toHaveProperty("displayName", "Test User");
-		expect(data.profile).toHaveProperty("bio", "Test bio");
+		expect(data.profile).toHaveProperty("bio", "This is a test bio.");
 		expect(data.profile).toHaveProperty("avatar", null);
 	});
 
@@ -124,6 +124,134 @@ describe("Users Endpoints", () => {
 		expect(data).toHaveProperty("lastName", "Smith");
 		expect(data).toHaveProperty("displayName", "Jane Smith");
 		expect(data).toHaveProperty("bio", "Updated bio");
+	});
+
+	test("PATCH /users/me - changes the username and it sticks", async () => {
+		const newName = `renamed-${Date.now()}`;
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(testUser.id, testUser.username)),
+			},
+			body: JSON.stringify({ username: newName }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(((await res.json()) as any).username).toBe(newName);
+
+		const row = await prisma.user.findUnique({ where: { id: testUser.id } });
+		expect(row?.username).toBe(newName);
+	});
+
+	test("PATCH /users/me - re-sending the same username is a no-op, not a conflict", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(testUser.id, testUser.username)),
+			},
+			body: JSON.stringify({ username: testUser.username, firstName: "Sam" }),
+		});
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.username).toBe(testUser.username);
+		expect(data.firstName).toBe("Sam");
+	});
+
+	test("PATCH /users/me - rejects a username already taken by someone else", async () => {
+		const other = await createTestUser({
+			username: `taken-${Date.now()}`,
+			email: `taken-${Date.now()}@example.com`,
+		});
+
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(testUser.id, testUser.username)),
+			},
+			body: JSON.stringify({ username: other.username }),
+		});
+
+		expect(res.status).toBe(409);
+		expect(((await res.json()) as any).error.code).toBe(
+			"USERNAME_ALREADY_EXISTS",
+		);
+
+		const row = await prisma.user.findUnique({ where: { id: testUser.id } });
+		expect(row?.username).toBe(testUser.username);
+	});
+
+	test("PATCH /users/me - rejects a too-short username", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(testUser.id, testUser.username)),
+			},
+			body: JSON.stringify({ username: "ab" }),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	test("PATCH /users/me - clearing the bio stores null, not an empty string", async () => {
+		for (const bio of ["", "   "]) {
+			const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+					...(await authHeader(testUser.id, testUser.username)),
+				},
+				body: JSON.stringify({ bio }),
+			});
+
+			expect(res.status).toBe(200);
+			expect(((await res.json()) as any).bio).toBeNull();
+
+			const row = await prisma.userProfile.findUnique({
+				where: { userId: testUser.id },
+			});
+			expect(row?.bio).toBeNull();
+
+			// And it reads back cleanly through /users/me.
+			const me = await fetch(`${baseUrl()}/api/v1/users/me`, {
+				headers: await authHeader(testUser.id, testUser.username),
+			});
+			expect(me.status).toBe(200);
+			expect(((await me.json()) as any).profile.bio).toBeNull();
+		}
+	});
+
+	test("PATCH /users/me - rejects a bio shorter than 10 characters", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(testUser.id, testUser.username)),
+			},
+			body: JSON.stringify({ bio: "hi there" }),
+		});
+
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
+		expect(data.error?.code ?? data.error).toBeDefined();
+	});
+
+	test("PATCH /users/me - trims and keeps a valid bio", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(testUser.id, testUser.username)),
+			},
+			body: JSON.stringify({ bio: "  Loves long walks and strong coffee.  " }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(((await res.json()) as any).bio).toBe(
+			"Loves long walks and strong coffee.",
+		);
 	});
 
 	test("PATCH /users/me - should fail without auth", async () => {
@@ -280,6 +408,53 @@ describe("Users Endpoints", () => {
 		expect(data).toHaveProperty("firstName", "Test");
 		expect(data).toHaveProperty("lastName", "User");
 		expect(data).toHaveProperty("displayName", "Test User");
+		expect(data).toHaveProperty("id", testUser.id);
+		expect(data).toHaveProperty("friendsCount", 0);
+		expect(data.friendshipStatus).toBe("self");
+		expect(typeof data.joinedAt).toBe("string");
+	});
+
+	test("GET /users/:username - reports friendship status between two users", async () => {
+		const other = await createTestUser({
+			username: `other-${Date.now()}`,
+			email: `other-${Date.now()}@example.com`,
+		});
+
+		const url = `${baseUrl()}/api/v1/users/${encodeURIComponent(other.username)}`;
+		const asMe = { headers: await authHeader(testUser.id, testUser.username) };
+
+		// No relationship yet.
+		let data = (await (await fetch(url, asMe)).json()) as any;
+		expect(data.friendshipStatus).toBe("none");
+		expect(data.pendingRequestId).toBeFalsy();
+
+		// I send them a request.
+		const request = await prisma.friendRequest.create({
+			data: { senderId: testUser.id, receiverId: other.id, status: "PENDING" },
+		});
+		data = (await (await fetch(url, asMe)).json()) as any;
+		expect(data.friendshipStatus).toBe("request_sent");
+		expect(data.pendingRequestId).toBe(request.id);
+
+		// They see it as an incoming request.
+		const asThem = (await (
+			await fetch(
+				`${baseUrl()}/api/v1/users/${encodeURIComponent(testUser.username)}`,
+				{ headers: await authHeader(other.id, other.username) },
+			)
+		).json()) as any;
+		expect(asThem.friendshipStatus).toBe("request_received");
+
+		// Once befriended.
+		await prisma.friendRequest.update({
+			where: { id: request.id },
+			data: { status: "ACCEPTED" },
+		});
+		const [a, b] = [testUser.id, other.id].sort() as [string, string];
+		await prisma.friendship.create({ data: { user1Id: a, user2Id: b } });
+		data = (await (await fetch(url, asMe)).json()) as any;
+		expect(data.friendshipStatus).toBe("friends");
+		expect(data.friendsCount).toBe(1);
 	});
 
 	test("GET /users/:username - should return 404 for non-existent username", async () => {

@@ -1,5 +1,8 @@
 import { z } from "zod";
 import {
+	BIO_MAX_LENGTH,
+	BIO_MIN_LENGTH,
+	bioSchema,
 	emailSchema,
 	okResponseSchema,
 	profileSnippetSchema,
@@ -15,7 +18,7 @@ export const userProfileSchema = z.object({
 	verified: z.boolean(),
 	firstName: safeString(100).nullish(),
 	lastName: safeString(100).nullish(),
-	bio: safeString(500).nullish(),
+	bio: safeString(BIO_MAX_LENGTH, BIO_MIN_LENGTH).nullish(),
 	avatar: safeString(1024).nullish(),
 	displayName: safeString(100).nullish(),
 	joinedAt: z.string(),
@@ -33,7 +36,10 @@ export const getMeResponseSchema = z.object({
 export type GetMeResponseType = z.infer<typeof getMeResponseSchema>;
 
 export const updateProfileRequestSchema = z.object({
-	bio: safeString(500, 0).optional(),
+	// Same rules as signup (4–30 chars); the API also checks it's not taken.
+	username: safeString(30, 4).optional(),
+	// `null`/blank clears the bio; a real value must be 10–500 chars.
+	bio: bioSchema.optional(),
 	firstName: safeString(100).optional(),
 	lastName: safeString(100).optional(),
 	displayName: safeString(100).optional(),
@@ -108,15 +114,35 @@ export const getProfileRequestSchema = z.object({
 	username: safeString(100, 1),
 });
 
-export const getProfileResponseSchema = userProfileSchema.pick({
-	username: true,
-	verified: true,
-	firstName: true,
-	lastName: true,
-	bio: true,
-	avatar: true,
-	displayName: true,
-});
+/** How the caller is related to the profile they're looking at. */
+export const friendshipStatusSchema = z.enum([
+	"self",
+	"friends",
+	"request_sent",
+	"request_received",
+	"none",
+]);
+
+export type FriendshipStatusType = z.infer<typeof friendshipStatusSchema>;
+
+export const getProfileResponseSchema = userProfileSchema
+	.pick({
+		username: true,
+		verified: true,
+		firstName: true,
+		lastName: true,
+		bio: true,
+		avatar: true,
+		displayName: true,
+	})
+	.extend({
+		id: z.uuid(),
+		joinedAt: z.string(),
+		friendsCount: z.number().int().nonnegative(),
+		friendshipStatus: friendshipStatusSchema,
+		/** Id of the pending request between the two users, if any. */
+		pendingRequestId: z.uuid().nullish(),
+	});
 
 export type GetProfileRequestType = z.infer<typeof getProfileRequestSchema>;
 export type GetProfileResponseType = z.infer<typeof getProfileResponseSchema>;

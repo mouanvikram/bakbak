@@ -169,10 +169,19 @@ export function SignupPage() {
   const { signup } = useAuth();
 
   async function handleSignUp() {
+    const trimmedBio = user.bio.trim();
+    if (trimmedBio.length > 0 && trimmedBio.length < 10) {
+      setError("Bio must be at least 10 characters, or left blank.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      await signup({ ...user, avatarToken: avatarToken ?? undefined });
+      await signup({
+        ...user,
+        bio: trimmedBio || undefined,
+        avatarToken: avatarToken ?? undefined,
+      });
       setStep(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
@@ -500,13 +509,16 @@ export function SignupPage() {
                   id="bio"
                   name="bio"
                   rows={3}
-                  maxLength={160}
+                  maxLength={500}
                   placeholder="Tell us a little about yourself..."
                   className="w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-50"
                   value={user.bio}
                   onChange={handleChange}
                   disabled={loading || uploading}
                 />
+                <p className="text-xs text-gray-400">
+                  Optional — leave blank, or write at least 10 characters.
+                </p>
               </div>
               <div className="flex gap-3">
                 <button

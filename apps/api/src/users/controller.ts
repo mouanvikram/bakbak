@@ -11,6 +11,13 @@ import {
 	updateAvatarResponseSchema,
 	updateProfileResponseSchema,
 } from "@bakbak/contracts";
+import type {
+	CheckUsernameRequestType,
+	GetProfileRequestType,
+	SearchUsersRequestType,
+	UpdateAvatarRequestType,
+	UpdateProfileRequestType,
+} from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
 export class UserController {
@@ -33,7 +40,8 @@ export class UserController {
 	};
 
 	updateMe = async (req: AuthRequest, res: Response) => {
-		const { bio, firstName, lastName, displayName } = req.body;
+		const { username, bio, firstName, lastName, displayName } =
+			req.valid?.body as UpdateProfileRequestType;
 		const userId = req.user?.userId;
 
 		if (!userId) {
@@ -46,6 +54,7 @@ export class UserController {
 
 		const response = await this.userService.updateMe({
 			userId,
+			username,
 			bio,
 			firstName,
 			lastName,
@@ -56,7 +65,7 @@ export class UserController {
 	};
 
 	updateAvatar = async (req: AuthRequest, res: Response) => {
-		const { avatar } = req.body;
+		const { avatar } = req.valid?.body as UpdateAvatarRequestType;
 		const userId = req.user?.userId;
 
 		if (!userId) {
@@ -128,14 +137,7 @@ export class UserController {
 	};
 
 	searchUsers = async (req: AuthRequest, res: Response) => {
-		const { query } = req.query;
-		if (typeof query !== "string") {
-			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.VALIDATION_ERROR,
-				"Validation failed",
-			);
-		}
+		const { query } = req.valid?.query as SearchUsersRequestType;
 		const response = await this.userService.searchUsers({
 			query,
 		});
@@ -144,33 +146,26 @@ export class UserController {
 	};
 
 	getProfile = async (req: AuthRequest, res: Response) => {
-		const { username } = req.params;
-		if (typeof username !== "string" || !username) {
+		const { username } = req.valid?.params as GetProfileRequestType;
+		const currentUserId = req.user?.userId;
+		if (!currentUserId) {
 			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.VALIDATION_ERROR,
-				"Invalid request",
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.UNAUTHORIZED,
+				"Authentication required",
 			);
 		}
-		const otherUserProfile = await this.userService.getProfile({ username });
 
-		return validateResponse(res, 200, getProfileResponseSchema, {
-			...otherUserProfile,
+		const otherUserProfile = await this.userService.getProfile({
 			username,
+			currentUserId,
 		});
+
+		return validateResponse(res, 200, getProfileResponseSchema, otherUserProfile);
 	};
 
 	checkUsername = async (req: AuthRequest, res: Response) => {
-		const username = req.query.username;
-
-		if (typeof username !== "string") {
-			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.VALIDATION_ERROR,
-				"Invalid request",
-			);
-		}
-
+		const { username } = req.valid?.query as CheckUsernameRequestType;
 		const response = await this.userService.checkUsername({
 			username,
 		});

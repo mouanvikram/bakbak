@@ -1,11 +1,13 @@
 import crypto from "node:crypto";
 import { Prisma } from "@bakbak/db";
 import type { UserRepository } from "./repository";
+import type { FriendRepository } from "../friends/repository";
 import type { StorageProvider } from "../uploads/storage.provider";
 import type {
 	CheckUsernameRequestType,
 	CheckUsernameResponseType,
 	DeleteMeResponseType,
+	FriendshipStatusType,
 	GetMeResponseType,
 	GetProfileRequestType,
 	GetProfileResponseType,
@@ -18,14 +20,26 @@ import type {
 	UserIdType,
 } from "@bakbak/contracts";
 import type { UploadFile } from "@bakbak/contracts";
+import { BIO_MIN_LENGTH } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { resolveAvatarUrl, AVATAR_URL_TTL_SECONDS } from "../uploads/avatar-url";
 import { titleCaseName } from "../lib/name-case";
+
+/**
+ * Present a stored bio to clients as the contract expects: `null`, or a real
+ * string of at least {@link BIO_MIN_LENGTH} chars. Guards against legacy rows
+ * that hold `""` or a too-short value from before the bio rules tightened.
+ */
+function readBio(value: string | null | undefined): string | null {
+	const trimmed = value?.trim() ?? "";
+	return trimmed.length >= BIO_MIN_LENGTH ? trimmed : null;
+}
 
 export class UserService {
 	constructor(
 		private userRepository: UserRepository,
 		private readonly storageProvider: StorageProvider,
+		private readonly friendRepository: FriendRepository,
 	) {}
 
 	async getMe(dto: UserIdType): Promise<GetMeResponseType> {
@@ -67,7 +81,7 @@ export class UserService {
 				verified: user.isEmailVerified,
 				firstName: user.profile?.firstName,
 				lastName: user.profile?.lastName,
-				bio: user.profile?.bio,
+				bio: readBio(user.profile?.bio),
 				avatar: await resolveAvatarUrl(user.profile?.avatar, this.storageProvider),
 				displayName: user.profile?.displayName,
 				joinedAt: user.createdAt.toISOString(),
@@ -88,26 +102,62 @@ export class UserService {
 		}
 		if (dto.bio !== undefined) data.bio = dto.bio;
 
-		const user = await this.userRepository.updateProfile({
-			where: {
-				id: dto.userId,
-			},
-			data: {
-				profile: {
-					update: data,
+		const userData: Prisma.UserUpdateInput = {};
+		if (dto.username !== undefined) {
+			const username = dto.username.trim();
+			const current = await this.userRepository.findBy({ id: dto.userId });
+			if (!current) {
+				throw new AppError(
+					HTTP_STATUS.NOT_FOUND,
+					ERROR_CODES.USER_NOT_FOUND,
+					"User does not exist",
+				);
+			}
+			// Only touch it when it actually changes — otherwise the caller's
+			// own username would read as "taken".
+			if (username !== current.username) {
+				const taken = await this.userRepository.findBy({ username });
+				if (taken) {
+					throw new AppError(
+						HTTP_STATUS.CONFLICT,
+						ERROR_CODES.USERNAME_ALREADY_EXISTS,
+						"That username is already taken",
+					);
+				}
+				userData.username = username;
+			}
+		}
+
+		const user = await this.userRepository
+			.updateProfile({
+				where: { id: dto.userId },
+				data: {
+					...userData,
+					profile: { update: data },
 				},
-			},
-			include: {
-				profile: true,
-			},
-		});
+				include: { profile: true },
+			})
+			.catch((error: unknown) => {
+				// Lost a race for the same username between the check and write.
+				if (
+					error instanceof Prisma.PrismaClientKnownRequestError &&
+					error.code === "P2002"
+				) {
+					throw new AppError(
+						HTTP_STATUS.CONFLICT,
+						ERROR_CODES.USERNAME_ALREADY_EXISTS,
+						"That username is already taken",
+					);
+				}
+				throw error;
+			});
 
 		return {
 			username: user.username,
 			verified: user.isEmailVerified,
 			firstName: user.profile?.firstName,
 			lastName: user.profile?.lastName,
-			bio: user.profile?.bio,
+			bio: readBio(user.profile?.bio),
 			avatar: await resolveAvatarUrl(user.profile?.avatar, this.storageProvider),
 			displayName: user.profile?.displayName,
 		};
@@ -252,6 +302,7 @@ export class UserService {
 				profile: user.profile
 					? {
 							...user.profile,
+							bio: readBio(user.profile.bio),
 							avatar: await resolveAvatarUrl(
 								user.profile.avatar,
 								this.storageProvider,
@@ -287,13 +338,15 @@ export class UserService {
 	}
 
 	async getProfile(
-		dto: GetProfileRequestType,
+		dto: GetProfileRequestType & { currentUserId: string },
 	): Promise<GetProfileResponseType> {
 		const otherUser = await this.userRepository.getProfile({
 			where: { username: dto.username },
 			select: {
+				id: true,
 				username: true,
 				isEmailVerified: true,
+				createdAt: true,
 				profile: {
 					select: {
 						firstName: true,
@@ -314,14 +367,50 @@ export class UserService {
 			);
 		}
 
+		const isSelf = otherUser.id === dto.currentUserId;
+		const friendsCount = await this.userRepository.countFriends(otherUser.id);
+
+		let friendshipStatus: FriendshipStatusType = isSelf ? "self" : "none";
+		let pendingRequestId: string | null = null;
+
+		if (!isSelf) {
+			const friendship = await this.friendRepository.findFriendship({
+				OR: [
+					{ user1Id: dto.currentUserId, user2Id: otherUser.id },
+					{ user1Id: otherUser.id, user2Id: dto.currentUserId },
+				],
+			});
+
+			if (friendship) {
+				friendshipStatus = "friends";
+			} else {
+				const request = await this.friendRepository.findLatestRequestBetween(
+					dto.currentUserId,
+					otherUser.id,
+				);
+				if (request?.status === "PENDING") {
+					friendshipStatus =
+						request.senderId === dto.currentUserId
+							? "request_sent"
+							: "request_received";
+					pendingRequestId = request.id;
+				}
+			}
+		}
+
 		return {
+			id: otherUser.id,
 			username: otherUser.username,
 			verified: otherUser.isEmailVerified,
 			firstName: otherUser.profile?.firstName,
 			lastName: otherUser.profile?.lastName,
-			bio: otherUser.profile?.bio,
+			bio: readBio(otherUser.profile?.bio),
 			avatar: await resolveAvatarUrl(otherUser.profile?.avatar, this.storageProvider),
 			displayName: otherUser.profile?.displayName,
+			joinedAt: otherUser.createdAt.toISOString(),
+			friendsCount,
+			friendshipStatus,
+			pendingRequestId,
 		};
 	}
 }
