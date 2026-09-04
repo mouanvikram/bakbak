@@ -13,24 +13,32 @@ import {
 	removeFriendResponseSchema,
 	sendFriendRequestResponseSchema,
 } from "@bakbak/contracts";
+import type {
+	FriendIdParamsType,
+	FriendRequestIdParamsType,
+	SendFriendRequestRequestType,
+} from "@bakbak/contracts";
 
-const getStringParam = (value: unknown): string | undefined =>
-	typeof value === "string" && value.trim().length > 0 ? value : undefined;
+/** Every friend route runs `authMiddleware`, so this is always set in practice. */
+function requireUserId(req: AuthRequest): string {
+	const userId = req.user?.userId;
+	if (!userId) {
+		throw new AppError(
+			HTTP_STATUS.UNAUTHORIZED,
+			ERROR_CODES.UNAUTHORIZED,
+			"Unauthorized",
+		);
+	}
+	return userId;
+}
 
 export class FriendController {
 	constructor(private readonly friendService: FriendService) {}
 
 	sendRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
 		try {
-			const senderId = req.user?.userId;
-			const receiverId = getStringParam(req.params.receiverId);
-			if (!senderId || !receiverId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid Id",
-				);
-			}
+			const senderId = requireUserId(req);
+			const { receiverId } = req.valid?.params as SendFriendRequestRequestType;
 
 			const response = await this.friendService.sendRequest({
 				senderId,
@@ -54,15 +62,8 @@ export class FriendController {
 		next: NextFunction,
 	) => {
 		try {
-			const userId = req.user?.userId;
-			const requestId = getStringParam(req.params.requestId);
-			if (!userId || !requestId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid Request",
-				);
-			}
+			const userId = requireUserId(req);
+			const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 			const response = await this.friendService.cancelRequest({
 				requestId,
 				userId,
@@ -85,15 +86,8 @@ export class FriendController {
 		next: NextFunction,
 	) => {
 		try {
-			const userId = req.user?.userId;
-			const requestId = getStringParam(req.params.requestId);
-			if (!userId || !requestId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid Request",
-				);
-			}
+			const userId = requireUserId(req);
+			const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 			const response = await this.friendService.acceptRequest({
 				requestId,
 				userId,
@@ -116,15 +110,8 @@ export class FriendController {
 		next: NextFunction,
 	) => {
 		try {
-			const userId = req.user?.userId;
-			const requestId = getStringParam(req.params.requestId);
-			if (!userId || !requestId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid Request",
-				);
-			}
+			const userId = requireUserId(req);
+			const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 			const response = await this.friendService.rejectRequest({
 				requestId,
 				userId,
@@ -143,14 +130,7 @@ export class FriendController {
 
 	getFriends = async (req: AuthRequest, res: Response, next: NextFunction) => {
 		try {
-			const userId = req.user?.userId;
-			if (!userId) {
-				throw new AppError(
-					HTTP_STATUS.UNAUTHORIZED,
-					ERROR_CODES.UNAUTHORIZED,
-					"Unauthorized",
-				);
-			}
+			const userId = requireUserId(req);
 			const response = await this.friendService.getFriends({ userId });
 
 			return validateResponse(res, 200, getFriendsResponseSchema, {
@@ -167,14 +147,7 @@ export class FriendController {
 		next: NextFunction,
 	) => {
 		try {
-			const id = req.user?.userId;
-			if (!id) {
-				throw new AppError(
-					HTTP_STATUS.UNAUTHORIZED,
-					ERROR_CODES.UNAUTHORIZED,
-					"Unauthorized",
-				);
-			}
+			const id = requireUserId(req);
 
 			const received = await this.friendService.getIncomingRequests(id);
 			const sent = await this.friendService.getOutgoingRequests(id);
@@ -194,15 +167,8 @@ export class FriendController {
 		next: NextFunction,
 	) => {
 		try {
-			const userId = req.user?.userId;
-			const friendId = getStringParam(req.params.friendId);
-			if (!userId || !friendId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid Request",
-				);
-			}
+			const userId = requireUserId(req);
+			const { friendId } = req.valid?.params as FriendIdParamsType;
 
 			const response = await this.friendService.removeFriend({
 				requestId: friendId,
@@ -221,14 +187,7 @@ export class FriendController {
 		next: NextFunction,
 	) => {
 		try {
-			const userId = req.user?.userId;
-			if (!userId) {
-				throw new AppError(
-					HTTP_STATUS.UNAUTHORIZED,
-					ERROR_CODES.UNAUTHORIZED,
-					"Unauthorized",
-				);
-			}
+			const userId = requireUserId(req);
 
 			const response = await this.friendService.getSuggestions({ userId });
 

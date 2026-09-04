@@ -6,7 +6,9 @@ import {
 	chatIdParamsSchema,
 	editMessageRequestSchema,
 	getMessageRequestSchema,
+	listMessagesQuerySchema,
 	markChatReadRequestSchema,
+	searchMessagesQuerySchema,
 	sendMessageRequestSchema,
 } from "@bakbak/contracts";
 
@@ -18,14 +20,22 @@ export const chatMessageRoutes = Router({ mergeParams: true });
 
 chatMessageRoutes.use(validate(chatIdParamsSchema, "params"));
 
-chatMessageRoutes.get("/search", messageController.searchMessages);
+chatMessageRoutes.get(
+	"/search",
+	validate(searchMessagesQuerySchema, "query"),
+	messageController.searchMessages,
+);
 chatMessageRoutes.get("/unread", messageController.getUnreadCount);
 chatMessageRoutes.post(
 	"/read",
 	validate(markChatReadRequestSchema),
 	messageController.markChatRead,
 );
-chatMessageRoutes.get("/", messageController.listMessages);
+chatMessageRoutes.get(
+	"/",
+	validate(listMessagesQuerySchema, "query"),
+	messageController.listMessages,
+);
 chatMessageRoutes.post(
 	"/",
 	validate(sendMessageRequestSchema),

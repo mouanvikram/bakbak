@@ -158,15 +158,35 @@ export function ChatSidebar() {
       );
     };
 
+    // Group renamed / photo changed / members added or removed.
+    const onChatUpdated = (chat: ChatResponseType) => {
+      if (!chat?.id) return;
+      const stillIn = chat.participants?.some((p) => p.userId === currentUserId);
+      setChats((prev) => {
+        if (!stillIn) return prev.filter((c) => c.id !== chat.id);
+        const idx = prev.findIndex((c) => c.id === chat.id);
+        if (idx === -1) return prev;
+        // Keep the live message preview/ordering; take metadata from the event.
+        const merged: ChatResponseType = {
+          ...chat,
+          messages: prev[idx].messages,
+          lastMessageAt: prev[idx].lastMessageAt,
+        };
+        return [...prev.slice(0, idx), merged, ...prev.slice(idx + 1)];
+      });
+    };
+
     s.on("message:new", onNewMessage);
     s.on("message:edited", onMessageChanged);
     s.on("message:deleted", onMessageChanged);
     s.on("read:receipt", onReadReceipt);
+    s.on("chat:updated", onChatUpdated);
     return () => {
       s.off("message:new", onNewMessage);
       s.off("message:edited", onMessageChanged);
       s.off("message:deleted", onMessageChanged);
       s.off("read:receipt", onReadReceipt);
+      s.off("chat:updated", onChatUpdated);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, currentUserId]);
@@ -271,6 +291,16 @@ export function ChatSidebar() {
               key={chat.id}
               chat={chat}
               unreadCount={unread[chat.id] ?? 0}
+              onDeleted={(chatId) => {
+                setChats((prev) => prev.filter((c) => c.id !== chatId));
+                setUnread((prev) => {
+                  const next = { ...prev };
+                  delete next[chatId];
+                  return next;
+                });
+                countRequested.current.delete(chatId);
+                if (openChatId === chatId) navigate("/chats");
+              }}
             />
           ))
         ) : (

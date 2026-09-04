@@ -9,6 +9,7 @@ import {
 	test,
 	expect,
 } from "bun:test";
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import app from "../src/app";
 import { prisma } from "@bakbak/db";
@@ -461,6 +462,65 @@ describe("Chats Endpoints", () => {
 			method: "DELETE",
 		});
 
+		expect(res.status).toBe(401);
+	});
+
+	test("POST /chats/:chatId/leave - hides a direct chat for the caller only", async () => {
+		const chat = await createTestDirectChat(userA.id, userB.id);
+
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/leave`, {
+			method: "POST",
+			headers: await authHeader(userA.id, userA.username),
+		});
+		expect(res.status).toBe(200);
+
+		// Gone from A's list...
+		const listA = await fetch(`${baseUrl()}/api/v1/chats`, {
+			headers: await authHeader(userA.id, userA.username),
+		});
+		expect(((await listA.json()) as any).chats.map((c: any) => c.id)).not.toContain(
+			chat.id,
+		);
+
+		// ...still there for B, and the row still exists.
+		const listB = await fetch(`${baseUrl()}/api/v1/chats`, {
+			headers: await authHeader(userB.id, userB.username),
+		});
+		expect(((await listB.json()) as any).chats.map((c: any) => c.id)).toContain(
+			chat.id,
+		);
+		expect(await prisma.chat.findUnique({ where: { id: chat.id } })).not.toBeNull();
+	});
+
+	test("POST /chats/:chatId/leave - removes the caller from a group", async () => {
+		const chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
+
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/leave`, {
+			method: "POST",
+			headers: await authHeader(userB.id, userB.username),
+		});
+		expect(res.status).toBe(200);
+
+		const participant = await prisma.chatParticipant.findFirst({
+			where: { chatId: chat.id, userId: userB.id },
+		});
+		expect(participant?.leftAt).not.toBeNull();
+	});
+
+	test("POST /chats/:chatId/leave - fails for a non-participant", async () => {
+		const chat = await createTestDirectChat(userA.id, userB.id);
+
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/leave`, {
+			method: "POST",
+			headers: await authHeader(userC.id, userC.username),
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("POST /chats/:chatId/leave - should fail without auth", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${randomUUID()}/leave`, {
+			method: "POST",
+		});
 		expect(res.status).toBe(401);
 	});
 

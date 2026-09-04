@@ -18,11 +18,11 @@ export function setRefIo(io: Server) {
 	_io = io;
 }
 
-export function registerConnection(io: Server, socket: Socket) {
-	const s = socket as AuthenticatedSocket;
+export function registerConnection(io: Server, socket: AuthenticatedSocket) {
+	const s = socket;
 	const { userId, username } = s.data;
 
-	logger.info({ socketId: s.id, userId }, "Socket connected");
+	logger.info({ socketId: s.id, userId, username }, "Socket connected");
 
 	// ── Presence bookkeeping ──────────────────────────────────────────
 	if (!presenceMap.has(userId)) {

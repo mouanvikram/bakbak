@@ -13,54 +13,45 @@ import {
 	sendMessageResponseSchema,
 	getUnreadCountResponseSchema,
 } from "@bakbak/contracts";
+import type {
+	ChatIdParamsType,
+	EditMessageRequestType,
+	GetMessageRequestType,
+	ListMessagesQueryType,
+	MarkChatReadRequestType,
+	SearchMessagesQueryType,
+	SendMessageRequestType,
+} from "@bakbak/contracts";
 import { HTTP_STATUS, AppError, ERROR_CODES } from "@/errors/app-error";
 
-const getString = (value: unknown) =>
-	typeof value === "string" && value.trim() ? value.trim() : undefined;
-
-const getLimit = (value: unknown, fallback = 50, max = 100) => {
-	const parsed =
-		typeof value === "string" ? Number.parseInt(value, 10) : Number(value);
-
-	if (!Number.isFinite(parsed) || parsed <= 0) {
-		return fallback;
+/** Every message route runs `authMiddleware`, so this is always set in practice. */
+function requireUserId(req: AuthRequest): string {
+	const userId = req.user?.userId;
+	if (!userId) {
+		throw new AppError(
+			HTTP_STATUS.UNAUTHORIZED,
+			ERROR_CODES.UNAUTHORIZED,
+			"Not authenticated",
+		);
 	}
-
-	return Math.min(parsed, max);
-};
-
-const getMessageType = (value: unknown) => {
-	const type = getString(value)?.toUpperCase() ?? MessageType.TEXT;
-
-	if (!Object.values(MessageType).includes(type as MessageType)) {
-		return undefined;
-	}
-
-	return type as MessageType;
-};
+	return userId;
+}
 
 export class MessageController {
 	constructor(private readonly messageService: MessageService) {}
 
 	sendMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
 		try {
-			const currentUserId = req.user?.userId;
-			const chatId = getString(req.params.chatId);
-			const type = getMessageType(req.body.type);
-
-			if (!currentUserId || !chatId || !type) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid request",
-				);
-			}
+			const currentUserId = requireUserId(req);
+			const { chatId } = req.valid?.params as ChatIdParamsType;
+			const body = req.valid?.body as SendMessageRequestType;
 
 			const response = await this.messageService.sendMessage({
 				currentUserId,
 				chatId,
-				text: getString(req.body.text),
-				type,
+				text: body.text,
+				type: body.type ?? MessageType.TEXT,
+				attachmentIds: body.attachmentIds,
 			});
 
 			return validateResponse(res, 201, sendMessageResponseSchema, response);
@@ -75,22 +66,15 @@ export class MessageController {
 		next: NextFunction,
 	) => {
 		try {
-			const currentUserId = req.user?.userId;
-			const chatId = getString(req.params.chatId);
-
-			if (!currentUserId || !chatId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid request",
-				);
-			}
+			const currentUserId = requireUserId(req);
+			const { chatId } = req.valid?.params as ChatIdParamsType;
+			const { limit, cursor } = req.valid?.query as ListMessagesQueryType;
 
 			const response = await this.messageService.listMessages({
 				currentUserId,
 				chatId,
-				limit: getLimit(req.query.limit),
-				cursor: getString(req.query.cursor),
+				limit,
+				cursor,
 			});
 
 			return validateResponse(res, 200, listMessagesResponseSchema, {
@@ -103,16 +87,8 @@ export class MessageController {
 
 	getMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
 		try {
-			const currentUserId = req.user?.userId;
-			const messageId = getString(req.params.messageId);
-
-			if (!currentUserId || !messageId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid request",
-				);
-			}
+			const currentUserId = requireUserId(req);
+			const { messageId } = req.valid?.params as GetMessageRequestType;
 
 			const response = await this.messageService.getMessage({
 				currentUserId,
@@ -129,17 +105,9 @@ export class MessageController {
 
 	editMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
 		try {
-			const currentUserId = req.user?.userId;
-			const messageId = getString(req.params.messageId);
-			const text = getString(req.body.text);
-
-			if (!currentUserId || !messageId || !text) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid request",
-				);
-			}
+			const currentUserId = requireUserId(req);
+			const { messageId } = req.valid?.params as GetMessageRequestType;
+			const { text } = req.valid?.body as EditMessageRequestType;
 
 			const response = await this.messageService.editMessage({
 				currentUserId,
@@ -159,16 +127,8 @@ export class MessageController {
 		next: NextFunction,
 	) => {
 		try {
-			const currentUserId = req.user?.userId;
-			const messageId = getString(req.params.messageId);
-
-			if (!currentUserId || !messageId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid request",
-				);
-			}
+			const currentUserId = requireUserId(req);
+			const { messageId } = req.valid?.params as GetMessageRequestType;
 
 			const response = await this.messageService.deleteMessage({
 				currentUserId,
@@ -187,21 +147,14 @@ export class MessageController {
 		next: NextFunction,
 	) => {
 		try {
-			const currentUserId = req.user?.userId;
-			const chatId = getString(req.params.chatId);
-
-			if (!currentUserId || !chatId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid request",
-				);
-			}
+			const currentUserId = requireUserId(req);
+			const { chatId } = req.valid?.params as ChatIdParamsType;
+			const { messageId } = req.valid?.body as MarkChatReadRequestType;
 
 			const response = await this.messageService.markChatRead({
 				currentUserId,
 				chatId,
-				messageId: getString(req.body.messageId),
+				messageId,
 			});
 
 			return validateResponse(res, 200, markChatReadResponseSchema, response);
@@ -216,24 +169,16 @@ export class MessageController {
 		next: NextFunction,
 	) => {
 		try {
-			const currentUserId = req.user?.userId;
-			const chatId = getString(req.params.chatId);
-			const query = getString(req.query.q);
-
-			if (!currentUserId || !chatId || !query) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid request",
-				);
-			}
+			const currentUserId = requireUserId(req);
+			const { chatId } = req.valid?.params as ChatIdParamsType;
+			const { q, limit, cursor } = req.valid?.query as SearchMessagesQueryType;
 
 			const response = await this.messageService.searchMessages({
 				currentUserId,
 				chatId,
-				query,
-				limit: getLimit(req.query.limit),
-				cursor: getString(req.query.cursor),
+				query: q,
+				limit,
+				cursor,
 			});
 
 			return validateResponse(res, 200, searchMessagesResponseSchema, {
@@ -250,16 +195,8 @@ export class MessageController {
 		next: NextFunction,
 	) => {
 		try {
-			const currentUserId = req.user?.userId;
-			const chatId = getString(req.params.chatId);
-
-			if (!currentUserId || !chatId) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid request",
-				);
-			}
+			const currentUserId = requireUserId(req);
+			const { chatId } = req.valid?.params as ChatIdParamsType;
 
 			const count = await this.messageService.getUnreadCount({
 				currentUserId,
@@ -273,5 +210,4 @@ export class MessageController {
 			next(error);
 		}
 	};
-
 }

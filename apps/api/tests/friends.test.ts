@@ -16,6 +16,7 @@ import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
+	createTestFriendship,
 	sendFriendRequest,
 	authHeader,
 	isDatabaseAvailable,
@@ -515,5 +516,146 @@ describe("Friends Endpoints", () => {
 		expect(res.status).toBe(409);
 		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
+	});
+
+	// ── GET /friends/suggestions ────────────────────────────────────
+
+	test("GET /friends/suggestions - should list other users", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/suggestions`, {
+			headers: await authHeader(userA.id, userA.username),
+		});
+
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(Array.isArray(data.suggestions)).toBe(true);
+		const ids = data.suggestions.map((u: any) => u.id);
+		expect(ids).toContain(userB.id);
+		expect(ids).toContain(userC.id);
+	});
+
+	test("GET /friends/suggestions - should never include the requester", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/suggestions`, {
+			headers: await authHeader(userA.id, userA.username),
+		});
+
+		const data = (await res.json()) as any;
+		const ids = data.suggestions.map((u: any) => u.id);
+		expect(ids).not.toContain(userA.id);
+	});
+
+	test("GET /friends/suggestions - should exclude existing friends", async () => {
+		await createTestFriendship(userA.id, userB.id);
+
+		const res = await fetch(`${baseUrl()}/api/v1/friends/suggestions`, {
+			headers: await authHeader(userA.id, userA.username),
+		});
+
+		const data = (await res.json()) as any;
+		const ids = data.suggestions.map((u: any) => u.id);
+		expect(ids).not.toContain(userB.id);
+		expect(ids).toContain(userC.id);
+	});
+
+	test("GET /friends/suggestions - should exclude users with a pending request either way", async () => {
+		await sendFriendRequest(userA.id, userB.id); // outgoing
+		await sendFriendRequest(userC.id, userA.id); // incoming
+
+		const res = await fetch(`${baseUrl()}/api/v1/friends/suggestions`, {
+			headers: await authHeader(userA.id, userA.username),
+		});
+
+		const data = (await res.json()) as any;
+		const ids = data.suggestions.map((u: any) => u.id);
+		expect(ids).not.toContain(userB.id);
+		expect(ids).not.toContain(userC.id);
+	});
+
+	test("GET /friends/suggestions - should fail without auth", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/suggestions`);
+		expect(res.status).toBe(401);
+	});
+
+	// ── DELETE /friends/:friendId (unfriend by friendship id) ───────
+
+	test("DELETE /friends/:friendId - should remove a friendship", async () => {
+		const friendship = await createTestFriendship(userA.id, userB.id);
+
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/${friendship.id}`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
+
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBeDefined();
+
+		const list = await fetch(`${baseUrl()}/api/v1/friends/`, {
+			headers: await authHeader(userA.id, userA.username),
+		});
+		expect(((await list.json()) as any).friendships).toHaveLength(0);
+	});
+
+	test("DELETE /friends/:friendId - should allow either participant to unfriend", async () => {
+		const friendship = await createTestFriendship(userA.id, userB.id);
+
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/${friendship.id}`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userB.id, userB.username),
+			},
+		);
+
+		expect(res.status).toBe(200);
+	});
+
+	test("DELETE /friends/:friendId - should forbid a non-participant", async () => {
+		const friendship = await createTestFriendship(userA.id, userB.id);
+
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/${friendship.id}`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userC.id, userC.username),
+			},
+		);
+
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
+		expect(data.error.code).toBe("FORBIDDEN");
+	});
+
+	test("DELETE /friends/:friendId - should 404 for an unknown friendship", async () => {
+		const res = await fetch(
+			`${baseUrl()}/api/v1/friends/${randomUUID()}`,
+			{
+				method: "DELETE",
+				headers: await authHeader(userA.id, userA.username),
+			},
+		);
+
+		expect(res.status).toBe(404);
+		const data = (await res.json()) as any;
+		expect(data.error || data.message).toBeDefined();
+	});
+
+	test("DELETE /friends/:friendId - should 400 for a malformed id", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/not-a-uuid`, {
+			method: "DELETE",
+			headers: await authHeader(userA.id, userA.username),
+		});
+
+		expect(res.status).toBe(400);
+	});
+
+	test("DELETE /friends/:friendId - should fail without auth", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/friends/${randomUUID()}`, {
+			method: "DELETE",
+		});
+
+		expect(res.status).toBe(401);
 	});
 });

@@ -40,6 +40,13 @@ router.delete(
 	chatController.deleteChat,
 );
 
+// "Delete for me" — leave the chat without destroying it for others.
+router.post(
+	"/:chatId/leave",
+	validate(chatIdParamsSchema, "params"),
+	chatController.leaveChat,
+);
+
 // Messages nested under a chat: /:chatId/messages/*
 router.use("/:chatId/messages", chatMessageRoutes);
 

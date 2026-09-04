@@ -12,6 +12,10 @@ import type {
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "../uploads/storage.provider";
 import { resolveAvatarUrl } from "../uploads/avatar-url";
+import {
+	addUserToChatRoom,
+	broadcastChatUpdated,
+} from "../websocket/emitter";
 
 const chatUserSelect = {
 	id: true,
@@ -427,7 +431,7 @@ export class ChatService {
 			);
 		}
 
-		return await this.serializeChat(
+		const updated = await this.serializeChat(
 			await this.chatRepository.update({
 				where: {
 					id: dto.chatId,
@@ -436,7 +440,21 @@ export class ChatService {
 				include: getChatInclude(),
 			}),
 		);
+
+		broadcastChatUpdated(dto.chatId, updated);
+		return updated;
 	};
+
+	/** Re-read + broadcast the chat after a membership change. */
+	private async broadcastChatState(chatId: string) {
+		const chat = await this.chatRepository.findUnique({
+			where: { id: chatId },
+			include: getChatInclude(),
+		});
+		if (chat) {
+			broadcastChatUpdated(chatId, await this.serializeChat(chat));
+		}
+	}
 
 	addParticipant = async (dto: ParticipantDto) => {
 		const chat = await this.chatRepository.findUnique({
@@ -493,6 +511,11 @@ export class ChatService {
 			include: participantInclude,
 		});
 
+		// Pull the new member's sockets into the room so they receive the
+		// chat:updated below and every message from here on.
+		await addUserToChatRoom(dto.participantId, dto.chatId);
+		await this.broadcastChatState(dto.chatId);
+
 		return await this.serializeParticipant(participant);
 	};
 
@@ -541,6 +564,10 @@ export class ChatService {
 			include: participantInclude,
 		});
 
+		// The removed member's socket is still in the room, so they get this
+		// too and can tell (from the participants list) that they're out.
+		await this.broadcastChatState(dto.chatId);
+
 		return await this.serializeParticipant(participant);
 	};
 
@@ -566,6 +593,41 @@ export class ChatService {
 		});
 
 		return await this.serializeParticipant(participant);
+	};
+
+	/**
+	 * "Delete for me": drop the caller from the chat by stamping their
+	 * participant row's `leftAt`. The conversation disappears from their list
+	 * (see `listChats`' `leftAt: null` filter) while everyone else keeps it.
+	 * Re-opening a direct chat with the same person clears `leftAt` again.
+	 */
+	leaveChat = async (dto: ChatIdDto) => {
+		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
+
+		await this.chatRepository.updateParticipant({
+			where: {
+				chatId_userId: {
+					chatId: dto.chatId,
+					userId: dto.currentUserId,
+				},
+			},
+			data: {
+				leftAt: new Date(),
+			},
+		});
+
+		const chat = await this.chatRepository.findUnique({
+			where: { id: dto.chatId },
+			select: { type: true },
+		});
+
+		// Group members should see the roster change immediately; a direct
+		// chat has nothing meaningful to broadcast.
+		if (chat?.type === ChatType.GROUP) {
+			await this.broadcastChatState(dto.chatId);
+		}
+
+		return { message: "Chat removed" };
 	};
 
 	deleteChat = async (dto: ChatIdDto) => {

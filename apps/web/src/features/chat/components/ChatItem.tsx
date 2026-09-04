@@ -1,21 +1,46 @@
+import { useState } from "react";
 import { NavLink } from "react-router";
 import type { ChatResponseType } from "@bakbak/contracts";
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
+import { ContextMenu } from "@/components/ui/ContextMenu";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
+import { leaveChat } from "@/features/chat/api";
 import { useAuth } from "@/features/auth/auth-context";
 import { usePresence } from "@/features/chat/presence-context";
 
 export function ChatItem({
   chat,
   unreadCount = 0,
+  onDeleted,
 }: {
   chat: ChatResponseType;
   unreadCount?: number;
+  /** Called after the chat is removed from the caller's list ("delete for me"). */
+  onDeleted?: (chatId: string) => void;
 }) {
   const { user } = useAuth();
   const { isOnline } = usePresence();
+  const { error: toastError } = useToast();
   const currentUserId = user?.id;
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await leaveChat(chat.id);
+      onDeleted?.(chat.id);
+    } catch {
+      toastError("Couldn't delete the chat");
+    } finally {
+      setDeleting(false);
+      setConfirmOpen(false);
+    }
+  }
   const lastMessage = chat.messages?.[0];
   // For direct chats, show the *other* participant — participants isn't ordered,
   // so participants[0] can be the current user.
@@ -28,7 +53,7 @@ export function ChatItem({
   const avatarSrc =
     chat.type === "DIRECT"
       ? otherParticipant?.user?.profile?.avatar ?? undefined
-      : undefined;
+      : chat.avatar ?? undefined;
   const online =
     chat.type === "DIRECT" && isOnline(otherParticipant?.user?.id);
   const mineLast = lastMessage?.senderId === currentUserId;
@@ -40,9 +65,28 @@ export function ChatItem({
     !!lastMessage &&
     otherParticipant?.lastReadMessageId === lastMessage.id;
 
+  const preview =
+    lastMessage?.text?.trim() ||
+    (lastMessage
+      ? lastMessage.type === "IMAGE"
+        ? "Photo"
+        : lastMessage.type === "VIDEO"
+          ? "Video"
+          : lastMessage.type === "AUDIO"
+            ? "Voice message"
+            : lastMessage.type === "TEXT"
+              ? ""
+              : "Attachment"
+      : "");
+
   return (
+    <>
     <NavLink
       to={`/chats/${chat.id}`}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setMenu({ x: e.clientX, y: e.clientY });
+      }}
       className={({ isActive }) =>
         cn(
           "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
@@ -89,7 +133,7 @@ export function ChatItem({
                 hasUnread ? "text-slate-700 dark:text-slate-200" : "text-slate-500",
               )}
             >
-              {lastMessage?.text ?? ""}
+              {preview}
             </span>
           </div>
 
@@ -101,5 +145,36 @@ export function ChatItem({
         </div>
       </div>
     </NavLink>
+
+    {menu && (
+      <ContextMenu
+        x={menu.x}
+        y={menu.y}
+        onClose={() => setMenu(null)}
+        items={[
+          {
+            label: "Delete chat",
+            icon: <Trash2 />,
+            destructive: true,
+            onSelect: () => setConfirmOpen(true),
+          },
+        ]}
+      />
+    )}
+
+    {confirmOpen && (
+      <ConfirmDialog
+        title="Delete chat"
+        message={`This removes "${displayName}" from your chat list. The other ${
+          chat.type === "GROUP" ? "members" : "person"
+        } will still have it.`}
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
+    )}
+    </>
   );
 }

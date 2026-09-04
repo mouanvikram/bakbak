@@ -8,6 +8,7 @@ import {
 	createChatResponseSchema,
 	deleteChatResponseSchema,
 	getChatResponseSchema,
+	leaveChatResponseSchema,
 	listChatsResponseSchema,
 	removeParticipantResponseSchema,
 	updateChatResponseSchema,
@@ -107,6 +108,15 @@ export class ChatController {
 		const response = await this.chatService.deleteChat({ currentUserId, chatId });
 
 		return validateResponse(res, 200, deleteChatResponseSchema, response);
+	};
+
+	leaveChat = async (req: AuthRequest, res: Response) => {
+		const currentUserId = requireUserId(req);
+		const { chatId } = req.valid?.params as ChatIdParamsType;
+
+		const response = await this.chatService.leaveChat({ currentUserId, chatId });
+
+		return validateResponse(res, 200, leaveChatResponseSchema, response);
 	};
 
 	addParticipant = async (req: AuthRequest, res: Response) => {

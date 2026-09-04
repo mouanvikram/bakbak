@@ -122,6 +122,100 @@ describe("Messages Endpoints", () => {
 		expect(data.senderId).toBe(userA.id);
 	});
 
+	// The generic attachment endpoint (`/uploads`) needs object storage, so
+	// these seed the Attachment row directly and exercise only the linking.
+	const seedAttachment = (ownerId: string, kind = "IMAGE", ext = "png") =>
+		prisma.attachment.create({
+			data: {
+				kind: kind as any,
+				fileName: `file.${ext}`,
+				filePath: `${ownerId}/${crypto.randomUUID()}.${ext}`,
+				mimeType: kind === "IMAGE" ? "image/png" : "application/pdf",
+				fileSize: 1234,
+			},
+		});
+
+	test("POST /chats/:chatId/messages - attaches an uploaded file and derives the type", async () => {
+		const attachment = await seedAttachment(userA.id, "IMAGE");
+
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(userA.id, userA.username)),
+			},
+			body: JSON.stringify({ attachmentIds: [attachment.id], text: "look" }),
+		});
+
+		expect(res.status).toBe(201);
+		const data = (await res.json()) as any;
+		expect(data.type).toBe("IMAGE");
+		expect(data.text).toBe("look");
+		expect(data.attachments).toHaveLength(1);
+		expect(data.attachments[0].id).toBe(attachment.id);
+		expect(typeof data.attachments[0].url).toBe("string");
+
+		const row = await prisma.attachment.findUnique({
+			where: { id: attachment.id },
+		});
+		expect(row?.messageId).toBe(data.id);
+	});
+
+	test("POST /chats/:chatId/messages - rejects an attachment owned by someone else", async () => {
+		const attachment = await seedAttachment(userB.id, "IMAGE");
+
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(userA.id, userA.username)),
+			},
+			body: JSON.stringify({ attachmentIds: [attachment.id] }),
+		});
+
+		expect(res.status).toBe(403);
+	});
+
+	test("POST /chats/:chatId/messages - rejects an attachment already used", async () => {
+		const attachment = await seedAttachment(userA.id, "IMAGE");
+		const first = await createTestMessage(chat.id, userA.id, { type: "IMAGE" });
+		await prisma.attachment.update({
+			where: { id: attachment.id },
+			data: { messageId: first.id },
+		});
+
+		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(userA.id, userA.username)),
+			},
+			body: JSON.stringify({ attachmentIds: [attachment.id] }),
+		});
+
+		expect(res.status).toBe(400);
+	});
+
+	test("GET /chats/:chatId/messages - includes attachments on listed messages", async () => {
+		const attachment = await seedAttachment(userA.id, "IMAGE");
+		await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(userA.id, userA.username)),
+			},
+			body: JSON.stringify({ attachmentIds: [attachment.id] }),
+		});
+
+		const list = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+			headers: await authHeader(userA.id, userA.username),
+		});
+		const data = (await list.json()) as any;
+		const withFile = data.messages.find((m: any) => m.attachments.length > 0);
+		expect(withFile).toBeDefined();
+		expect(withFile.attachments[0].id).toBe(attachment.id);
+	});
+
 	test("POST /chats/:chatId/messages - should fail with empty text for TEXT type", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",
@@ -288,7 +382,7 @@ describe("Messages Endpoints", () => {
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
-		expect(data.error.message).toBe("Invalid request");
+		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	test("GET /chats/:chatId/messages/search - should fail without auth", async () => {

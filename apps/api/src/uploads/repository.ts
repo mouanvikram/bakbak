@@ -19,6 +19,19 @@ export class UploadRepository {
 		});
 	}
 
+	async findManyByIds(ids: string[]) {
+		return await prisma.attachment.findMany({
+			where: { id: { in: ids } },
+		});
+	}
+
+	async linkManyToMessage(ids: string[], messageId: string) {
+		return await prisma.attachment.updateMany({
+			where: { id: { in: ids } },
+			data: { messageId },
+		});
+	}
+
 	async deleteById(id: string) {
 		return await prisma.attachment.delete({
 			where: { id },

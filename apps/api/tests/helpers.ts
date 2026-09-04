@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { prisma, ParticipantRole, MessageType } from "@bakbak/db";
 import type { User } from "@bakbak/db";
 import {
 	type AccessTokenPayload,
 	JwtService,
 } from "../src/auth/jwt.service";
+import { storageProvider } from "../src/uploads/storage";
 import { env } from "@/config";
 
 export function authHeader(userId: string, username: string) {
@@ -57,7 +59,7 @@ export async function createTestUser(
 					firstName: overrides.firstName || "Test",
 					lastName: overrides.lastName || "User",
 					displayName: overrides.displayName || "Test User",
-					bio: overrides.bio || "Test bio",
+					bio: overrides.bio || "This is a test bio.",
 					avatar: overrides.avatar || null,
 				},
 			},
@@ -133,6 +135,13 @@ export async function createTestDirectChat(user1Id: string, user2Id: string) {
 	});
 }
 
+export async function createTestFriendship(user1Id: string, user2Id: string) {
+	// Column order is normalised the same way the app does it, so lookups that
+	// assume `user1Id <= user2Id` still match.
+	const [a, b] = [user1Id, user2Id].sort();
+	return prisma.friendship.create({ data: { user1Id: a, user2Id: b } });
+}
+
 export async function sendFriendRequest(senderId: string, receiverId: string) {
 	return prisma.friendRequest.create({
 		data: {
@@ -182,6 +191,22 @@ export async function cleanupDatabase() {
 export async function isDatabaseAvailable(): Promise<boolean> {
 	try {
 		await prisma.$queryRaw`SELECT 1`;
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * True when object storage (MinIO/S3) is reachable and writable. Used to gate
+ * the upload tests that need a real round-trip: they run in `test:docker`
+ * (where the `minio` service is up) and are skipped on a bare host.
+ */
+export async function isStorageAvailable(): Promise<boolean> {
+	const key = `__probe__/${randomUUID()}.txt`;
+	try {
+		await storageProvider.upload(key, Buffer.from("probe"), "text/plain");
+		await storageProvider.delete(key);
 		return true;
 	} catch {
 		return false;

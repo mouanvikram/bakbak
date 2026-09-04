@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { messageTypeSchema, profileCoreSchema, safeString } from "./shared";
+import {
+	messageTypeSchema,
+	okResponseSchema,
+	profileCoreSchema,
+	safeString,
+} from "./shared";
 
 export const chatUserSchema = z.object({
 	id: z.uuid(),
@@ -127,6 +132,11 @@ export type UpdateChatResponseType = z.infer<typeof updateChatResponseSchema>;
 export const deleteChatResponseSchema = chatBaseSchema;
 
 export type DeleteChatResponseType = z.infer<typeof deleteChatResponseSchema>;
+
+/** `POST /chats/:chatId/leave` — removes the caller from the chat (hide for me). */
+export const leaveChatResponseSchema = okResponseSchema;
+
+export type LeaveChatResponseType = z.infer<typeof leaveChatResponseSchema>;
 
 export const addParticipantRequestSchema = z.object({
 	participantId: z.uuid(),

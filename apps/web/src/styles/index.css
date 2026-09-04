@@ -98,6 +98,13 @@ a[href] {
     transform: translateY(6px);
   }
 }
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+    filter: blur(10px);
+  }
+}
 
 /* Honour a reduced-motion request everywhere: near-instant transitions,
  * no looping animations, no smooth scroll. */

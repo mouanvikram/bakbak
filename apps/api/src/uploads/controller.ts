@@ -3,10 +3,10 @@ import type { AuthRequest } from "../auth/controller";
 import type { UploadService } from "./service";
 import { validateResponse } from "../middleware/validate";
 import {
-	attachmentIdParamsSchema,
 	getAttachmentResponseSchema,
 	uploadResponseSchema,
 } from "@bakbak/contracts";
+import type { AttachmentIdParamsType } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
 export class UploadController {
@@ -59,7 +59,7 @@ export class UploadController {
 		next: NextFunction,
 	) => {
 		try {
-			const { attachmentId } = attachmentIdParamsSchema.parse(req.params);
+			const { attachmentId } = req.valid?.params as AttachmentIdParamsType;
 
 			const response = await this.uploadService.getAttachment(attachmentId);
 
@@ -77,7 +77,7 @@ export class UploadController {
 		next: NextFunction,
 	) => {
 		try {
-			const { attachmentId } = attachmentIdParamsSchema.parse(req.params);
+			const { attachmentId } = req.valid?.params as AttachmentIdParamsType;
 			const userId = req.user?.userId;
 
 			if (!userId) {

@@ -1,6 +1,7 @@
 import { MessageType } from "@bakbak/contracts";
-import { Prisma } from "@bakbak/db";
+import { Prisma, type AttachmentKind } from "@bakbak/db";
 import type { MessageRepository } from "./repository";
+import type { UploadRepository } from "../uploads/repository";
 import type {
 	ChatMessagesDto,
 	EditMessageDto,
@@ -12,6 +13,17 @@ import type {
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "../uploads/storage.provider";
 import { resolveAvatarUrl } from "../uploads/avatar-url";
+
+const ATTACHMENT_URL_TTL_SECONDS = 3600;
+
+/** Attachment kinds line up 1:1 with the non-TEXT message types they imply. */
+const KIND_TO_MESSAGE_TYPE: Record<AttachmentKind, MessageType> = {
+	IMAGE: MessageType.IMAGE,
+	VIDEO: MessageType.VIDEO,
+	AUDIO: MessageType.AUDIO,
+	FILE: MessageType.FILE,
+	STICKER: MessageType.STICKER,
+};
 import {
 	broadcastMessage,
 	broadcastMessageEdited,
@@ -36,25 +48,76 @@ const messageInclude = {
 	sender: {
 		select: messageUserSelect,
 	},
+	attachments: true,
 } satisfies Prisma.MessageInclude;
 
 export class MessageService {
 	constructor(
 		private readonly messageRepository: MessageRepository,
 		private readonly storageProvider: StorageProvider,
+		private readonly uploadRepository: UploadRepository,
 	) {}
+
+	private async serializeAttachment(attachment: {
+		id: string;
+		kind: AttachmentKind;
+		fileName: string;
+		filePath: string;
+		mimeType: string;
+		fileSize: number;
+		width: number | null;
+		height: number | null;
+		duration: number | null;
+		createdAt: Date;
+	}) {
+		return {
+			id: attachment.id,
+			kind: attachment.kind,
+			fileName: attachment.fileName,
+			filePath: attachment.filePath,
+			mimeType: attachment.mimeType,
+			fileSize: attachment.fileSize,
+			width: attachment.width,
+			height: attachment.height,
+			duration: attachment.duration,
+			url: await this.storageProvider.getSignedUrl(
+				attachment.filePath,
+				ATTACHMENT_URL_TTL_SECONDS,
+			),
+			createdAt: attachment.createdAt.toISOString(),
+		};
+	}
 
 	private async serializeMessage<
 		T extends {
 			createdAt: Date;
 			updatedAt: Date;
 			sender?: { profile?: { avatar?: string | null } | null };
+			attachments?: Array<{
+				id: string;
+				kind: AttachmentKind;
+				fileName: string;
+				filePath: string;
+				mimeType: string;
+				fileSize: number;
+				width: number | null;
+				height: number | null;
+				duration: number | null;
+				createdAt: Date;
+			}>;
 		},
 	>(message: T) {
 		const serialized = {
 			...message,
 			createdAt: message.createdAt.toISOString(),
 			updatedAt: message.updatedAt.toISOString(),
+			attachments: message.attachments
+				? await Promise.all(
+						message.attachments.map((attachment) =>
+							this.serializeAttachment(attachment),
+						),
+					)
+				: [],
 		};
 		if (serialized.sender?.profile?.avatar !== undefined) {
 			serialized.sender.profile.avatar = await resolveAvatarUrl(
@@ -130,20 +193,34 @@ export class MessageService {
 	async sendMessage(dto: SendMessageDto) {
 		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
+		const attachmentIds = dto.attachmentIds ?? [];
+		const attachments = attachmentIds.length
+			? await this.loadOwnedUnlinkedAttachments(
+					attachmentIds,
+					dto.currentUserId,
+				)
+			: [];
+
 		const text = dto.text?.trim();
-		if (dto.type === MessageType.TEXT && !text) {
+		// An attachment message takes its type from the first file; a plain
+		// message keeps whatever the caller asked for (default TEXT).
+		const type = attachments[0]
+			? (KIND_TO_MESSAGE_TYPE[attachments[0].kind] ?? MessageType.FILE)
+			: dto.type;
+
+		if (type === MessageType.TEXT && !text && attachments.length === 0) {
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
 				ERROR_CODES.VALIDATION_ERROR,
 				"Message text is required",
 			);
 		}
-		// Non-TEXT types may omit text: the media payload will live on the
-		// attachment (uploads module), text acts as an optional caption.
+		// Non-TEXT types may omit text: the media payload lives on the
+		// attachment, and text acts as an optional caption.
 
 		const message = await this.messageRepository.createWithChatTouch({
 			data: {
-				type: dto.type,
+				type,
 				text,
 				chat: {
 					connect: {
@@ -159,7 +236,19 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		const serialized = await this.serializeMessage(message);
+		if (attachments.length) {
+			await this.uploadRepository.linkManyToMessage(attachmentIds, message.id);
+		}
+
+		// Re-read once so the broadcast/response carries the linked attachments.
+		const full = attachments.length
+			? ((await this.messageRepository.findUnique({
+					where: { id: message.id },
+					include: messageInclude,
+				})) ?? message)
+			: message;
+
+		const serialized = await this.serializeMessage(full);
 
 		try {
 			broadcastMessage(dto.chatId, serialized);
@@ -168,6 +257,46 @@ export class MessageService {
 		}
 
 		return serialized;
+	}
+
+	/**
+	 * Load the attachments the sender wants to attach, rejecting the request
+	 * unless every id exists, is still unattached, and belongs to the sender
+	 * (storage keys are namespaced by userId).
+	 */
+	private async loadOwnedUnlinkedAttachments(
+		attachmentIds: string[],
+		userId: string,
+	) {
+		const attachments =
+			await this.uploadRepository.findManyByIds(attachmentIds);
+
+		if (attachments.length !== new Set(attachmentIds).size) {
+			throw new AppError(
+				HTTP_STATUS.NOT_FOUND,
+				ERROR_CODES.ATTACHMENT_NOT_FOUND,
+				"One or more attachments could not be found",
+			);
+		}
+
+		for (const attachment of attachments) {
+			if (attachment.messageId) {
+				throw new AppError(
+					HTTP_STATUS.BAD_REQUEST,
+					ERROR_CODES.VALIDATION_ERROR,
+					"Attachment is already attached to a message",
+				);
+			}
+			if (!attachment.filePath.startsWith(`${userId}/`)) {
+				throw new AppError(
+					HTTP_STATUS.FORBIDDEN,
+					ERROR_CODES.FORBIDDEN,
+					"You can only attach files you uploaded",
+				);
+			}
+		}
+
+		return attachments;
 	}
 
 	async listMessages(dto: ChatMessagesDto) {

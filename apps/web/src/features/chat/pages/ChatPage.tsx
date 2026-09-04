@@ -3,11 +3,15 @@ import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
   Check,
-  CheckCheck,
   Info,
+  Paperclip,
+  Pencil,
   Phone,
   SendHorizontal,
+  Smile,
+  Trash2,
   Video,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useSocket } from "@/features/chat/socket-context";
@@ -15,24 +19,31 @@ import { getChat } from "@/features/chat/api";
 import {
   listMessages,
   sendMessage,
+  editMessage,
+  deleteMessage,
   markChatRead,
 } from "@/features/messages/api";
+import { uploadFile } from "@/lib/api/upload";
 import type { ChatResponseType } from "@bakbak/contracts";
 import type { MessageResponseType } from "@bakbak/contracts";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
+import { ContextMenu } from "@/components/ui/ContextMenu";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import { GroupInfoModal } from "@/features/chat/components/GroupInfoModal";
+import { DirectInfoModal } from "@/features/chat/components/DirectInfoModal";
+import { MessageBubble } from "@/features/chat/components/MessageBubble";
+import { EmojiPopover } from "@/features/chat/components/EmojiPopover";
 import { EmptyState } from "@/components/ui/States";
 import { MessageThreadSkeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/lib/utils";
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+/** Files the composer lets you attach. Anything the API rejects still surfaces
+ * an error toast. */
+const ATTACHMENT_ACCEPT =
+  "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip";
 
 interface TypingUser {
   userId: string;
@@ -44,6 +55,7 @@ export function ChatPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const socket = useSocket();
+  const { error: toastError } = useToast();
   const [chat, setChat] = useState<ChatResponseType | null>(null);
   const [messages, setMessages] = useState<MessageResponseType[]>([]);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -51,6 +63,22 @@ export function ChatPage() {
   const [error, setError] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  // The message being edited in the composer, or null for a normal compose.
+  const [editing, setEditing] = useState<{ id: string; original: string } | null>(
+    null,
+  );
+  // Right-click menu on one of my messages.
+  const [msgMenu, setMsgMenu] = useState<{
+    x: number;
+    y: number;
+    message: MessageResponseType;
+  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   // participantId -> id of the last message that participant has read.
@@ -204,6 +232,18 @@ export function ChatPage() {
       });
     };
 
+    const onChatUpdated = (updated: ChatResponseType) => {
+      if (updated?.id !== id) return;
+      const stillIn = updated.participants?.some(
+        (p) => p.userId === currentUserId,
+      );
+      if (!stillIn) {
+        navigate("/chats", { replace: true });
+        return;
+      }
+      setChat((prev) => (prev ? { ...prev, ...updated, messages: prev.messages } : updated));
+    };
+
     s.on("connect", onConnect);
     s.on("presence:state", onPresenceState);
     s.on("message:new", onNewMessage);
@@ -212,6 +252,7 @@ export function ChatPage() {
     s.on("typing", onTyping);
     s.on("presence", onPresence);
     s.on("read:receipt", onReadReceipt);
+    s.on("chat:updated", onChatUpdated);
 
     return () => {
       s.off("connect", onConnect);
@@ -222,10 +263,11 @@ export function ChatPage() {
       s.off("typing", onTyping);
       s.off("presence", onPresence);
       s.off("read:receipt", onReadReceipt);
+      s.off("chat:updated", onChatUpdated);
       for (const t of timers.values()) clearTimeout(t);
       timers.clear();
     };
-  }, [id, currentUserId, socket]);
+  }, [id, currentUserId, socket, navigate]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
@@ -254,9 +296,45 @@ export function ChatPage() {
     void markChatRead(id).catch(() => {});
   }, [id]);
 
+  function upsertMessage(next: MessageResponseType) {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === next.id)) {
+        return prev.map((m) => (m.id === next.id ? next : m));
+      }
+      return [...prev, next].sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+    });
+  }
+
   async function handleSend() {
     const content = text.trim();
-    if (!id || !content || sending) return;
+    if (!id || sending || uploading) return;
+
+    // Editing an existing message rather than sending a new one.
+    if (editing) {
+      if (!content || content === editing.original) {
+        setEditing(null);
+        setText("");
+        return;
+      }
+      setSending(true);
+      setError("");
+      try {
+        const res = await editMessage(editing.id, { text: content });
+        upsertMessage(res);
+        setEditing(null);
+        setText("");
+      } catch {
+        setError("Failed to edit message");
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    if (!content) return;
     setSending(true);
     setError("");
     // Stop typing indicator when sending.
@@ -268,18 +346,84 @@ export function ChatPage() {
       // REST call returns the saved message; add it locally.
       setText("");
       // The socket may also deliver it; dedupe on id in onNewMessage.
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === res.id)) return prev;
-        return [...prev, res].sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        );
-      });
+      upsertMessage(res);
     } catch {
       setError("Failed to send message");
     } finally {
       setSending(false);
     }
+  }
+
+  async function handleFiles(files: FileList | null) {
+    if (!id || !files?.length) return;
+    setEmojiOpen(false);
+    setUploading(true);
+    setError("");
+    // The composer text rides along as a caption on the first file.
+    let caption = text.trim();
+    try {
+      for (const file of Array.from(files)) {
+        const attachment = await uploadFile(file, file.name);
+        const res = await sendMessage(id, {
+          attachmentIds: [attachment.id],
+          ...(caption ? { text: caption } : {}),
+        });
+        caption = "";
+        setText("");
+        upsertMessage(res);
+      }
+    } catch (err) {
+      toastError(
+        err instanceof Error ? err.message : "Couldn't send that attachment",
+      );
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function startEdit(message: MessageResponseType) {
+    setEditing({ id: message.id, original: message.text ?? "" });
+    setText(message.text ?? "");
+    setEmojiOpen(false);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setText("");
+  }
+
+  async function confirmDeleteMessage() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await deleteMessage(deleteTarget);
+      upsertMessage(res);
+      if (editing?.id === deleteTarget) cancelEdit();
+    } catch {
+      toastError("Failed to delete message");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  }
+
+  function insertEmoji(emoji: string) {
+    const el = textareaRef.current;
+    if (!el) {
+      setText((t) => t + emoji);
+      return;
+    }
+    const start = el.selectionStart ?? text.length;
+    const end = el.selectionEnd ?? text.length;
+    const next = text.slice(0, start) + emoji + text.slice(end);
+    setText(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const caret = start + emoji.length;
+      el.setSelectionRange(caret, caret);
+    });
   }
 
   function handleTyping(typing: boolean) {
@@ -292,6 +436,10 @@ export function ChatPage() {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       void handleSend();
+    }
+    if (event.key === "Escape" && editing) {
+      event.preventDefault();
+      cancelEdit();
     }
   }
 
@@ -366,7 +514,7 @@ export function ChatPage() {
         </IconButton>
         <button
           type="button"
-          disabled={!isGroup}
+          disabled={!chat}
           onClick={() => setInfoOpen(true)}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 text-left disabled:cursor-default"
         >
@@ -383,9 +531,9 @@ export function ChatPage() {
             <p className="truncate text-[11px] text-gray-500">{subtitle}</p>
           </div>
         </button>
-        {isGroup && (
+        {(isGroup || isDirect) && (
           <IconButton
-            label="Group info"
+            label={isGroup ? "Group info" : "Contact info"}
             size="sm"
             aria-haspopup="dialog"
             className="text-gray-500"
@@ -400,7 +548,7 @@ export function ChatPage() {
       <header className="hidden shrink-0 items-center justify-between gap-3 border-b border-gray-100 bg-white px-4 py-2.5 lg:flex">
         <button
           type="button"
-          disabled={!isGroup}
+          disabled={!chat}
           onClick={() => setInfoOpen(true)}
           className="flex min-w-0 items-center gap-3 rounded-lg text-left transition-colors enabled:hover:bg-slate-50 disabled:cursor-default"
         >
@@ -418,15 +566,19 @@ export function ChatPage() {
           </div>
         </button>
         <div className="flex items-center gap-0.5">
-          <IconButton label="Voice call" className="hover:text-violet-600">
-            <Phone className="size-5" />
-          </IconButton>
-          <IconButton label="Video call" className="hover:text-violet-600">
-            <Video className="size-5" />
-          </IconButton>
-          {isGroup && (
+          {isDirect && (
+            <>
+              <IconButton label="Voice call" className="hover:text-violet-600">
+                <Phone className="size-5" />
+              </IconButton>
+              <IconButton label="Video call" className="hover:text-violet-600">
+                <Video className="size-5" />
+              </IconButton>
+            </>
+          )}
+          {(isGroup || isDirect) && (
             <IconButton
-              label="Group info"
+              label={isGroup ? "Group info" : "Contact info"}
               aria-haspopup="dialog"
               className="hover:text-violet-600"
               onClick={() => setInfoOpen(true)}
@@ -447,66 +599,21 @@ export function ChatPage() {
           <EmptyState text="No messages yet. Say hi!" />
         ) : (
           <div className="flex flex-col gap-1.5 p-4">
-            {messages.map((m) => {
-              const mine = m.senderId === currentUserId;
-              const senderName =
-                m.sender.profile?.displayName ?? m.sender.username ?? "";
-              return (
-                <div
-                  key={m.id}
-                  className={cn(
-                    "flex flex-col",
-                    mine ? "items-end" : "items-start",
-                  )}
-                >
-                  {!mine && chat?.type === "GROUP" && (
-                    <div className="mb-0.5 flex items-center gap-1.5">
-                      <Avatar
-                        name={senderName}
-                        src={m.sender.profile?.avatar ?? undefined}
-                        className="size-5"
-                      />
-                      <span className="px-1 text-[11px] font-medium text-slate-500">
-                        {senderName}
-                      </span>
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm",
-                      mine
-                        ? "msg-bubble-out rounded-br-md text-white"
-                        : "rounded-bl-md bg-white text-gray-900",
-                    )}
-                  >
-                    <p className="wrap-break-words whitespace-pre-wrap">
-                      {m.deleted ? "This message was deleted" : (m.text ?? "")}
-                    </p>
-                    <div
-                      className={cn(
-                        "mt-0.5 flex items-center justify-end gap-1 text-[10px]",
-                        mine ? "text-white/70" : "text-gray-400",
-                      )}
-                    >
-                      <span>{formatTime(m.createdAt)}</span>
-                      {mine && !m.deleted && (() => {
-                        const status = messageStatus(m.id);
-                        if (status === "sent")
-                          return <Check className="size-3.5 shrink-0" />;
-                        return (
-                          <CheckCheck
-                            className={cn(
-                              "size-3.5 shrink-0",
-                              status === "seen" && "text-sky-300",
-                            )}
-                          />
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {messages.map((m) => (
+              <MessageBubble
+                key={m.id}
+                message={m}
+                mine={m.senderId === currentUserId}
+                isGroup={chat?.type === "GROUP"}
+                isEditing={editing?.id === m.id}
+                status={messageStatus(m.id)}
+                onContextMenu={(e) => {
+                  if (m.senderId !== currentUserId || m.deleted) return;
+                  e.preventDefault();
+                  setMsgMenu({ x: e.clientX, y: e.clientY, message: m });
+                }}
+              />
+            ))}
             {typingLabel && (
               <div className="flex items-center gap-2 px-1 py-1 text-xs text-gray-500">
                 <Spinner className="size-3" />
@@ -525,28 +632,83 @@ export function ChatPage() {
         </div>
       )}
       <div className="shrink-0 border-t border-gray-100 bg-white p-3">
-        <div className="flex items-end gap-2">
+        {editing && (
+          <div className="mb-2 flex items-center gap-2 rounded-lg bg-brand-500/10 px-3 py-1.5 text-xs text-brand-600">
+            <Pencil className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+              Editing message
+            </span>
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="shrink-0 rounded p-0.5 hover:bg-brand-500/15"
+              aria-label="Cancel editing"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+        <div className="relative flex items-end gap-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ATTACHMENT_ACCEPT}
+            multiple
+            hidden
+            onChange={(e) => void handleFiles(e.target.files)}
+          />
+          <IconButton
+            label="Attach a file"
+            size="sm"
+            disabled={sending || uploading || !!editing}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {uploading ? (
+              <Spinner className="size-4" />
+            ) : (
+              <Paperclip className="size-5" />
+            )}
+          </IconButton>
+          <IconButton
+            label="Emoji"
+            size="sm"
+            aria-expanded={emojiOpen}
+            className={cn(emojiOpen && "bg-slate-100 text-slate-900")}
+            onClick={() => setEmojiOpen((v) => !v)}
+          >
+            <Smile className="size-5" />
+          </IconButton>
+          {emojiOpen && (
+            <EmojiPopover
+              onPick={insertEmoji}
+              onClose={() => setEmojiOpen(false)}
+            />
+          )}
           <textarea
+            ref={textareaRef}
             value={text}
+            disabled={sending || uploading}
             onChange={(e) => {
               const value = e.target.value;
               setText(value);
-              handleTyping(value.trim().length > 0);
+              if (!editing) handleTyping(value.trim().length > 0);
             }}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder="Type a message"
-            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+            placeholder={editing ? "Edit your message" : "Type a message"}
+            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
           />
           <button
             type="button"
-            aria-label="Send message"
-            disabled={!text.trim() || sending}
+            aria-label={editing ? "Save changes" : "Send message"}
+            disabled={!text.trim() || sending || uploading}
             onClick={handleSend}
             className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-[#805FF8] to-[#4C18EF] text-white shadow-sm transition-all active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
           >
             {sending ? (
               <Spinner className="size-4" />
+            ) : editing ? (
+              <Check className="size-5" />
             ) : (
               <SendHorizontal className="size-5" />
             )}
@@ -564,6 +726,52 @@ export function ChatPage() {
             setInfoOpen(false);
             navigate("/chats");
           }}
+        />
+      )}
+
+      {infoOpen && chat && isDirect && otherParticipant && (
+        <DirectInfoModal
+          username={otherParticipant.user.username}
+          fallbackName={displayName}
+          fallbackAvatar={avatarSrc}
+          onClose={() => setInfoOpen(false)}
+        />
+      )}
+
+      {msgMenu && (
+        <ContextMenu
+          x={msgMenu.x}
+          y={msgMenu.y}
+          onClose={() => setMsgMenu(null)}
+          items={[
+            ...(msgMenu.message.text
+              ? [
+                  {
+                    label: "Edit",
+                    icon: <Pencil />,
+                    onSelect: () => startEdit(msgMenu.message),
+                  },
+                ]
+              : []),
+            {
+              label: "Delete",
+              icon: <Trash2 />,
+              destructive: true,
+              onSelect: () => setDeleteTarget(msgMenu.message.id),
+            },
+          ]}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="Delete message"
+          message="This message will be removed for everyone in the chat."
+          confirmLabel="Delete"
+          destructive
+          loading={deleting}
+          onConfirm={confirmDeleteMessage}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
     </div>

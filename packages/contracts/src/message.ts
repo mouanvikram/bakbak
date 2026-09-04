@@ -9,6 +9,7 @@ import {
 	arrayResponseSchema,
 } from "./shared";
 import { chatParticipantSchema } from "./chat";
+import { attachmentResponseSchema } from "./upload";
 
 export const messageSenderSchema = userSummarySchema.extend({
 	profile: profileCoreSchema.nullish(),
@@ -26,13 +27,22 @@ export const messageResponseSchema = z.object({
 	createdAt: z.string(),
 	updatedAt: z.string(),
 	sender: messageSenderSchema,
+	attachments: z.array(attachmentResponseSchema).default([]),
 });
 
 export type MessageResponseType = z.infer<typeof messageResponseSchema>;
 
+/** Max attachments carried by a single message. */
+export const MAX_MESSAGE_ATTACHMENTS = 10;
+
 export const sendMessageRequestSchema = z.object({
 	type: messageTypeSchema.optional(),
 	text: safeString(5000).optional(),
+	attachmentIds: z
+		.array(z.uuid())
+		.min(1)
+		.max(MAX_MESSAGE_ATTACHMENTS)
+		.optional(),
 });
 
 export const sendMessageResponseSchema = messageResponseSchema;
@@ -46,6 +56,25 @@ export const listMessagesResponseSchema = arrayResponseSchema(
 );
 
 export type ListMessagesResponseType = z.infer<typeof listMessagesResponseSchema>;
+
+export const listMessagesQuerySchema = z.object({
+	limit: z.coerce
+		.number()
+		.int()
+		.positive()
+		.catch(50)
+		.transform((n) => Math.min(n, 100))
+		.default(50),
+	cursor: z.uuid().optional(),
+});
+
+export type ListMessagesQueryType = z.infer<typeof listMessagesQuerySchema>;
+
+export const searchMessagesQuerySchema = listMessagesQuerySchema.extend({
+	q: safeString(200),
+});
+
+export type SearchMessagesQueryType = z.infer<typeof searchMessagesQuerySchema>;
 
 export const getMessageRequestSchema = z.object({
 	messageId: z.uuid(),
@@ -107,6 +136,7 @@ export interface ChatMessagesDto {
 export interface SendMessageDto extends ChatMessagesDto {
 	text?: string;
 	type: MessageType;
+	attachmentIds?: string[];
 }
 
 export interface MessageIdDto {
