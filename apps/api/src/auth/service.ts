@@ -56,6 +56,10 @@ const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const TWO_FACTOR_CODE_TTL_MINUTES = 10;
 /** Lifetime of the opaque challenge that ties a pending login to its 2FA step. */
 const TWO_FACTOR_CHALLENGE_TTL = "10m";
+/** Wrong-code attempts (login or setup) allowed before a 2FA lockout. */
+const TWO_FACTOR_MAX_ATTEMPTS = 10;
+/** How long a 2FA lockout lasts once triggered. */
+const TWO_FACTOR_LOCKOUT_MS = 4 * 60 * 60 * 1000;
 
 interface TwoFactorChallengePayload {
 	sub: string;
@@ -77,7 +81,6 @@ export class AuthService {
 	) {}
 
 	async register(dto: SignUpRequestType): Promise<SignUpResponseType> {
-		//userRepository check if the user exists or not
 		const userExists = await this.userRepository.findFirst({
 			OR: [{ username: dto.username }, { email: dto.email }],
 		});
@@ -90,7 +93,6 @@ export class AuthService {
 			);
 		}
 
-		// hash password service
 		const hashedPassword = await this.pwdService.hash(dto.password);
 
 		// resolve a pending avatar file (if any) from the pre-signup upload
@@ -98,11 +100,8 @@ export class AuthService {
 			(await this.resolveAvatar(dto.avatarToken)) ?? dto.avatarUrl ?? null;
 
 		const token = crypto.randomBytes(32).toString("hex");
-		// send verification email
-		// URL service
 		const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-		// create user in the database
 		const user = await this.userRepository.create({
 			username: dto.username,
 			email: dto.email,
@@ -127,7 +126,6 @@ export class AuthService {
 
 		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
 
-		// send the mail to the user.
 		// Best-effort: the user and token are already persisted, so a delivery
 		// failure must not fail the request — the client can use
 		// resend-verification instead of hitting a 500 with a zombie account.
@@ -144,7 +142,6 @@ export class AuthService {
 			);
 		}
 
-		// return user
 		return {
 			message: "Verification email sent successfully",
 		} as SignUpResponseType;
@@ -231,7 +228,6 @@ export class AuthService {
 			user.lockedUntil = null;
 		}
 
-		// matching password
 		const matches = await this.pwdService.verify(
 			dto.password,
 			user.passwordHash,
@@ -291,7 +287,7 @@ export class AuthService {
 		sessionId: string = crypto.randomUUID(),
 	): Promise<LoginResponseType> {
 		const token = this.jwtService.signJwt<AccessTokenPayload>(
-			{ sub: userId, username, sid: sessionId },
+			{ sub: userId, username, sid: sessionId, typ: "access" },
 			{ expiresIn: "15m" },
 		);
 
@@ -336,13 +332,14 @@ export class AuthService {
 		opts: { sessionId?: string; refreshToken?: string },
 	): Promise<ListSessionsResponseType> {
 		const bySession = await this.loadSessions(userId);
-		const currentKey =
-			opts.sessionId ??
-			(opts.refreshToken
-				? [...bySession.values()].find(
-						(t) => t.tokenHash === this.hashToken(opts.refreshToken!),
-					)?.sessionId ?? undefined
-				: undefined);
+		const found = opts.refreshToken
+			? [...bySession.values()].find(
+					(t) => t.tokenHash === this.hashToken(opts.refreshToken!),
+				)
+			: undefined;
+		// Match the same key `loadSessions` grouped by: sessionId, else the
+		// row's own id for a legacy pre-tracking token.
+		const currentKey = opts.sessionId ?? (found?.sessionId ?? found?.id);
 
 		return {
 			sessions: [...bySession.entries()].map(([key, t]) => ({
@@ -384,7 +381,9 @@ export class AuthService {
 				tokenHash: this.hashToken(opts.refreshToken),
 				userId,
 			});
-			keep = row?.sessionId ?? null;
+			// Fall back to the row's own id for a legacy token with no
+			// sessionId, so the caller's current session is still identifiable.
+			keep = row?.sessionId ?? row?.id ?? null;
 		}
 
 		await this.refreshTokenRepository.revokeAllExceptSession(userId, keep);
@@ -430,11 +429,25 @@ export class AuthService {
 		}
 	}
 
-	/** Verify a submitted code against the stored hash and consume it. */
+	/**
+	 * Verify a submitted code against the stored hash and consume it. Wrong
+	 * codes count toward a lockout (`TWO_FACTOR_MAX_ATTEMPTS` within a window,
+	 * cleared on success) so a challenge can't be brute-forced by resending
+	 * for a fresh code and re-guessing.
+	 */
 	private async consumeTwoFactorCode(
 		userId: string,
 		code: string,
 	): Promise<void> {
+		const user = await this.userRepository.findBy({ id: userId });
+		if (user?.twoFactorLockedUntil && user.twoFactorLockedUntil.getTime() > Date.now()) {
+			throw new AppError(
+				HTTP_STATUS.TOO_MANY_REQUESTS,
+				ERROR_CODES.TWO_FACTOR_LOCKED,
+				"Too many incorrect codes. Try again later.",
+			);
+		}
+
 		const codeHash = crypto.createHash("sha256").update(code).digest("hex");
 
 		const record = await this.emailRepository.findBy({
@@ -445,6 +458,14 @@ export class AuthService {
 		});
 
 		if (!record) {
+			// Atomic increment: each concurrent wrong guess gets its own accurate
+			// post-increment count, so a burst of parallel attempts can't all
+			// read the same stale counter and slip past the threshold.
+			const attempts = await this.userRepository.recordFailedTwoFactor(userId);
+			if (attempts >= TWO_FACTOR_MAX_ATTEMPTS) {
+				await this.userRepository.lockTwoFactorFor(userId, TWO_FACTOR_LOCKOUT_MS);
+			}
+
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
 				ERROR_CODES.INVALID_OR_EXPIRED_2FA_CODE,
@@ -452,6 +473,7 @@ export class AuthService {
 			);
 		}
 
+		await this.userRepository.resetTwoFactorFailures(userId);
 		await this.emailRepository.deleteAll({
 			userId,
 			type: VerificationTokenType.TWO_FACTOR,
@@ -771,7 +793,6 @@ export class AuthService {
 		// Revoke the old token (rotation)
 		await this.refreshTokenRepository.revoke(stored.id);
 
-		// Look up the user to get their username for the new access token
 		const user = await this.userRepository.findBy({
 			id: stored.userId,
 		});
@@ -792,6 +813,7 @@ export class AuthService {
 				sub: user.id,
 				username: user.username,
 				sid: sessionId,
+				typ: "access",
 			},
 			{
 				expiresIn: "15m",
@@ -826,7 +848,6 @@ export class AuthService {
 	async forgotPassword(
 		dto: ForgotPasswordRequestType,
 	): Promise<ForgotPasswordResponseType> {
-		// change password on clicking forgot password.
 		const user = await this.userRepository.findBy({
 			email: dto.email,
 		});
@@ -837,7 +858,6 @@ export class AuthService {
 			return genericResponse;
 		}
 
-		// delete all the tokens before it.
 		await this.emailRepository.deleteAll({
 			userId: user.id,
 			type: VerificationTokenType.PASSWORD_RESET,
@@ -846,7 +866,6 @@ export class AuthService {
 		const token = crypto.randomBytes(32).toString("hex");
 		const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-		// register new token;
 		await this.emailRepository.create({
 			tokenHash,
 			expiresAt: new Date(Date.now() + 60 * 60 * 1000),

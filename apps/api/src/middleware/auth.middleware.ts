@@ -32,6 +32,16 @@ export const authMiddleware = (
 
 		const payload = jwtService.verifyJwt<AccessTokenPayload>(token);
 
+		// Reject any other JWT signed with this secret (e.g. a 2FA login
+		// challenge) — only a real access token authenticates a request.
+		if (payload.typ !== "access") {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.UNAUTHORIZED,
+				"Invalid or expired token",
+			);
+		}
+
 		req.user = {
 			userId: payload.sub,
 			sessionId: payload.sid,

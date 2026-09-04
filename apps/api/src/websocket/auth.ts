@@ -29,6 +29,12 @@ export function socketAuthMiddleware(
 
 		const payload = jwtService.verifyJwt<AccessTokenPayload>(token);
 
+		// Reject any other JWT signed with this secret (e.g. a 2FA login
+		// challenge) — only a real access token authenticates a socket.
+		if (payload.typ !== "access") {
+			return next(new Error("Invalid or expired token"));
+		}
+
 		socket.data.userId = payload.sub;
 		socket.data.username = payload.username;
 		socket.data.sessionId = payload.sid;

@@ -1,7 +1,6 @@
 import { prisma, Prisma } from "@bakbak/db";
 import { env } from "@/config";
 export class UserRepository {
-	// will work every type id,email, username
 	async findBy(where: Prisma.UserWhereUniqueInput) {
 		return prisma.user.findUnique({
 			where,
@@ -123,6 +122,38 @@ export class UserRepository {
 			data: {
 				failedLoginAttempts: 0,
 				lockedUntil: null,
+			},
+		});
+	}
+
+	/** Atomically bumps the counter and returns the new value, so concurrent
+	 * wrong-code requests each see their own accurate post-increment count
+	 * instead of racing on a stale read. */
+	async recordFailedTwoFactor(userId: string): Promise<number> {
+		const updated = await prisma.user.update({
+			where: { id: userId },
+			data: { twoFactorFailedAttempts: { increment: 1 } },
+			select: { twoFactorFailedAttempts: true },
+		});
+		return updated.twoFactorFailedAttempts;
+	}
+
+	async lockTwoFactorFor(userId: string, ms: number) {
+		return prisma.user.update({
+			where: { id: userId },
+			data: {
+				twoFactorFailedAttempts: 0,
+				twoFactorLockedUntil: new Date(Date.now() + ms),
+			},
+		});
+	}
+
+	async resetTwoFactorFailures(userId: string) {
+		return prisma.user.update({
+			where: { id: userId },
+			data: {
+				twoFactorFailedAttempts: 0,
+				twoFactorLockedUntil: null,
 			},
 		});
 	}

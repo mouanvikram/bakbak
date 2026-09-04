@@ -20,7 +20,6 @@ import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
-	// generateToken,
 	authHeader,
 	isDatabaseAvailable,
 } from "./helpers";
@@ -507,6 +506,41 @@ describe("Auth Endpoints", () => {
 		expect(data.error.code).toBe("INVALID_OR_EXPIRED_2FA_CODE");
 	});
 
+	test("a 2FA challenge token cannot be used as an access token", async () => {
+		const user = await makeUser(true);
+		const { challengeId } = (await (await loginRaw(user.email)).json()) as any;
+
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			headers: { Authorization: `Bearer ${challengeId}` },
+		});
+		expect(res.status).toBe(401);
+	});
+
+	test("verify-2fa locks out after too many wrong codes, even with the right one", async () => {
+		const user = await makeUser(true);
+		const { challengeId } = (await (await loginRaw(user.email)).json()) as any;
+		const goodCode = lastTwoFactorCode();
+
+		const attempt = (code: string) =>
+			fetch(`${baseUrl()}/api/v1/auth/login/verify-2fa`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ challengeId, code }),
+			});
+
+		for (let i = 0; i < 10; i++) {
+			expect((await attempt("000001")).status).toBe(400);
+		}
+
+		const locked = await attempt(goodCode);
+		expect(locked.status).toBe(429);
+		const data = (await locked.json()) as any;
+		expect(data.error.code).toBe("TWO_FACTOR_LOCKED");
+
+		const record = await prisma.user.findUnique({ where: { id: user.id } });
+		expect(record?.twoFactorLockedUntil).not.toBeNull();
+	}, 30000);
+
 	test("verify-2fa rejects a bogus challenge", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/auth/login/verify-2fa`, {
 			method: "POST",
@@ -558,7 +592,6 @@ describe("Auth Endpoints", () => {
 		});
 		expect(setup.status).toBe(200);
 
-		// Wrong code first.
 		const bad = await fetch(`${baseUrl()}/api/v1/auth/2fa/enable`, {
 			method: "POST",
 			headers: { ...auth, "Content-Type": "application/json" },

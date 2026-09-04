@@ -2,6 +2,10 @@ import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
 export interface AccessTokenPayload extends JwtPayload {
   sub: string;
   username: string;
+  // Discriminates a real access token from other JWTs signed with the same
+  // secret (e.g. the 2FA login challenge) — required so one can't be replayed
+  // as the other. See auth.middleware.ts / websocket/auth.ts.
+  typ: "access";
   // Stable login-session id; absent on tokens minted before session tracking.
   sid?: string;
 }

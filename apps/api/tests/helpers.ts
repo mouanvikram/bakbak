@@ -14,6 +14,7 @@ export function authHeader(userId: string, username: string) {
 		{
 			sub: userId,
 			username,
+			typ: "access",
 		},
 		{
 			expiresIn: "15m",

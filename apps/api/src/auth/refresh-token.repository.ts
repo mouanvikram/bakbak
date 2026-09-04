@@ -51,14 +51,21 @@ export class RefreshTokenRepository {
 		});
 	}
 
-	/** Revoke every live session except the one identified by `keepSessionId`.
-	 * A null keep revokes everything. */
+	/** Revoke every live session except the one identified by `keepSessionId` —
+	 * a real `sessionId`, or (for a legacy pre-tracking row) its own `id`.
+	 * Excluding by both means a legacy row's own row-id still spares it even
+	 * though its `sessionId` column is null. A null keep revokes everything. */
 	async revokeAllExceptSession(userId: string, keepSessionId: string | null) {
 		return await prisma.refreshToken.updateMany({
 			where: {
 				userId,
 				revokedAt: null,
-				...(keepSessionId ? { sessionId: { not: keepSessionId } } : {}),
+				...(keepSessionId
+					? {
+							sessionId: { not: keepSessionId },
+							id: { not: keepSessionId },
+						}
+					: {}),
 			},
 			data: { revokedAt: new Date() },
 		});
