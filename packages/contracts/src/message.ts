@@ -43,6 +43,8 @@ export const sendMessageRequestSchema = z.object({
 		.min(1)
 		.max(MAX_MESSAGE_ATTACHMENTS)
 		.optional(),
+	// Idempotency key: a retry with the same clientId returns the original message.
+	clientId: z.uuid().optional(),
 });
 
 export const sendMessageResponseSchema = messageResponseSchema;
@@ -137,6 +139,7 @@ export interface SendMessageDto extends ChatMessagesDto {
 	text?: string;
 	type: MessageType;
 	attachmentIds?: string[];
+	clientId?: string;
 }
 
 export interface MessageIdDto {

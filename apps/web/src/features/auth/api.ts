@@ -21,8 +21,11 @@ import type {
   RefreshTokenResponseType,
   LogoutRequestType,
   LogoutResponseType,
+  ListSessionsResponseType,
+  RevokeSessionResponseType,
 } from "@bakbak/contracts";
 import { apiClient } from "@/lib/api/client";
+import { getRefreshToken } from "@/lib/api/tokens";
 
 /** Resolves to tokens, or — when the account has 2FA on — a challenge that
  * must be replayed to `verifyTwoFactorLogin` with the emailed code. */
@@ -66,6 +69,30 @@ export function enableTwoFactor(
 
 export function disableTwoFactor(): Promise<TwoFactorStatusResponseType> {
   return apiClient("/api/v1/auth/2fa/disable", { method: "POST" });
+}
+
+// Refresh token is sent only as a fallback for identifying the current session.
+export function listSessions(): Promise<ListSessionsResponseType> {
+  return apiClient("/api/v1/auth/sessions", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken: getRefreshToken() ?? undefined }),
+  });
+}
+
+export function revokeSession(
+  sessionId: string,
+): Promise<RevokeSessionResponseType> {
+  return apiClient("/api/v1/auth/sessions/revoke", {
+    method: "POST",
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
+export function revokeOtherSessions(): Promise<RevokeSessionResponseType> {
+  return apiClient("/api/v1/auth/sessions/revoke-others", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken: getRefreshToken() ?? undefined }),
+  });
 }
 
 export function signup(data: SignUpRequestType): Promise<SignUpResponseType> {

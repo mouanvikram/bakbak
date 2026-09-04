@@ -1278,6 +1278,117 @@ describe("Auth Endpoints", () => {
 		expect(res.status).toBe(401);
 	});
 
+	// ── Active sessions / Devices ────────────────────────────────────
+
+	const loginWithUA = async (identifier: string, ua: string) => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", "User-Agent": ua },
+			body: JSON.stringify({ identifier, password: "TestPass123!" }),
+		});
+		return (await res.json()) as any;
+	};
+
+	test("POST /auth/sessions - lists live sessions and flags the caller's", async () => {
+		const user = await createTestUser({
+			email: `sess-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+		const a = await loginWithUA(user.email, "AgentA/1.0");
+		await loginWithUA(user.email, "AgentB/1.0");
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/sessions`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${a.accessToken}`,
+			},
+			body: JSON.stringify({ refreshToken: a.refreshToken }),
+		});
+		expect(res.status).toBe(200);
+		const { sessions } = (await res.json()) as any;
+		expect(sessions).toHaveLength(2);
+		const current = sessions.filter((s: any) => s.current);
+		expect(current).toHaveLength(1);
+		expect(current[0].userAgent).toBe("AgentA/1.0");
+	});
+
+	test("POST /auth/sessions/revoke - ends one session; that refresh token stops working", async () => {
+		const user = await createTestUser({
+			email: `sessrev-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+		const a = await loginWithUA(user.email, "Keep/1.0");
+		const b = await loginWithUA(user.email, "Kill/1.0");
+
+		const list = (await (
+			await fetch(`${baseUrl()}/api/v1/auth/sessions`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${a.accessToken}`,
+				},
+				body: JSON.stringify({ refreshToken: a.refreshToken }),
+			})
+		).json()) as any;
+		const target = list.sessions.find((s: any) => !s.current);
+
+		const revoke = await fetch(`${baseUrl()}/api/v1/auth/sessions/revoke`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${a.accessToken}`,
+			},
+			body: JSON.stringify({ sessionId: target.id }),
+		});
+		expect(revoke.status).toBe(200);
+
+		// b's refresh token is now dead.
+		const refresh = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: b.refreshToken }),
+		});
+		expect(refresh.status).toBe(401);
+	});
+
+	test("POST /auth/sessions/revoke-others - keeps only the current session", async () => {
+		const user = await createTestUser({
+			email: `sessother-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+		const a = await loginWithUA(user.email, "Mine/1.0");
+		await loginWithUA(user.email, "Other1/1.0");
+		await loginWithUA(user.email, "Other2/1.0");
+
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/sessions/revoke-others`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${a.accessToken}`,
+				},
+				body: JSON.stringify({ refreshToken: a.refreshToken }),
+			},
+		);
+		expect(res.status).toBe(200);
+
+		const left = await prisma.refreshToken.count({
+			where: { userId: user.id, revokedAt: null },
+		});
+		expect(left).toBe(1);
+	});
+
+	test("POST /auth/sessions - requires auth", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/sessions`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({}),
+		});
+		expect(res.status).toBe(401);
+	});
+
 	// ── Hardcore boundary & injection tests ─────────────────────────
 
 	const maxUsername = "a".repeat(30);

@@ -41,10 +41,10 @@ function applyFontSize(size: FontSizePreference) {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [theme, setThemeState] = useState<ThemePreference>(() =>
-    readStored<ThemePreference>(THEME_KEY, "system"),
+    readStored<ThemePreference>(THEME_KEY, "light"),
   );
   const [fontSize, setFontSizeState] = useState<FontSizePreference>(() =>
-    readStored<FontSizePreference>(FONT_SIZE_KEY, "medium"),
+    readStored<FontSizePreference>(FONT_SIZE_KEY, "small"),
   );
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
     resolve(theme),

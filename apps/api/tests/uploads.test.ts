@@ -16,6 +16,8 @@ import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
 	createTestUser,
+	createTestDirectChat,
+	createTestMessage,
 	authHeader,
 	isDatabaseAvailable,
 	isStorageAvailable,
@@ -144,6 +146,64 @@ describe("Uploads Endpoints", () => {
 	test("GET /uploads/:attachmentId - should fail without auth", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/uploads/${randomUUID()}`);
 		expect(res.status).toBe(401);
+	});
+
+	// ── Access control ─────────────────────────────────────────────
+
+	const seedAttachment = (data: {
+		ownerId: string;
+		messageId?: string | null;
+	}) =>
+		prisma.attachment.create({
+			data: {
+				kind: "IMAGE",
+				fileName: "x.png",
+				filePath: `${data.ownerId}/${randomUUID()}.png`,
+				mimeType: "image/png",
+				fileSize: 10,
+				messageId: data.messageId ?? null,
+			},
+		});
+
+	test("GET /uploads/:attachmentId - a chat member can fetch a message's attachment", async () => {
+		const chat = await createTestDirectChat(userA.id, userB.id);
+		const msg = await createTestMessage(chat.id, userA.id, { type: "IMAGE" });
+		const att = await seedAttachment({ ownerId: userA.id, messageId: msg.id });
+
+		const res = await fetch(`${baseUrl()}/api/v1/uploads/${att.id}`, {
+			headers: await authHeader(userB.id, userB.username),
+		});
+		expect(res.status).toBe(200);
+		expect(typeof ((await res.json()) as any).attachment.url).toBe("string");
+	});
+
+	test("GET /uploads/:attachmentId - a non-member is refused (403)", async () => {
+		const chat = await createTestDirectChat(userA.id, userB.id);
+		const msg = await createTestMessage(chat.id, userA.id, { type: "IMAGE" });
+		const att = await seedAttachment({ ownerId: userA.id, messageId: msg.id });
+
+		const outsider = await createTestUser({
+			username: `out-${Date.now()}`,
+			email: `out-${Date.now()}@example.com`,
+		});
+		const res = await fetch(`${baseUrl()}/api/v1/uploads/${att.id}`, {
+			headers: await authHeader(outsider.id, outsider.username),
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("GET /uploads/:attachmentId - an unsent upload is only readable by its owner", async () => {
+		const att = await seedAttachment({ ownerId: userA.id, messageId: null });
+
+		const mine = await fetch(`${baseUrl()}/api/v1/uploads/${att.id}`, {
+			headers: await authHeader(userA.id, userA.username),
+		});
+		expect(mine.status).toBe(200);
+
+		const theirs = await fetch(`${baseUrl()}/api/v1/uploads/${att.id}`, {
+			headers: await authHeader(userB.id, userB.username),
+		});
+		expect(theirs.status).toBe(403);
 	});
 
 	test("DELETE /uploads/:attachmentId - should 400 for a malformed id", async () => {

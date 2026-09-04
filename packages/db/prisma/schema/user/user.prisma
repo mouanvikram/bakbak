@@ -67,13 +67,12 @@ model UserSettings {
   emailDigest    Boolean @default(false)
 
   // AppearancePage
-  theme    String @default("system") @db.VarChar(10)
-  fontSize String @default("medium") @db.VarChar(10)
+  theme    String @default("light") @db.VarChar(10)
+  fontSize String @default("small") @db.VarChar(10)
 
   // ChatSettingsPage
-  enterToSend     Boolean @default(true)
-  mediaPreview    Boolean @default(true)
-  keepChatHistory Boolean @default(true)
+  enterToSend  Boolean @default(true)
+  mediaPreview Boolean @default(true)
 
   // SecurityPrivacyPage (2FA toggle)
   twoFactorEnabled Boolean @default(false)

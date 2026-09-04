@@ -32,6 +32,32 @@ export async function addUserToChatRoom(userId: string, chatId: string) {
 	}
 }
 
+interface SocketIdentity {
+	userId?: string;
+	sessionId?: string;
+}
+
+// Drop live sockets when their session is revoked, so logout / "end session"
+// takes effect now instead of lingering until the access token expires.
+// `keepSessionId` spares the caller's own session.
+export async function disconnectSockets(opts: {
+	userId: string;
+	sessionIds?: string[];
+	keepSessionId?: string | null;
+}) {
+	if (!ioRef) return;
+	const targetSessions = opts.sessionIds ? new Set(opts.sessionIds) : null;
+	const sockets = await ioRef.fetchSockets();
+	for (const s of sockets) {
+		const data = s.data as SocketIdentity;
+		if (data.userId !== opts.userId) continue;
+		if (targetSessions && !(data.sessionId && targetSessions.has(data.sessionId)))
+			continue;
+		if (opts.keepSessionId && data.sessionId === opts.keepSessionId) continue;
+		s.disconnect(true);
+	}
+}
+
 export function broadcastMessage(chatId: string, message: MessageResponseType) {
 	broadcastToChat(chatId, "message:new", message);
 }

@@ -60,8 +60,19 @@ export class UploadController {
 	) => {
 		try {
 			const { attachmentId } = req.valid?.params as AttachmentIdParamsType;
+			const userId = req.user?.userId;
+			if (!userId) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Unauthorized",
+				);
+			}
 
-			const response = await this.uploadService.getAttachment(attachmentId);
+			const response = await this.uploadService.getAttachment(
+				attachmentId,
+				userId,
+			);
 
 			return validateResponse(res, 200, getAttachmentResponseSchema, {
 				attachment: response,

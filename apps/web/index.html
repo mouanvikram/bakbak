@@ -9,11 +9,11 @@
       // Apply the persisted theme before first paint to avoid a flash.
       (function () {
         try {
-          var stored = localStorage.getItem("bakbak.theme") || "system";
+          var stored = localStorage.getItem("bakbak.theme") || "light";
           var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           var dark = stored === "dark" || (stored === "system" && prefersDark);
           document.documentElement.classList.toggle("dark", dark);
-          var size = localStorage.getItem("bakbak.fontSize") || "medium";
+          var size = localStorage.getItem("bakbak.fontSize") || "small";
           document.documentElement.dataset.fontSize = size;
         } catch (e) {}
       })();

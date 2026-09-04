@@ -50,13 +50,13 @@ const navigation: Record<string, SidebarOption[]> = {
     },
     {
       label: "Chat Settings",
-      desc: "Behavior, media, and history",
+      desc: "Composer and media behavior",
       path: "/settings/chat_settings",
       icon: MessageCircle,
     },
     {
       label: "Devices",
-      desc: "Manage your connected devices",
+      desc: "Active sessions and sign-outs",
       path: "/settings/devices",
       icon: Monitor,
     },
@@ -68,7 +68,7 @@ const navigation: Record<string, SidebarOption[]> = {
     },
     {
       label: "About BakBak",
-      desc: "Version, terms, and privacy policy",
+      desc: "Version and how your data is used",
       path: "/settings/about_bakbak",
       icon: CircleAlert,
     },

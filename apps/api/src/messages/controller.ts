@@ -52,6 +52,7 @@ export class MessageController {
 				text: body.text,
 				type: body.type ?? MessageType.TEXT,
 				attachmentIds: body.attachmentIds,
+				clientId: body.clientId,
 			});
 
 			return validateResponse(res, 201, sendMessageResponseSchema, response);

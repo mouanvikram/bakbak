@@ -6,6 +6,7 @@ import crypto from "crypto";
 import type { EmailRepository } from "../email/repository";
 import type { RefreshTokenRepository } from "./refresh-token.repository";
 import type { SettingsRepository } from "../settings/repository";
+import { disconnectSockets } from "../websocket/emitter";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { env } from "@/config";
@@ -36,6 +37,8 @@ import type {
 	EnableTwoFactorRequestType,
 	TwoFactorStatusResponseType,
 	SetupTwoFactorResponseType,
+	ListSessionsResponseType,
+	RevokeSessionResponseType,
 } from "@bakbak/contracts";
 import type { StorageProvider } from "../uploads/storage.provider";
 import type { UploadRepository } from "../uploads/repository";
@@ -191,7 +194,14 @@ export class AuthService {
 		return `avatars/${uuid}${ext ? `.${ext}` : ""}`;
 	}
 
-	async login(dto: LoginRequestType): Promise<LoginOutcomeType> {
+	private hashToken(value: string): string {
+		return crypto.createHash("sha256").update(value).digest("hex");
+	}
+
+	async login(
+		dto: LoginRequestType,
+		userAgent?: string,
+	): Promise<LoginOutcomeType> {
 		const user = await this.userRepository.findFirst({
 			OR: [{ username: dto.identifier }, { email: dto.identifier }],
 		});
@@ -269,24 +279,24 @@ export class AuthService {
 			};
 		}
 
-		return this.issueTokens(user.id, user.username);
+		return this.issueTokens(user.id, user.username, userAgent);
 	}
 
-	/** Mint an access + refresh token pair for a fully authenticated user. */
+	// sessionId stays stable across every rotation of this login and rides in the
+	// access token's `sid` claim, so revoking a session can drop its live sockets.
 	private async issueTokens(
 		userId: string,
 		username: string,
+		userAgent?: string | null,
+		sessionId: string = crypto.randomUUID(),
 	): Promise<LoginResponseType> {
 		const token = this.jwtService.signJwt<AccessTokenPayload>(
-			{ sub: userId, username },
+			{ sub: userId, username, sid: sessionId },
 			{ expiresIn: "15m" },
 		);
 
 		const refreshTokenValue = crypto.randomBytes(32).toString("hex");
-		const refreshTokenHash = crypto
-			.createHash("sha256")
-			.update(refreshTokenValue)
-			.digest("hex");
+		const refreshTokenHash = this.hashToken(refreshTokenValue);
 
 		const expiresAt = new Date(
 			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
@@ -295,6 +305,8 @@ export class AuthService {
 		await this.refreshTokenRepository.create({
 			tokenHash: refreshTokenHash,
 			expiresAt,
+			userAgent: userAgent ?? null,
+			sessionId,
 			user: { connect: { id: userId } },
 		});
 
@@ -303,6 +315,81 @@ export class AuthService {
 			refreshToken: refreshTokenValue,
 			user: { id: userId, identifier: username },
 		};
+	}
+
+	// ─── Active sessions (Devices page) ───────────────────────────────
+
+	// One entry per login session; tokens rotate, so rows share a `sessionId`.
+	private async loadSessions(userId: string) {
+		const tokens = await this.refreshTokenRepository.findActiveByUser(userId);
+		const bySession = new Map<string, (typeof tokens)[number]>();
+		for (const t of tokens) {
+			const key = t.sessionId ?? t.id;
+			const seen = bySession.get(key);
+			if (!seen || seen.createdAt < t.createdAt) bySession.set(key, t);
+		}
+		return bySession;
+	}
+
+	async listSessions(
+		userId: string,
+		opts: { sessionId?: string; refreshToken?: string },
+	): Promise<ListSessionsResponseType> {
+		const bySession = await this.loadSessions(userId);
+		const currentKey =
+			opts.sessionId ??
+			(opts.refreshToken
+				? [...bySession.values()].find(
+						(t) => t.tokenHash === this.hashToken(opts.refreshToken!),
+					)?.sessionId ?? undefined
+				: undefined);
+
+		return {
+			sessions: [...bySession.entries()].map(([key, t]) => ({
+				id: key,
+				userAgent: t.userAgent,
+				createdAt: t.createdAt.toISOString(),
+				expiresAt: t.expiresAt.toISOString(),
+				current: key === currentKey,
+			})),
+		};
+	}
+
+	async revokeSession(
+		userId: string,
+		sessionKey: string,
+	): Promise<RevokeSessionResponseType> {
+		const result = await this.refreshTokenRepository.revokeSessionForUser(
+			userId,
+			sessionKey,
+		);
+		if (result.count === 0) {
+			throw new AppError(
+				HTTP_STATUS.NOT_FOUND,
+				ERROR_CODES.NOT_FOUND,
+				"Session not found",
+			);
+		}
+		await disconnectSockets({ userId, sessionIds: [sessionKey] });
+		return { message: "Session ended" };
+	}
+
+	async revokeOtherSessions(
+		userId: string,
+		opts: { sessionId?: string; refreshToken?: string },
+	): Promise<RevokeSessionResponseType> {
+		let keep = opts.sessionId ?? null;
+		if (!keep && opts.refreshToken) {
+			const row = await this.refreshTokenRepository.findFirst({
+				tokenHash: this.hashToken(opts.refreshToken),
+				userId,
+			});
+			keep = row?.sessionId ?? null;
+		}
+
+		await this.refreshTokenRepository.revokeAllExceptSession(userId, keep);
+		await disconnectSockets({ userId, keepSessionId: keep });
+		return { message: "Other sessions ended" };
 	}
 
 	// ─── Two-factor authentication ────────────────────────────────────
@@ -397,6 +484,7 @@ export class AuthService {
 
 	async verifyLoginTwoFactor(
 		dto: VerifyTwoFactorLoginRequestType,
+		userAgent?: string,
 	): Promise<LoginResponseType> {
 		const userId = this.readChallenge(dto.challengeId);
 
@@ -411,7 +499,7 @@ export class AuthService {
 
 		await this.consumeTwoFactorCode(userId, dto.code);
 
-		return this.issueTokens(user.id, user.username);
+		return this.issueTokens(user.id, user.username, userAgent);
 	}
 
 	async resendLoginTwoFactor(
@@ -620,21 +708,25 @@ export class AuthService {
 		dto: LogoutRequestType,
 	): Promise<LogoutResponseType> {
 		if (dto.refreshToken) {
-			const tokenHash = crypto
-				.createHash("sha256")
-				.update(dto.refreshToken)
-				.digest("hex");
-
+			// Log out this one session.
 			const stored = await this.refreshTokenRepository.findFirst({
-				tokenHash,
+				tokenHash: this.hashToken(dto.refreshToken),
 				userId,
 			});
 
 			if (stored && !stored.revokedAt) {
 				await this.refreshTokenRepository.revoke(stored.id);
+				if (stored.sessionId) {
+					await disconnectSockets({
+						userId,
+						sessionIds: [stored.sessionId],
+					});
+				}
 			}
 		} else {
+			// Log out everywhere.
 			await this.refreshTokenRepository.revokeAll(userId);
+			await disconnectSockets({ userId });
 		}
 
 		return { message: "Logged out successfully" };
@@ -692,23 +784,22 @@ export class AuthService {
 			);
 		}
 
-		// Issue new access token
+		// Rotation keeps the session's stable id (and its UA).
+		const sessionId = stored.sessionId ?? crypto.randomUUID();
+
 		const newAccessToken = this.jwtService.signJwt<AccessTokenPayload>(
 			{
 				sub: user.id,
 				username: user.username,
+				sid: sessionId,
 			},
 			{
 				expiresIn: "15m",
 			},
 		);
 
-		// Issue new refresh token
 		const newRefreshTokenValue = crypto.randomBytes(32).toString("hex");
-		const newRefreshTokenHash = crypto
-			.createHash("sha256")
-			.update(newRefreshTokenValue)
-			.digest("hex");
+		const newRefreshTokenHash = this.hashToken(newRefreshTokenValue);
 
 		const expiresAt = new Date(
 			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
@@ -717,6 +808,8 @@ export class AuthService {
 		await this.refreshTokenRepository.create({
 			tokenHash: newRefreshTokenHash,
 			expiresAt,
+			userAgent: stored.userAgent,
+			sessionId,
 			user: {
 				connect: {
 					id: stored.userId,

@@ -235,3 +235,56 @@ export const logoutResponseSchema = okResponseSchema;
 
 export type LogoutRequestType = z.infer<typeof logoutRequestSchema>;
 export type LogoutResponseType = z.infer<typeof logoutResponseSchema>;
+
+// ─── Active sessions (Devices page) ────────────────────────────────
+
+// One live refresh-token session for the current user.
+export const sessionSchema = z.object({
+	id: z.uuid(),
+	userAgent: z.string().nullish(),
+	createdAt: z.string(),
+	expiresAt: z.string(),
+	current: z.boolean(),
+});
+
+export type SessionType = z.infer<typeof sessionSchema>;
+
+// refreshToken is only a fallback identifier for the current session, for
+// tokens minted before the access token carried a `sid` claim.
+export const listSessionsRequestSchema = z.object({
+	refreshToken: refreshTokenSchema.optional(),
+});
+
+export type ListSessionsRequestType = z.infer<
+	typeof listSessionsRequestSchema
+>;
+
+export const listSessionsResponseSchema = z.object({
+	sessions: z.array(sessionSchema),
+});
+
+export type ListSessionsResponseType = z.infer<
+	typeof listSessionsResponseSchema
+>;
+
+export const revokeSessionRequestSchema = z.object({
+	sessionId: z.uuid(),
+});
+
+export type RevokeSessionRequestType = z.infer<
+	typeof revokeSessionRequestSchema
+>;
+
+export const revokeOtherSessionsRequestSchema = z.object({
+	refreshToken: refreshTokenSchema.optional(),
+});
+
+export type RevokeOtherSessionsRequestType = z.infer<
+	typeof revokeOtherSessionsRequestSchema
+>;
+
+export const revokeSessionResponseSchema = okResponseSchema;
+
+export type RevokeSessionResponseType = z.infer<
+	typeof revokeSessionResponseSchema
+>;

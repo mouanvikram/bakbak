@@ -5,6 +5,7 @@ import {
 	changePasswordRequestSchema,
 	enableTwoFactorRequestSchema,
 	forgotPasswordRequestSchema,
+	listSessionsRequestSchema,
 	loginRequestSchema,
 	logoutRequestSchema,
 	refreshTokenRequestSchema,
@@ -12,6 +13,8 @@ import {
 	resendVerificationRequestSchema,
 	resetPasswordBodySchema,
 	resetPasswordQuerySchema,
+	revokeOtherSessionsRequestSchema,
+	revokeSessionRequestSchema,
 	signUpRequestSchema,
 	verifyEmailRequestSchema,
 	verifyTwoFactorLoginRequestSchema,
@@ -95,6 +98,29 @@ router.post(
 	authMiddleware,
 	validateUserId(),
 	authController.disableTwoFactor,
+);
+
+// Active sessions / devices (all require a live session).
+router.post(
+	"/sessions",
+	authMiddleware,
+	validateUserId(),
+	validate(listSessionsRequestSchema),
+	authController.listSessions,
+);
+router.post(
+	"/sessions/revoke",
+	authMiddleware,
+	validateUserId(),
+	validate(revokeSessionRequestSchema),
+	authController.revokeSession,
+);
+router.post(
+	"/sessions/revoke-others",
+	authMiddleware,
+	validateUserId(),
+	validate(revokeOtherSessionsRequestSchema),
+	authController.revokeOtherSessions,
 );
 
 export default router;

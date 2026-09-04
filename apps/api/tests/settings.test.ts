@@ -74,7 +74,11 @@ describe("Settings Endpoints", () => {
 	const getSettings = () =>
 		fetch(`${baseUrl()}/api/v1/settings`, { headers: auth() });
 
-	const patch = (path: string, body: unknown, headers = jsonAuth()) =>
+	const patch = (
+		path: string,
+		body: unknown,
+		headers: Record<string, string> = jsonAuth(),
+	) =>
 		fetch(`${baseUrl()}/api/v1/settings${path}`, {
 			method: "PATCH",
 			headers,
@@ -100,8 +104,8 @@ describe("Settings Endpoints", () => {
 				alerts: true,
 				emailDigest: false,
 			},
-			appearance: { theme: "system", fontSize: "medium" },
-			chat: { enterToSend: true, mediaPreview: true, chatHistory: true },
+			appearance: { theme: "light", fontSize: "small" },
+			chat: { enterToSend: true, mediaPreview: true },
 			privacy: { twoFactorEnabled: false },
 		});
 	});
@@ -230,7 +234,6 @@ describe("Settings Endpoints", () => {
 		const res = await patch("/chat", {
 			enterToSend: false,
 			mediaPreview: false,
-			chatHistory: false,
 		});
 
 		expect(res.status).toBe(200);
@@ -238,7 +241,6 @@ describe("Settings Endpoints", () => {
 		expect(data.chat).toEqual({
 			enterToSend: false,
 			mediaPreview: false,
-			chatHistory: false,
 		});
 
 		const reread = (await (await getSettings()).json()) as any;
@@ -255,7 +257,7 @@ describe("Settings Endpoints", () => {
 	test("PATCH /settings/chat - should fail without auth", async () => {
 		const res = await patch(
 			"/chat",
-			{ enterToSend: true, mediaPreview: true, chatHistory: true },
+			{ enterToSend: true, mediaPreview: true },
 			{ "Content-Type": "application/json" },
 		);
 		expect(res.status).toBe(401);
@@ -287,11 +289,10 @@ describe("Settings Endpoints", () => {
 		const data = (await (await getSettings()).json()) as any;
 		expect(data.notifications.messages).toBe(false);
 		// Untouched sections keep their defaults.
-		expect(data.appearance).toEqual({ theme: "system", fontSize: "medium" });
+		expect(data.appearance).toEqual({ theme: "light", fontSize: "small" });
 		expect(data.chat).toEqual({
 			enterToSend: true,
 			mediaPreview: true,
-			chatHistory: true,
 		});
 		expect(data.privacy).toEqual({ twoFactorEnabled: false });
 	});
@@ -301,7 +302,6 @@ describe("Settings Endpoints", () => {
 		await patch("/chat", {
 			enterToSend: false,
 			mediaPreview: false,
-			chatHistory: false,
 		});
 
 		const data = (await (await getSettings()).json()) as any;
@@ -309,7 +309,6 @@ describe("Settings Endpoints", () => {
 		expect(data.chat).toEqual({
 			enterToSend: false,
 			mediaPreview: false,
-			chatHistory: false,
 		});
 	});
 

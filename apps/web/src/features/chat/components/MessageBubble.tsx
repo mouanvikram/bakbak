@@ -78,6 +78,7 @@ export function MessageBubble({
   isGroup,
   isEditing,
   status,
+  mediaPreview = true,
   onContextMenu,
 }: {
   message: MessageResponseType;
@@ -85,12 +86,15 @@ export function MessageBubble({
   isGroup: boolean;
   isEditing: boolean;
   status: DeliveryStatus;
+  /** When false, images/videos render as download chips instead of inline. */
+  mediaPreview?: boolean;
   onContextMenu: (e: MouseEvent) => void;
 }) {
   const senderName =
     m.sender.profile?.displayName ?? m.sender.username ?? "";
 
   const media =
+    mediaPreview &&
     !m.deleted &&
     m.attachments.length === 1 &&
     PREVIEWABLE.has(m.attachments[0].kind)
@@ -148,6 +152,7 @@ export function MessageBubble({
                 <MessageAttachments
                   attachments={otherAttachments}
                   mine={mine}
+                  mediaPreview={mediaPreview}
                 />
               </div>
             )}

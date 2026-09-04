@@ -7,6 +7,8 @@ export interface AuthenticatedSocket extends Socket {
 	data: {
 		userId: string;
 		username: string;
+		// Login-session id (access token `sid`), used to disconnect on revoke.
+		sessionId?: string;
 	};
 }
 
@@ -29,6 +31,7 @@ export function socketAuthMiddleware(
 
 		socket.data.userId = payload.sub;
 		socket.data.username = payload.username;
+		socket.data.sessionId = payload.sid;
 
 		next();
 	} catch {

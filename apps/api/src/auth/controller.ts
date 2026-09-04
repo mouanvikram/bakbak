@@ -15,6 +15,8 @@ import {
 	resendTwoFactorLoginResponseSchema,
 	setupTwoFactorResponseSchema,
 	twoFactorStatusResponseSchema,
+	listSessionsResponseSchema,
+	revokeSessionResponseSchema,
 } from "@bakbak/contracts";
 import type {
 	ResetPasswordBodyType,
@@ -24,6 +26,9 @@ import type {
 	VerifyTwoFactorLoginRequestType,
 	ResendTwoFactorLoginRequestType,
 	EnableTwoFactorRequestType,
+	ListSessionsRequestType,
+	RevokeSessionRequestType,
+	RevokeOtherSessionsRequestType,
 } from "@bakbak/contracts";
 import { validateResponse } from "../middleware/validate";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
@@ -33,6 +38,8 @@ export interface AuthRequest extends Request {
 		userId: string;
 		username?: string;
 		role?: string;
+		/** Login-session id from the access token's `sid` claim. */
+		sessionId?: string;
 	};
 }
 
@@ -59,7 +66,10 @@ export class AuthController {
 
 	login = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const response = await this.authService.login(req.body);
+			const response = await this.authService.login(
+				req.body,
+				req.headers["user-agent"],
+			);
 
 			// 2FA on → a challenge instead of tokens (still a 200).
 			if ("twoFactorRequired" in response) {
@@ -90,6 +100,7 @@ export class AuthController {
 		try {
 			const response = await this.authService.verifyLoginTwoFactor(
 				req.valid?.body as VerifyTwoFactorLoginRequestType,
+				req.headers["user-agent"],
 			);
 			return validateResponse(
 				res,
@@ -336,4 +347,83 @@ export class AuthController {
 			next(error);
 		}
 	};
+
+	listSessions = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = this.requireUser(req);
+			const { refreshToken } = req.valid?.body as ListSessionsRequestType;
+			const result = await this.authService.listSessions(userId, {
+				sessionId: req.user?.sessionId,
+				refreshToken,
+			});
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				listSessionsResponseSchema,
+				result,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	revokeSession = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = this.requireUser(req);
+			const { sessionId } = req.valid?.body as RevokeSessionRequestType;
+			const result = await this.authService.revokeSession(userId, sessionId);
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				revokeSessionResponseSchema,
+				result,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	revokeOtherSessions = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = this.requireUser(req);
+			const { refreshToken } =
+				req.valid?.body as RevokeOtherSessionsRequestType;
+			const result = await this.authService.revokeOtherSessions(userId, {
+				sessionId: req.user?.sessionId,
+				refreshToken,
+			});
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				revokeSessionResponseSchema,
+				result,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private requireUser(req: AuthRequest): string {
+		const userId = req.user?.userId;
+		if (!userId) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.UNAUTHORIZED,
+				"Authentication required",
+			);
+		}
+		return userId;
+	}
 }

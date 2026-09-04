@@ -68,16 +68,19 @@ export function MessageMedia({
 export function MessageAttachments({
   attachments,
   mine,
+  mediaPreview = true,
 }: {
   attachments: AttachmentResponseType[];
   mine: boolean;
+  /** When false, images/videos fall back to a download chip. */
+  mediaPreview?: boolean;
 }) {
   if (!attachments.length) return null;
 
   return (
     <div className="flex flex-col gap-1.5">
       {attachments.map((a) => {
-        if (a.kind === "IMAGE") {
+        if (a.kind === "IMAGE" && mediaPreview) {
           return (
             <a key={a.id} href={a.url} target="_blank" rel="noreferrer">
               <img
@@ -89,7 +92,7 @@ export function MessageAttachments({
             </a>
           );
         }
-        if (a.kind === "VIDEO") {
+        if (a.kind === "VIDEO" && mediaPreview) {
           return (
             <video
               key={a.id}

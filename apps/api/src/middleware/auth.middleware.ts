@@ -34,6 +34,7 @@ export const authMiddleware = (
 
 		req.user = {
 			userId: payload.sub,
+			sessionId: payload.sid,
 		};
 
 		next();

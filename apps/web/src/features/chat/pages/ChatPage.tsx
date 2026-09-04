@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
+import { useChatPreferences } from "@/features/settings/chat-preferences-context";
 import { useSocket } from "@/features/chat/socket-context";
 import { getChat } from "@/features/chat/api";
 import {
@@ -55,6 +56,7 @@ export function ChatPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const socket = useSocket();
+  const { preferences } = useChatPreferences();
   const { error: toastError } = useToast();
   const [chat, setChat] = useState<ChatResponseType | null>(null);
   const [messages, setMessages] = useState<MessageResponseType[]>([]);
@@ -79,6 +81,9 @@ export function ChatPage() {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Idempotency key for the in-flight / last-failed text send, so retrying the
+  // same message doesn't create a duplicate.
+  const pendingSend = useRef<{ clientId: string; content: string } | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   // participantId -> id of the last message that participant has read.
@@ -335,6 +340,14 @@ export function ChatPage() {
     }
 
     if (!content) return;
+
+    // Reuse the key when retrying the exact same message.
+    const clientId =
+      pendingSend.current?.content === content
+        ? pendingSend.current.clientId
+        : crypto.randomUUID();
+    pendingSend.current = { clientId, content };
+
     setSending(true);
     setError("");
     // Stop typing indicator when sending.
@@ -342,12 +355,14 @@ export function ChatPage() {
       socket.emit("typing", { chatId: id, isTyping: false });
     }
     try {
-      const res = await sendMessage(id, { text: content });
+      const res = await sendMessage(id, { text: content, clientId });
+      pendingSend.current = null;
       // REST call returns the saved message; add it locally.
       setText("");
       // The socket may also deliver it; dedupe on id in onNewMessage.
       upsertMessage(res);
     } catch {
+      // Keep pendingSend so the next attempt reuses `clientId`.
       setError("Failed to send message");
     } finally {
       setSending(false);
@@ -366,6 +381,7 @@ export function ChatPage() {
         const attachment = await uploadFile(file, file.name);
         const res = await sendMessage(id, {
           attachmentIds: [attachment.id],
+          clientId: crypto.randomUUID(),
           ...(caption ? { text: caption } : {}),
         });
         caption = "";
@@ -433,7 +449,12 @@ export function ChatPage() {
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    // "Enter to send" on: Enter sends, Shift+Enter is a newline.
+    // Off: only Ctrl/⌘+Enter sends, so Enter always makes a newline.
+    const sendCombo = preferences.enterToSend
+      ? event.key === "Enter" && !event.shiftKey
+      : event.key === "Enter" && (event.metaKey || event.ctrlKey);
+    if (sendCombo) {
       event.preventDefault();
       void handleSend();
     }
@@ -606,6 +627,7 @@ export function ChatPage() {
                 mine={m.senderId === currentUserId}
                 isGroup={chat?.type === "GROUP"}
                 isEditing={editing?.id === m.id}
+                mediaPreview={preferences.mediaPreview}
                 status={messageStatus(m.id)}
                 onContextMenu={(e) => {
                   if (m.senderId !== currentUserId || m.deleted) return;
@@ -695,7 +717,13 @@ export function ChatPage() {
             }}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder={editing ? "Edit your message" : "Type a message"}
+            placeholder={
+              editing
+                ? "Edit your message"
+                : preferences.enterToSend
+                  ? "Type a message"
+                  : "Type a message (Ctrl+Enter to send)"
+            }
             className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
           />
           <button

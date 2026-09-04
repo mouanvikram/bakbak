@@ -29,6 +29,15 @@ if (!jwtSecret) {
 export const env = {
 	NODE_ENV: process.env.NODE_ENV ?? "development",
 	PORT: Number(process.env.PORT) || 3000,
+	// Stamped by CI at build/deploy time (git tag, else short SHA); "dev" locally.
+	APP_VERSION: process.env.APP_VERSION?.trim() || "dev",
+	// Full commit SHA. Vercel injects VERCEL_GIT_COMMIT_SHA automatically.
+	GIT_COMMIT:
+		process.env.GIT_COMMIT?.trim() ||
+		process.env.VERCEL_GIT_COMMIT_SHA?.trim() ||
+		"unknown",
+	// When the running artifact was built; CI sets BUILD_TIME, else process start.
+	BUILD_TIME: process.env.BUILD_TIME?.trim() || new Date().toISOString(),
 	JWT_SECRET: jwtSecret,
 	FRONTEND_URL: process.env.FRONTEND_URL ?? "http://localhost:5173",
 	CORS_ORIGINS: parseOrigins(process.env.CORS_ORIGINS),

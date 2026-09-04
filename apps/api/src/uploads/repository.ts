@@ -13,6 +13,23 @@ export class UploadRepository {
 		});
 	}
 
+	// Attachment + its chat (via message), for the GET /uploads/:id access check.
+	async findByIdWithChat(id: string) {
+		return await prisma.attachment.findUnique({
+			where: { id },
+			include: { message: { select: { chatId: true } } },
+		});
+	}
+
+	/** Is this user still an active member of the chat? */
+	async isActiveChatParticipant(chatId: string, userId: string) {
+		const p = await prisma.chatParticipant.findFirst({
+			where: { chatId, userId, leftAt: null },
+			select: { id: true },
+		});
+		return p !== null;
+	}
+
 	async findByFilePath(filePath: string) {
 		return await prisma.attachment.findFirst({
 			where: { filePath },

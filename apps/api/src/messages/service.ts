@@ -16,7 +16,7 @@ import { resolveAvatarUrl } from "../uploads/avatar-url";
 
 const ATTACHMENT_URL_TTL_SECONDS = 3600;
 
-/** Attachment kinds line up 1:1 with the non-TEXT message types they imply. */
+// Non-TEXT message types, keyed by the attachment kind that implies them.
 const KIND_TO_MESSAGE_TYPE: Record<AttachmentKind, MessageType> = {
 	IMAGE: MessageType.IMAGE,
 	VIDEO: MessageType.VIDEO,
@@ -193,6 +193,15 @@ export class MessageService {
 	async sendMessage(dto: SendMessageDto) {
 		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
+		// Idempotent retry: same sender + clientId returns the original message.
+		if (dto.clientId) {
+			const existing = await this.messageRepository.findFirst({
+				where: { senderId: dto.currentUserId, clientId: dto.clientId },
+				include: messageInclude,
+			});
+			if (existing) return await this.serializeMessage(existing);
+		}
+
 		const attachmentIds = dto.attachmentIds ?? [];
 		const attachments = attachmentIds.length
 			? await this.loadOwnedUnlinkedAttachments(
@@ -202,8 +211,7 @@ export class MessageService {
 			: [];
 
 		const text = dto.text?.trim();
-		// An attachment message takes its type from the first file; a plain
-		// message keeps whatever the caller asked for (default TEXT).
+		// Attachment messages take their type from the first file.
 		const type = attachments[0]
 			? (KIND_TO_MESSAGE_TYPE[attachments[0].kind] ?? MessageType.FILE)
 			: dto.type;
@@ -215,32 +223,21 @@ export class MessageService {
 				"Message text is required",
 			);
 		}
-		// Non-TEXT types may omit text: the media payload lives on the
-		// attachment, and text acts as an optional caption.
+		// Non-TEXT types may omit text; it acts as an optional caption.
 
-		const message = await this.messageRepository.createWithChatTouch({
-			data: {
-				type,
-				text,
-				chat: {
-					connect: {
-						id: dto.chatId,
-					},
-				},
-				sender: {
-					connect: {
-						id: dto.currentUserId,
-					},
-				},
-			},
-			include: messageInclude,
+		const message = await this.createMessageRow({
+			type,
+			text,
+			clientId: dto.clientId,
+			chatId: dto.chatId,
+			senderId: dto.currentUserId,
 		});
 
 		if (attachments.length) {
 			await this.uploadRepository.linkManyToMessage(attachmentIds, message.id);
 		}
 
-		// Re-read once so the broadcast/response carries the linked attachments.
+		// Re-read so the broadcast/response carries the linked attachments.
 		const full = attachments.length
 			? ((await this.messageRepository.findUnique({
 					where: { id: message.id },
@@ -259,11 +256,43 @@ export class MessageService {
 		return serialized;
 	}
 
-	/**
-	 * Load the attachments the sender wants to attach, rejecting the request
-	 * unless every id exists, is still unattached, and belongs to the sender
-	 * (storage keys are namespaced by userId).
-	 */
+	// Returns the existing row if a concurrent same-clientId insert won the race.
+	private async createMessageRow(row: {
+		type: MessageType;
+		text: string | undefined;
+		clientId: string | undefined;
+		chatId: string;
+		senderId: string;
+	}) {
+		try {
+			return await this.messageRepository.createWithChatTouch({
+				data: {
+					type: row.type,
+					text: row.text,
+					clientId: row.clientId,
+					chat: { connect: { id: row.chatId } },
+					sender: { connect: { id: row.senderId } },
+				},
+				include: messageInclude,
+			});
+		} catch (error) {
+			if (
+				row.clientId &&
+				error instanceof Prisma.PrismaClientKnownRequestError &&
+				error.code === "P2002"
+			) {
+				const existing = await this.messageRepository.findFirst({
+					where: { senderId: row.senderId, clientId: row.clientId },
+					include: messageInclude,
+				});
+				if (existing) return existing;
+			}
+			throw error;
+		}
+	}
+
+	// Every id must exist, be unattached, and belong to the sender
+	// (storage keys are namespaced by userId).
 	private async loadOwnedUnlinkedAttachments(
 		attachmentIds: string[],
 		userId: string,
@@ -353,8 +382,7 @@ export class MessageService {
 			},
 			data: {
 				text,
-				// keep the original type — editing a caption must not
-				// silently convert an IMAGE/VIDEO message into TEXT
+				// keep the original type: editing a caption must not turn media into TEXT
 			},
 			include: messageInclude,
 		});

@@ -16,7 +16,6 @@ type SettingsPatch = Partial<{
 	fontSize: string;
 	enterToSend: boolean;
 	mediaPreview: boolean;
-	keepChatHistory: boolean;
 	twoFactorEnabled: boolean;
 }>;
 
@@ -58,7 +57,6 @@ export class SettingsService {
 		return this.update(userId, {
 			enterToSend: dto.enterToSend,
 			mediaPreview: dto.mediaPreview,
-			keepChatHistory: dto.chatHistory,
 		});
 	}
 
@@ -86,7 +84,6 @@ export class SettingsService {
 			chat: {
 				enterToSend: settings.enterToSend,
 				mediaPreview: settings.mediaPreview,
-				chatHistory: settings.keepChatHistory,
 			},
 			privacy: {
 				twoFactorEnabled: settings.twoFactorEnabled,

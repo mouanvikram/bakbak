@@ -39,13 +39,30 @@ export class UploadService {
 		return this.toResponse(attachment, url);
 	}
 
-	async getAttachment(attachmentId: string) {
-		const attachment = await this.uploadRepository.findById(attachmentId);
+	// Fresh signed URL, if the requester is an active member of the attachment's
+	// chat or owns a not-yet-sent upload. Otherwise 403/404.
+	async getAttachment(attachmentId: string, userId: string) {
+		const attachment =
+			await this.uploadRepository.findByIdWithChat(attachmentId);
 		if (!attachment) {
 			throw new AppError(
 				HTTP_STATUS.NOT_FOUND,
 				ERROR_CODES.ATTACHMENT_NOT_FOUND,
 				"Attachment not found",
+			);
+		}
+
+		const chatId = attachment.message?.chatId;
+		const allowed = chatId
+			? await this.uploadRepository.isActiveChatParticipant(chatId, userId)
+			: // Unattached upload: only the owner (keys are "<userId>/..." namespaced).
+				attachment.filePath.startsWith(`${userId}/`);
+
+		if (!allowed) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.FORBIDDEN,
+				"You don't have access to this file",
 			);
 		}
 
@@ -67,8 +84,7 @@ export class UploadService {
 			);
 		}
 
-		// Storage keys are namespaced by userId (e.g. "userId/uuid.ext").
-		// Reject if the requesting user does not own this attachment.
+		// Keys are namespaced by userId; reject if the requester isn't the owner.
 		if (!attachment.filePath.startsWith(`${userId}/`)) {
 			throw new AppError(
 				HTTP_STATUS.FORBIDDEN,

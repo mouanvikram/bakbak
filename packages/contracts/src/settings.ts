@@ -15,7 +15,6 @@ export const appearanceSettingsSchema = z.object({
 export const chatPreferencesSchema = z.object({
 	enterToSend: z.boolean(),
 	mediaPreview: z.boolean(),
-	chatHistory: z.boolean(),
 });
 
 // Read-only: 2FA is turned on/off through the verified `/auth/2fa/*` endpoints,

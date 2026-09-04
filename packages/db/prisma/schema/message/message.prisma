@@ -16,6 +16,9 @@ model Message {
   type MessageType @default(TEXT)
   text String?
 
+  // Client-generated id for idempotent sends; unique per (senderId, clientId).
+  clientId String? @db.Uuid
+
   senderId String @db.Uuid
   chatId   String @db.Uuid
   chat     Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
@@ -29,6 +32,7 @@ model Message {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([senderId, clientId])
   @@index([chatId, createdAt])
   @@index([senderId])
 }

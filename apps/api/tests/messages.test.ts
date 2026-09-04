@@ -104,6 +104,29 @@ describe("Messages Endpoints", () => {
 		expect(data).toHaveProperty("id");
 	});
 
+	test("POST /chats/:chatId/messages - a repeated clientId is idempotent", async () => {
+		const clientId = crypto.randomUUID();
+		const headers = {
+			"Content-Type": "application/json",
+			...(await authHeader(userA.id, userA.username)),
+		};
+		const send = () =>
+			fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+				method: "POST",
+				headers,
+				body: JSON.stringify({ text: "only once", clientId }),
+			});
+
+		const first = (await (await send()).json()) as any;
+		const second = (await (await send()).json()) as any;
+
+		expect(second.id).toBe(first.id);
+		const count = await prisma.message.count({
+			where: { chatId: chat.id, clientId },
+		});
+		expect(count).toBe(1);
+	});
+
 	test("POST /chats/:chatId/messages - should send image message without text", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
 			method: "POST",

@@ -2,6 +2,8 @@ import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
 export interface AccessTokenPayload extends JwtPayload {
   sub: string;
   username: string;
+  // Stable login-session id; absent on tokens minted before session tracking.
+  sid?: string;
 }
 export class JwtService {
   constructor(private readonly secret: string) {}

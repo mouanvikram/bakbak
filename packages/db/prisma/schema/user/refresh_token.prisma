@@ -4,6 +4,13 @@ model RefreshToken{
     userId String @db.Uuid
     tokenHash String
 
+    // Stable login-session id: set at login, inherited by every rotated token,
+    // and carried in the access token as `sid`. Revoking one revokes the chain.
+    sessionId String? @db.Uuid
+
+    // User-Agent captured at login; labels sessions on the Devices page.
+    userAgent String?
+
     expiresAt DateTime
     revokedAt DateTime?
 
@@ -14,4 +21,5 @@ model RefreshToken{
 
     @@index([userId])
     @@index([tokenHash])
+    @@index([sessionId])
 }
