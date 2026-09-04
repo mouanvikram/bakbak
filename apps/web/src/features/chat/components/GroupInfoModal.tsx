@@ -156,7 +156,6 @@ export function GroupInfoModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {/* Identity */}
           <div className="flex flex-col items-center gap-3 px-5 py-6 text-center">
             <button
               type="button"
@@ -226,7 +225,6 @@ export function GroupInfoModal({
             </p>
           )}
 
-          {/* Add members (admin) */}
           {isAdmin && (
             <div className="border-t border-gray-100 px-2 py-2">
               {!addOpen ? (
@@ -294,7 +292,6 @@ export function GroupInfoModal({
             </div>
           )}
 
-          {/* Members */}
           <div className="border-t border-gray-100 px-2 py-2">
             <p className="px-3 pb-1 text-xs font-medium text-slate-500">Members</p>
             {sortedMembers.map((p: Participant) => {

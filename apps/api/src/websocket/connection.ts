@@ -24,20 +24,13 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 
 	logger.info({ socketId: s.id, userId, username }, "Socket connected");
 
-	// ── Presence bookkeeping ──────────────────────────────────────────
 	if (!presenceMap.has(userId)) {
 		presenceMap.set(userId, new Set());
 	}
-	const userSockets = presenceMap.get(userId)!;
-	// Capture this *before* registering the new socket, otherwise two sockets
-	// connecting back-to-back both see size > 1 and neither announces "online".
-	const isFirstConnection = userSockets.size === 0;
-	userSockets.add(s.id);
+	const userSockets = presenceMap.get(userId);
+	const isFirstConnection = userSockets?.size === 0;
+	userSockets?.add(s.id);
 
-	// Reflect coarse online state on the profile so it survives a page that
-	// isn't currently holding a socket (e.g. a REST-only client rendering a
-	// friend list). Best-effort and single-instance-accurate only — the live
-	// socket set in `presenceMap` remains the source of truth for this node.
 	if (isFirstConnection) {
 		void markPresence(userId, true);
 	}
@@ -59,14 +52,12 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 		}
 	});
 
-	// ── Room management (explicit join/leave) ─────────────────────────
 	s.on("chat:join", async (chatId: unknown) => {
 		if (typeof chatId !== "string") return;
 		if (!(await isParticipant(chatId, userId))) return;
 		void s.join(`chat:${chatId}`);
 		socketChatRooms.get(s.id)?.add(chatId);
-		// A chat created after this socket connected (e.g. a brand-new DM) still
-		// needs both directions of presence wired up.
+
 		s.to(`chat:${chatId}`).emit("presence", { userId, online: true });
 		s.emit("presence:state", {
 			chatId,
@@ -81,7 +72,6 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 		if (rooms) rooms.delete(chatId);
 	});
 
-	// ── Typing ────────────────────────────────────────────────────────
 	s.on("typing", (data: unknown) => {
 		const d = data as { chatId?: string; isTyping?: boolean } | undefined;
 		if (!d?.chatId) return;
@@ -111,7 +101,6 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 		});
 	});
 
-	// ── Read receipts ─────────────────────────────────────────────────
 	s.on("read:receipt", async (data: unknown) => {
 		const d = data as { chatId?: string; messageId?: string } | undefined;
 		if (!d?.chatId || !d?.messageId) return;
@@ -133,7 +122,6 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 		});
 	});
 
-	// ── Disconnect ────────────────────────────────────────────────────
 	s.on("disconnect", (reason) => {
 		logger.info({ socketId: s.id, userId, reason }, "Socket disconnected");
 
@@ -166,8 +154,6 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 		}
 	});
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────
 
 // Coarse online/last-seen bookkeeping on the profile row. Fire-and-forget:
 // a failed write must never disrupt the socket lifecycle, and a stale flag

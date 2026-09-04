@@ -38,10 +38,8 @@ export function VerifyEmailPage() {
   return (
     <AuthLayout>
       <div className="flex flex-col items-center gap-5 text-center">
-        {/* Branding */}
         <Branding />
 
-        {/* Verifying */}
         {status === "verifying" && (
           <>
             <LoaderCircle
@@ -62,7 +60,6 @@ export function VerifyEmailPage() {
           </>
         )}
 
-        {/* Success */}
         {status === "success" && (
           <>
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-50">
@@ -93,7 +90,6 @@ export function VerifyEmailPage() {
           </>
         )}
 
-        {/* Expired */}
         {status === "expired" && (
           <>
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50">
@@ -124,7 +120,6 @@ export function VerifyEmailPage() {
           </>
         )}
 
-        {/* Error */}
         {status === "error" && (
           <>
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-50">

@@ -29,7 +29,6 @@ const sideOptions = [
 function PrimaryNav() {
   return (
     <nav className="flex h-full w-full flex-col items-center bg-white">
-      {/* Navigation */}
       <div className="flex w-full flex-1 flex-row items-center justify-around gap-1 px-1 py-1 md:flex-col md:justify-start md:gap-1 md:p-2">
         {sideOptions.map((option) => {
           const Icon = option.icon;
@@ -55,7 +54,6 @@ function PrimaryNav() {
         })}
       </div>
 
-      {/* User Avatar */}
       <div className="hidden w-full items-center justify-center pb-4 md:flex">
         <UserMenu />
       </div>

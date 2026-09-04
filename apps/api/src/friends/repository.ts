@@ -15,7 +15,6 @@ const friendUserSelect = {
 } satisfies Prisma.UserSelect;
 
 export class FriendRepository {
-	// Friend Requests State
 	async findRequest(where: Prisma.FriendRequestWhereInput) {
 		return await prisma.friendRequest.findMany({
 			where,
@@ -51,7 +50,6 @@ export class FriendRepository {
 		});
 	}
 
-	// requests
 	async createRequest(data: Prisma.FriendRequestCreateInput) {
 		return await prisma.friendRequest.create({
 			data,
@@ -124,7 +122,6 @@ export class FriendRepository {
 		});
 	}
 
-	// friendships
 	async findFriends(where: Prisma.FriendshipWhereInput) {
 		return await prisma.friendship.findMany({
 			where,

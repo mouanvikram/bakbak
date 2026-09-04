@@ -53,7 +53,6 @@ export const authService = new AuthService(
 export const authController = new AuthController(authService);
 export const avatarController = new AvatarController(avatarTokenStore);
 
-// friends
 export const friendRepository = new FriendRepository();
 export const friendService = new FriendService(friendRepository, storageProvider);
 export const friendController = new FriendController(friendService);
@@ -65,12 +64,10 @@ export const userService = new UserService(
 );
 export const userController = new UserController(userService);
 
-// chat service
 export const chatRepository = new ChatRepository();
 export const chatService = new ChatService(chatRepository, storageProvider);
 export const chatController = new ChatController(chatService);
 
-// message service
 export const messageRepository = new MessageRepository();
 export const messageService = new MessageService(
 	messageRepository,
@@ -78,10 +75,8 @@ export const messageService = new MessageService(
 	uploadRepository,
 );
 export const messageController = new MessageController(messageService);
-// settings
 export const settingsService = new SettingsService(settingsRepository);
 export const settingsController = new SettingsController(settingsService);
 
-// uploads
 export const uploadService = new UploadService(uploadRepository, storageProvider);
 export const uploadController = new UploadController(uploadService);

@@ -16,7 +16,6 @@ import {
 
 const router = express.Router();
 
-//check user-name is available on login page as well
 router.get(
 	"/check-username",
 	validate(checkUsernameRequestSchema, "query"),
@@ -57,9 +56,5 @@ router.get(
 	validate(getProfileRequestSchema, "params"),
 	userController.getProfile,
 );
-
-// router.get("/:userId/presence")
-// router.get("/:userId/block");
-// router.get("/:userId/block");
 
 export default router;

@@ -68,7 +68,6 @@ export function ChatSidebar() {
     knownChatIds.current = new Set(chats.map((c) => c.id));
   }, [chats]);
 
-  // Close the overflow menu on Escape.
   useEffect(() => {
     if (!menuOpen) return;
     const onKey = (e: KeyboardEvent) => {

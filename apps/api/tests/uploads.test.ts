@@ -36,7 +36,6 @@ mock.module("resend", () => ({
 const DB_AVAILABLE = await isDatabaseAvailable();
 const STORAGE_AVAILABLE = DB_AVAILABLE && (await isStorageAvailable());
 
-// A real 1x1 PNG.
 const pngBuffer = () =>
 	Buffer.from(
 		"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC",

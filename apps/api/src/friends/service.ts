@@ -63,7 +63,6 @@ export class FriendService {
 		return serialized;
 	}
 
-	//requests
 	async sendRequest(
 		dto: FriendRequestType,
 	): Promise<SendFriendRequestResponseType> {
@@ -259,7 +258,6 @@ export class FriendService {
 		return await this.serializeRequest(request);
 	}
 
-	//friends
 	async getFriends(
 		dto: UserIdType,
 	): Promise<GetFriendsResponseType["friendships"]> {
@@ -350,7 +348,6 @@ export class FriendService {
 		);
 	}
 
-	// Status
 	async getRelationshipStatus(dto: {
 		userId: string;
 		otherUserId: string;

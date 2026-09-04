@@ -16,7 +16,6 @@ import {
 const router = express.Router();
 router.use(authMiddleware);
 
-// Chats
 router.post("/", validate(createChatRequestSchema), chatController.createChat);
 router.get(
 	"/",
@@ -47,7 +46,6 @@ router.post(
 	chatController.leaveChat,
 );
 
-// Messages nested under a chat: /:chatId/messages/*
 router.use("/:chatId/messages", chatMessageRoutes);
 
 // Caller's own membership preferences (mute / pin / archive)
@@ -58,7 +56,6 @@ router.patch(
 	chatController.updateParticipantSettings,
 );
 
-// Participants
 router.post(
 	"/:chatId/members",
 	validate(chatIdParamsSchema, "params"),

@@ -39,27 +39,19 @@ app.use(compression());
 
 app.use(express.json({ limit: "10kb" }));
 
-// 0. System — public build/version info (used by the client to spot a stale bundle)
+// Public build/version info (used by the client to spot a stale bundle)
 app.use("/api/v1/version", systemRoutes);
-// 1. Auth
 app.use("/api/v1/auth", authRoutes);
-// 1.0. Avatar pre-signup upload (mounted before auth routes; no auth required)
+// Avatar pre-signup upload (mounted before auth routes; no auth required)
 app.use("/api/v1/auth", avatarRoutes);
-// 1.1. Uploads (skeleton — storage provider integration pending)
 app.use("/api/v1/uploads", uploadRoutes);
-// 2. Users
 app.use("/api/v1/users", userRoutes);
-// 2.1. Friends
 app.use("/api/v1/friends", friendRoutes);
-// 2.2. Settings
 app.use("/api/v1/settings", settingsRoutes);
-// 3. Chats (includes nested /:chatId/messages routes)
+// Chats (includes nested /:chatId/messages routes)
 app.use("/api/v1/chats", chatRoutes);
-// 4. Messages (chat-agnostic item routes: /:messageId)
+// Messages (chat-agnostic item routes: /:messageId)
 app.use("/api/v1/messages", messageRoutes);
-// 5. WebSocket
-// 6. Notifications
-// 7. Calls
 
 app.use(errorHandler);
 

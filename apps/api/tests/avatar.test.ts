@@ -16,7 +16,6 @@ import { cleanupDatabase, isDatabaseAvailable } from "./helpers";
 const DB_AVAILABLE = await isDatabaseAvailable();
 
 function pngBuffer(): Buffer {
-	// Minimal 1x1 PNG
 	return Buffer.from(
 		"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
 		"base64",

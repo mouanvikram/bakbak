@@ -50,7 +50,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     resolve(theme),
   );
 
-  // Keep the DOM in sync with the current preference.
   useEffect(() => {
     applyTheme(theme);
     setResolvedTheme(resolve(theme));
@@ -72,7 +71,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener("change", onChange);
   }, [theme]);
 
-  // Load the persisted preference from the API once signed in.
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
