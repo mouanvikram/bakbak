@@ -194,12 +194,24 @@ export class MessageService {
 		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
 		// Idempotent retry: same sender + clientId returns the original message.
+		// clientId is only unique per sender, not per chat, so a reused id
+		// pointing at a different chat is a client bug — reject it rather than
+		// silently handing back the wrong chat's message.
 		if (dto.clientId) {
 			const existing = await this.messageRepository.findFirst({
 				where: { senderId: dto.currentUserId, clientId: dto.clientId },
 				include: messageInclude,
 			});
-			if (existing) return await this.serializeMessage(existing);
+			if (existing) {
+				if (existing.chatId !== dto.chatId) {
+					throw new AppError(
+						HTTP_STATUS.CONFLICT,
+						ERROR_CODES.CONFLICT,
+						"This clientId was already used for a different chat",
+					);
+				}
+				return await this.serializeMessage(existing);
+			}
 		}
 
 		const attachmentIds = dto.attachmentIds ?? [];
@@ -285,7 +297,14 @@ export class MessageService {
 					where: { senderId: row.senderId, clientId: row.clientId },
 					include: messageInclude,
 				});
-				if (existing) return existing;
+				if (existing && existing.chatId === row.chatId) return existing;
+				if (existing) {
+					throw new AppError(
+						HTTP_STATUS.CONFLICT,
+						ERROR_CODES.CONFLICT,
+						"This clientId was already used for a different chat",
+					);
+				}
 			}
 			throw error;
 		}
@@ -471,14 +490,7 @@ export class MessageService {
 				},
 			});
 
-			try {
-				if (messageId) {
-					broadcastReadReceipt(dto.chatId, dto.currentUserId, messageId);
-				}
-			} catch {
-				// WebSocket may not be initialised in test runners.
-			}
-
+			// Nothing to acknowledge in an empty chat — no receipt to broadcast.
 			return await this.serializeParticipant(participant);
 		}
 

@@ -52,6 +52,16 @@ export class UploadService {
 			);
 		}
 
+		// A soft-deleted message's attachment is gone as far as any reader is
+		// concerned, chat membership included.
+		if (attachment.message?.deleted) {
+			throw new AppError(
+				HTTP_STATUS.NOT_FOUND,
+				ERROR_CODES.ATTACHMENT_NOT_FOUND,
+				"Attachment not found",
+			);
+		}
+
 		const chatId = attachment.message?.chatId;
 		const allowed = chatId
 			? await this.uploadRepository.isActiveChatParticipant(chatId, userId)

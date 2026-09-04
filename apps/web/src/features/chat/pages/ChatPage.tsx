@@ -97,6 +97,12 @@ export function ChatPage() {
   const currentUserId = user?.id;
 
   useEffect(() => {
+    // A pending clientId is scoped to the chat it was sent in — switching
+    // chats must never let it get reused (and possibly matched) elsewhere.
+    pendingSend.current = null;
+  }, [id]);
+
+  useEffect(() => {
     if (!id) return;
     let cancelled = false;
     setLoading(true);
@@ -170,7 +176,6 @@ export function ChatPage() {
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
       });
-      // If the incoming message is from someone else, mark as read.
       if (message.senderId !== currentUserId) {
         void markChatRead(id ?? "").catch(() => {});
       }
@@ -227,7 +232,6 @@ export function ChatPage() {
 
     const onPresence = (data: { userId: string; online: boolean }) => {
       if (!id) return;
-      // Ignore own presence.
       if (data.userId === currentUserId) return;
       setOnlineUsers((prev) => {
         const next = new Set(prev);
@@ -317,7 +321,6 @@ export function ChatPage() {
     const content = text.trim();
     if (!id || sending || uploading) return;
 
-    // Editing an existing message rather than sending a new one.
     if (editing) {
       if (!content || content === editing.original) {
         setEditing(null);
@@ -350,14 +353,12 @@ export function ChatPage() {
 
     setSending(true);
     setError("");
-    // Stop typing indicator when sending.
     if (socket && socket.connected) {
       socket.emit("typing", { chatId: id, isTyping: false });
     }
     try {
       const res = await sendMessage(id, { text: content, clientId });
       pendingSend.current = null;
-      // REST call returns the saved message; add it locally.
       setText("");
       // The socket may also deliver it; dedupe on id in onNewMessage.
       upsertMessage(res);
