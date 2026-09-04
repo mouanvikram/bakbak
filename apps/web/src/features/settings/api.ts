@@ -3,7 +3,6 @@ import type {
   NotificationSettingsType,
   AppearanceSettingsType,
   ChatPreferencesType,
-  PrivacySettingsType,
 } from "@bakbak/contracts";
 import { apiClient } from "@/lib/api/client";
 
@@ -33,15 +32,6 @@ export function updateChatPreferences(
   data: ChatPreferencesType,
 ): Promise<UserSettingsResponseType> {
   return apiClient("/api/v1/settings/chat", {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-}
-
-export function updatePrivacy(
-  data: PrivacySettingsType,
-): Promise<UserSettingsResponseType> {
-  return apiClient("/api/v1/settings/privacy", {
     method: "PATCH",
     body: JSON.stringify(data),
   });

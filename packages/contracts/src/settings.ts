@@ -18,6 +18,8 @@ export const chatPreferencesSchema = z.object({
 	chatHistory: z.boolean(),
 });
 
+// Read-only: 2FA is turned on/off through the verified `/auth/2fa/*` endpoints,
+// never by a plain settings PATCH.
 export const privacySettingsSchema = z.object({
 	twoFactorEnabled: z.boolean(),
 });
@@ -33,7 +35,6 @@ export const updateNotificationSettingsRequestSchema =
 	notificationSettingsSchema;
 export const updateAppearanceSettingsRequestSchema = appearanceSettingsSchema;
 export const updateChatPreferencesRequestSchema = chatPreferencesSchema;
-export const updatePrivacySettingsRequestSchema = privacySettingsSchema;
 
 export type NotificationSettingsType = z.infer<
 	typeof notificationSettingsSchema

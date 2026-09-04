@@ -5,6 +5,7 @@ import type { EmailService } from "../email/service";
 import crypto from "crypto";
 import type { EmailRepository } from "../email/repository";
 import type { RefreshTokenRepository } from "./refresh-token.repository";
+import type { SettingsRepository } from "../settings/repository";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { env } from "@/config";
@@ -28,6 +29,13 @@ import type {
 	RefreshTokenResponseType,
 	LogoutRequestType,
 	LogoutResponseType,
+	LoginOutcomeType,
+	VerifyTwoFactorLoginRequestType,
+	ResendTwoFactorLoginRequestType,
+	ResendTwoFactorLoginResponseType,
+	EnableTwoFactorRequestType,
+	TwoFactorStatusResponseType,
+	SetupTwoFactorResponseType,
 } from "@bakbak/contracts";
 import type { StorageProvider } from "../uploads/storage.provider";
 import type { UploadRepository } from "../uploads/repository";
@@ -41,6 +49,16 @@ import {
 
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
+/** How long an emailed 6-digit 2FA code stays valid. */
+const TWO_FACTOR_CODE_TTL_MINUTES = 10;
+/** Lifetime of the opaque challenge that ties a pending login to its 2FA step. */
+const TWO_FACTOR_CHALLENGE_TTL = "10m";
+
+interface TwoFactorChallengePayload {
+	sub: string;
+	purpose: "login_2fa";
+}
+
 export class AuthService {
 	constructor(
 		private readonly userRepository: UserRepository,
@@ -52,6 +70,7 @@ export class AuthService {
 		private readonly avatarTokenStore: AvatarTokenStore,
 		private readonly storageProvider: StorageProvider,
 		private readonly uploadRepository: UploadRepository,
+		private readonly settingsRepository: SettingsRepository,
 	) {}
 
 	async register(dto: SignUpRequestType): Promise<SignUpResponseType> {
@@ -172,7 +191,7 @@ export class AuthService {
 		return `avatars/${uuid}${ext ? `.${ext}` : ""}`;
 	}
 
-	async login(dto: LoginRequestType): Promise<LoginResponseType> {
+	async login(dto: LoginRequestType): Promise<LoginOutcomeType> {
 		const user = await this.userRepository.findFirst({
 			OR: [{ username: dto.identifier }, { email: dto.identifier }],
 		});
@@ -233,18 +252,36 @@ export class AuthService {
 			);
 		}
 
-		// generate jwt access token
+		// Password is good. If 2FA is on, don't hand out tokens yet — email a
+		// code and return a challenge the client replays with the code.
+		if (user.settings?.twoFactorEnabled) {
+			await this.sendTwoFactorCode(user.id, user.username, user.email);
+
+			const challengeId = this.jwtService.signJwt<TwoFactorChallengePayload>(
+				{ sub: user.id, purpose: "login_2fa" },
+				{ expiresIn: TWO_FACTOR_CHALLENGE_TTL },
+			);
+
+			return {
+				twoFactorRequired: true,
+				challengeId,
+				message: "We emailed you a 6-digit verification code.",
+			};
+		}
+
+		return this.issueTokens(user.id, user.username);
+	}
+
+	/** Mint an access + refresh token pair for a fully authenticated user. */
+	private async issueTokens(
+		userId: string,
+		username: string,
+	): Promise<LoginResponseType> {
 		const token = this.jwtService.signJwt<AccessTokenPayload>(
-			{
-				sub: user.id,
-				username: user.username,
-			},
-			{
-				expiresIn: "15m",
-			},
+			{ sub: userId, username },
+			{ expiresIn: "15m" },
 		);
 
-		// generate refresh token
 		const refreshTokenValue = crypto.randomBytes(32).toString("hex");
 		const refreshTokenHash = crypto
 			.createHash("sha256")
@@ -258,21 +295,183 @@ export class AuthService {
 		await this.refreshTokenRepository.create({
 			tokenHash: refreshTokenHash,
 			expiresAt,
-			user: {
-				connect: {
-					id: user.id,
-				},
-			},
+			user: { connect: { id: userId } },
 		});
 
 		return {
 			accessToken: token,
 			refreshToken: refreshTokenValue,
-			user: {
-				id: user.id,
-				identifier: user.username,
-			},
-		} as LoginResponseType;
+			user: { id: userId, identifier: username },
+		};
+	}
+
+	// ─── Two-factor authentication ────────────────────────────────────
+
+	/** Generate, store (hashed), and email a fresh 6-digit code. Replaces any
+	 * outstanding code for the user. Email failure is logged, not thrown, so a
+	 * flaky mail provider can't wedge the account. */
+	private async sendTwoFactorCode(
+		userId: string,
+		username: string,
+		email: string,
+	): Promise<void> {
+		const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+		const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+
+		await this.emailRepository.deleteAll({
+			userId,
+			type: VerificationTokenType.TWO_FACTOR,
+		});
+		await this.emailRepository.create({
+			tokenHash: codeHash,
+			type: VerificationTokenType.TWO_FACTOR,
+			expiresAt: new Date(
+				Date.now() + TWO_FACTOR_CODE_TTL_MINUTES * 60 * 1000,
+			),
+			user: { connect: { id: userId } },
+		});
+
+		try {
+			await this.emailService.sendTwoFactorCode({
+				email,
+				username,
+				code,
+				expiresInMinutes: TWO_FACTOR_CODE_TTL_MINUTES,
+			});
+		} catch (error) {
+			logger.error({ err: error, userId }, "Failed to send 2FA code email");
+		}
+	}
+
+	/** Verify a submitted code against the stored hash and consume it. */
+	private async consumeTwoFactorCode(
+		userId: string,
+		code: string,
+	): Promise<void> {
+		const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+
+		const record = await this.emailRepository.findBy({
+			userId,
+			type: VerificationTokenType.TWO_FACTOR,
+			tokenHash: codeHash,
+			expiresAt: { gt: new Date() },
+		});
+
+		if (!record) {
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.INVALID_OR_EXPIRED_2FA_CODE,
+				"That code is invalid or has expired.",
+			);
+		}
+
+		await this.emailRepository.deleteAll({
+			userId,
+			type: VerificationTokenType.TWO_FACTOR,
+		});
+	}
+
+	private readChallenge(challengeId: string): string {
+		let payload: TwoFactorChallengePayload;
+		try {
+			payload =
+				this.jwtService.verifyJwt<
+					TwoFactorChallengePayload & { [key: string]: unknown }
+				>(challengeId);
+		} catch {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_OR_EXPIRED_2FA_CODE,
+				"Your login session expired. Please sign in again.",
+			);
+		}
+		if (payload.purpose !== "login_2fa" || !payload.sub) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_OR_EXPIRED_2FA_CODE,
+				"Your login session expired. Please sign in again.",
+			);
+		}
+		return payload.sub;
+	}
+
+	async verifyLoginTwoFactor(
+		dto: VerifyTwoFactorLoginRequestType,
+	): Promise<LoginResponseType> {
+		const userId = this.readChallenge(dto.challengeId);
+
+		const user = await this.userRepository.findBy({ id: userId });
+		if (!user) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_CREDENTIALS,
+				"Invalid credentials",
+			);
+		}
+
+		await this.consumeTwoFactorCode(userId, dto.code);
+
+		return this.issueTokens(user.id, user.username);
+	}
+
+	async resendLoginTwoFactor(
+		dto: ResendTwoFactorLoginRequestType,
+	): Promise<ResendTwoFactorLoginResponseType> {
+		const userId = this.readChallenge(dto.challengeId);
+
+		const user = await this.userRepository.findBy({ id: userId });
+		if (user) {
+			await this.sendTwoFactorCode(user.id, user.username, user.email);
+		}
+
+		return { message: "A new code is on its way." };
+	}
+
+	/** Step 1 of turning 2FA on: email the user a code to confirm ownership. */
+	async requestTwoFactorSetup(
+		userId: string,
+	): Promise<SetupTwoFactorResponseType> {
+		const user = await this.userRepository.findBy({ id: userId });
+		if (!user) {
+			throw new AppError(
+				HTTP_STATUS.NOT_FOUND,
+				ERROR_CODES.USER_NOT_FOUND,
+				"User does not exist",
+			);
+		}
+
+		await this.sendTwoFactorCode(user.id, user.username, user.email);
+
+		return { message: "We emailed you a 6-digit verification code." };
+	}
+
+	/** Step 2: confirm the code and flip the flag on. */
+	async enableTwoFactor(
+		userId: string,
+		dto: EnableTwoFactorRequestType,
+	): Promise<TwoFactorStatusResponseType> {
+		await this.consumeTwoFactorCode(userId, dto.code);
+		await this.settingsRepository.upsert(userId, { twoFactorEnabled: true });
+
+		return {
+			twoFactorEnabled: true,
+			message: "Two-factor authentication is now on.",
+		};
+	}
+
+	async disableTwoFactor(
+		userId: string,
+	): Promise<TwoFactorStatusResponseType> {
+		await this.settingsRepository.upsert(userId, { twoFactorEnabled: false });
+		await this.emailRepository.deleteAll({
+			userId,
+			type: VerificationTokenType.TWO_FACTOR,
+		});
+
+		return {
+			twoFactorEnabled: false,
+			message: "Two-factor authentication is now off.",
+		};
 	}
 
 	async verifyEmail(

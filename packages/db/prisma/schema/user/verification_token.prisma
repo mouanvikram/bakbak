@@ -1,6 +1,7 @@
 enum VerificationTokenType {
     EMAIL_VERIFICATION
     PASSWORD_RESET
+    TWO_FACTOR
 }
 
 model VerificationToken {

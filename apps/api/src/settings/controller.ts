@@ -95,28 +95,4 @@ export class SettingsController {
 			next(error);
 		}
 	};
-
-	updatePrivacy = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = req.user?.userId;
-			if (!userId) {
-				return res.status(401).json({
-					error: { code: "UNAUTHORIZED", message: "Authentication required" },
-				});
-			}
-
-			const response = await this.settingsService.updatePrivacy(
-				userId,
-				req.body,
-			);
-
-			return validateResponse(res, 200, userSettingsResponseSchema, response);
-		} catch (error) {
-			next(error);
-		}
-	};
 }

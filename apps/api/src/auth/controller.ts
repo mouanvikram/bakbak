@@ -3,6 +3,7 @@ import type { AuthService } from "./service";
 import {
 	verifyEmailResponseSchema,
 	loginResponseSchema,
+	loginChallengeResponseSchema,
 	signUpResponseSchema,
 	resendVerificationResponseSchema,
 	changePasswordResponseSchema,
@@ -10,6 +11,19 @@ import {
 	resetPasswordResponseSchema,
 	logoutResponseSchema,
 	refreshTokenResponseSchema,
+	verifyTwoFactorLoginResponseSchema,
+	resendTwoFactorLoginResponseSchema,
+	setupTwoFactorResponseSchema,
+	twoFactorStatusResponseSchema,
+} from "@bakbak/contracts";
+import type {
+	ResetPasswordBodyType,
+	ResetPasswordQueryType,
+	SignUpRequestType,
+	VerifyEmailRequestType,
+	VerifyTwoFactorLoginRequestType,
+	ResendTwoFactorLoginRequestType,
+	EnableTwoFactorRequestType,
 } from "@bakbak/contracts";
 import { validateResponse } from "../middleware/validate";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
@@ -27,7 +41,10 @@ export class AuthController {
 
 	signUp = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const response = await this.authService.register(req.body);
+			// Use the validated + normalised body (e.g. a blank bio becomes null).
+			const response = await this.authService.register(
+				req.valid?.body as SignUpRequestType,
+			);
 
 			return validateResponse(
 				res,
@@ -43,6 +60,17 @@ export class AuthController {
 	login = async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const response = await this.authService.login(req.body);
+
+			// 2FA on → a challenge instead of tokens (still a 200).
+			if ("twoFactorRequired" in response) {
+				return validateResponse(
+					res,
+					HTTP_STATUS.OK,
+					loginChallengeResponseSchema,
+					response,
+				);
+			}
+
 			return validateResponse(
 				res,
 				HTTP_STATUS.OK,
@@ -54,16 +82,130 @@ export class AuthController {
 		}
 	};
 
-	verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+	verifyTwoFactorLogin = async (
+		req: Request,
+		res: Response,
+		next: NextFunction,
+	) => {
 		try {
-			const { token } = req.query;
-			if (typeof token !== "string" || !token.trim()) {
+			const response = await this.authService.verifyLoginTwoFactor(
+				req.valid?.body as VerifyTwoFactorLoginRequestType,
+			);
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				verifyTwoFactorLoginResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	resendTwoFactorLogin = async (
+		req: Request,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const response = await this.authService.resendLoginTwoFactor(
+				req.valid?.body as ResendTwoFactorLoginRequestType,
+			);
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				resendTwoFactorLoginResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	setupTwoFactor = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = req.user?.userId;
+			if (!userId) {
 				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Verification token is required",
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Authentication required",
 				);
 			}
+			const response = await this.authService.requestTwoFactorSetup(userId);
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				setupTwoFactorResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	enableTwoFactor = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = req.user?.userId;
+			if (!userId) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Authentication required",
+				);
+			}
+			const response = await this.authService.enableTwoFactor(
+				userId,
+				req.valid?.body as EnableTwoFactorRequestType,
+			);
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				twoFactorStatusResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	disableTwoFactor = async (
+		req: AuthRequest,
+		res: Response,
+		next: NextFunction,
+	) => {
+		try {
+			const userId = req.user?.userId;
+			if (!userId) {
+				throw new AppError(
+					HTTP_STATUS.UNAUTHORIZED,
+					ERROR_CODES.UNAUTHORIZED,
+					"Authentication required",
+				);
+			}
+			const response = await this.authService.disableTwoFactor(userId);
+			return validateResponse(
+				res,
+				HTTP_STATUS.OK,
+				twoFactorStatusResponseSchema,
+				response,
+			);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { token } = req.valid?.query as VerifyEmailRequestType;
 			const result = await this.authService.verifyEmail({ token });
 
 			return validateResponse(res, 200, verifyEmailResponseSchema, result);
@@ -137,16 +279,8 @@ export class AuthController {
 
 	resetPassword = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const { token } = req.query;
-			const newPassword = req.body.newPassword;
-
-			if (typeof token !== "string" || !token.trim()) {
-				throw new AppError(
-					HTTP_STATUS.BAD_REQUEST,
-					ERROR_CODES.VALIDATION_ERROR,
-					"Invalid token",
-				);
-			}
+			const { token } = req.valid?.query as ResetPasswordQueryType;
+			const { newPassword } = req.valid?.body as ResetPasswordBodyType;
 
 			const response = await this.authService.resetPassword({
 				token,

@@ -2,6 +2,7 @@ import { verificationEmail } from "./templates/verify-email";
 import { Resend } from "resend";
 import logger from "@/lib/logger";
 import { resetPasswordEmail } from "./templates/reset-password";
+import { twoFactorCodeEmail } from "./templates/two-factor-code";
 import { env } from "@/config";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -54,6 +55,23 @@ export class EmailService {
 			to: dto.email,
 			subject: dto.subject,
 			html: resetPasswordEmail(dto.email, dto.resetPasswordUrl),
+		});
+	}
+
+	async sendTwoFactorCode(dto: {
+		email: string;
+		username: string;
+		code: string;
+		expiresInMinutes: number;
+	}) {
+		return this.sendEmail({
+			to: dto.email,
+			subject: `${dto.code} is your verification code`,
+			html: twoFactorCodeEmail(
+				dto.username ?? dto.email,
+				dto.code,
+				dto.expiresInMinutes,
+			),
 		});
 	}
 }

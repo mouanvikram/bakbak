@@ -6,12 +6,19 @@ import type {
   GetMeResponseType,
 } from "@bakbak/contracts";
 
+/** What `login` reports back: either the session is live, or a 2FA code was
+ * emailed and `challengeId` must go to `verifyTwoFactorLogin`. */
+export type LoginResult =
+  | { twoFactorRequired: false }
+  | { twoFactorRequired: true; challengeId: string };
+
 export interface AuthContextValue {
   user: LoginResponseType["user"] | null;
   profile: GetMeResponseType["profile"] | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginRequestType) => Promise<void>;
+  login: (data: LoginRequestType) => Promise<LoginResult>;
+  verifyTwoFactorLogin: (challengeId: string, code: string) => Promise<void>;
   signup: (data: SignUpRequestType) => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
   logout: () => Promise<void>;

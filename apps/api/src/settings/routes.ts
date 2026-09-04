@@ -6,7 +6,6 @@ import {
 	updateAppearanceSettingsRequestSchema,
 	updateChatPreferencesRequestSchema,
 	updateNotificationSettingsRequestSchema,
-	updatePrivacySettingsRequestSchema,
 } from "@bakbak/contracts";
 
 const router = express.Router();
@@ -29,10 +28,8 @@ router.patch(
 	validate(updateChatPreferencesRequestSchema),
 	settingsController.updateChatPreferences,
 );
-router.patch(
-	"/privacy",
-	validate(updatePrivacySettingsRequestSchema),
-	settingsController.updatePrivacy,
-);
+
+// 2FA (the only "privacy" setting) is managed through /auth/2fa/* so the
+// change can be verified with an emailed code — see auth routes.
 
 export default router;

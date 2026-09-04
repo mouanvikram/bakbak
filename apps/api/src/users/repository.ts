@@ -13,6 +13,7 @@ export class UserRepository {
 			where,
 			include: {
 				profile: true,
+				settings: true,
 			},
 		});
 	}

@@ -7,12 +7,13 @@ import type {
 } from "@bakbak/contracts";
 import {
   login as apiLogin,
+  verifyTwoFactorLogin as apiVerifyTwoFactorLogin,
   signup as apiSignup,
   verifyEmail as apiVerifyEmail,
   logout as apiLogout,
 } from "./api";
 import { getMe, deleteMe } from "@/features/users/api";
-import { AuthContext } from "./auth-context";
+import { AuthContext, type LoginResult } from "./auth-context";
 import {
   clearTokens as clearStoredTokens,
   dedupeRefresh,
@@ -64,13 +65,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = useCallback(async (data: LoginRequestType) => {
-    const response = await apiLogin(data);
-    storeStoredTokens(response.accessToken, response.refreshToken);
-    setUser(response.user);
-    const me = await getMe();
-    setProfile(me.profile);
-  }, []);
+  const startSession = useCallback(
+    async (response: {
+      accessToken: string;
+      refreshToken: string;
+      user: LoginResponseType["user"];
+    }) => {
+      storeStoredTokens(response.accessToken, response.refreshToken);
+      setUser(response.user);
+      const me = await getMe();
+      setProfile(me.profile);
+    },
+    [],
+  );
+
+  const login = useCallback(
+    async (data: LoginRequestType): Promise<LoginResult> => {
+      const response = await apiLogin(data);
+      if ("twoFactorRequired" in response) {
+        return {
+          twoFactorRequired: true,
+          challengeId: response.challengeId,
+        };
+      }
+      await startSession(response);
+      return { twoFactorRequired: false };
+    },
+    [startSession],
+  );
+
+  const verifyTwoFactorLogin = useCallback(
+    async (challengeId: string, code: string) => {
+      const response = await apiVerifyTwoFactorLogin({ challengeId, code });
+      await startSession(response);
+    },
+    [startSession],
+  );
 
   const signup = useCallback(async (data: SignUpRequestType) => {
     await apiSignup(data);
@@ -106,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        verifyTwoFactorLogin,
         signup,
         verifyEmail,
         logout,

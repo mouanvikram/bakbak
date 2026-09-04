@@ -3,7 +3,6 @@ import type {
 	AppearanceSettingsType,
 	ChatPreferencesType,
 	NotificationSettingsType,
-	PrivacySettingsType,
 	UserSettingsResponseType,
 } from "@bakbak/contracts";
 import type { SettingsRepository } from "./repository";
@@ -60,15 +59,6 @@ export class SettingsService {
 			enterToSend: dto.enterToSend,
 			mediaPreview: dto.mediaPreview,
 			keepChatHistory: dto.chatHistory,
-		});
-	}
-
-	async updatePrivacy(
-		userId: string,
-		dto: PrivacySettingsType,
-	): Promise<UserSettingsResponseType> {
-		return this.update(userId, {
-			twoFactorEnabled: dto.twoFactorEnabled,
 		});
 	}
 

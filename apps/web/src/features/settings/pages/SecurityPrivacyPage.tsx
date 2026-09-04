@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
-import { changePassword } from "@/features/auth/api";
+import {
+  changePassword,
+  disableTwoFactor,
+  enableTwoFactor,
+  setupTwoFactor,
+} from "@/features/auth/api";
 import { useAuth } from "@/features/auth/auth-context";
-import { getSettings, updatePrivacy } from "@/features/settings/api";
+import { getSettings } from "@/features/settings/api";
 import { Button } from "@/components/ui/Button";
+import { OtpInput } from "@/components/ui/OtpInput";
 import { Spinner } from "@/components/ui/Spinner";
 import { Toggle } from "@/components/ui/Toggle";
 
@@ -16,6 +22,12 @@ export function SecurityPrivacyPage() {
   const [error, setError] = useState("");
   const [twoFactor, setTwoFactor] = useState(false);
   const [twoFactorSaving, setTwoFactorSaving] = useState(false);
+  // Non-null while confirming an enable: a code has been emailed.
+  const [twoFactorSetup, setTwoFactorSetup] = useState<{
+    code: string;
+    note: string | null;
+  } | null>(null);
+  const [twoFactorError, setTwoFactorError] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -28,15 +40,66 @@ export function SecurityPrivacyPage() {
   }, []);
 
   async function handleToggleTwoFactor() {
-    const next = !twoFactor;
-    setTwoFactor(next);
+    setTwoFactorError("");
+    if (twoFactor) {
+      // Turning it off — no code needed, the session is proof enough.
+      setTwoFactorSaving(true);
+      try {
+        const res = await disableTwoFactor();
+        setTwoFactor(res.twoFactorEnabled);
+        setTwoFactorSetup(null);
+      } catch (err) {
+        setTwoFactorError(
+          err instanceof Error ? err.message : "Couldn't disable 2FA",
+        );
+      } finally {
+        setTwoFactorSaving(false);
+      }
+      return;
+    }
+
+    // Turning it on — email a code and open the confirm step.
     setTwoFactorSaving(true);
     try {
-      await updatePrivacy({ twoFactorEnabled: next });
-    } catch {
-      setTwoFactor(!next);
+      const res = await setupTwoFactor();
+      setTwoFactorSetup({ code: "", note: res.message });
+    } catch (err) {
+      setTwoFactorError(
+        err instanceof Error ? err.message : "Couldn't start 2FA setup",
+      );
     } finally {
       setTwoFactorSaving(false);
+    }
+  }
+
+  async function handleConfirmEnable(submitted?: string) {
+    const value = submitted ?? twoFactorSetup?.code ?? "";
+    if (value.length !== 6) return;
+    setTwoFactorSaving(true);
+    setTwoFactorError("");
+    try {
+      const res = await enableTwoFactor({ code: value });
+      setTwoFactor(res.twoFactorEnabled);
+      setTwoFactorSetup(null);
+    } catch (err) {
+      setTwoFactorError(
+        err instanceof Error ? err.message : "That code didn't work",
+      );
+      setTwoFactorSetup((s) => (s ? { ...s, code: "" } : s));
+    } finally {
+      setTwoFactorSaving(false);
+    }
+  }
+
+  async function handleResendSetup() {
+    setTwoFactorError("");
+    try {
+      const res = await setupTwoFactor();
+      setTwoFactorSetup((s) => (s ? { ...s, note: res.message } : s));
+    } catch (err) {
+      setTwoFactorError(
+        err instanceof Error ? err.message : "Couldn't resend the code",
+      );
     }
   }
 
@@ -110,17 +173,74 @@ export function SecurityPrivacyPage() {
         </div>
         <div className="flex flex-col gap-4 border-t border-gray-100 pt-6">
           <h2 className="text-lg font-semibold text-gray-900">Two-Factor Authentication</h2>
-          <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
-            <div>
-              <p className="font-semibold text-gray-900">Enable 2FA Authentication</p>
-              <p className="text-sm text-gray-500">Add an extra layer of security to your account</p>
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold text-gray-900">Enable 2FA Authentication</p>
+                <p className="text-sm text-gray-500">
+                  We'll email a 6-digit code every time you sign in.
+                </p>
+              </div>
+              <Toggle
+                label="Two-factor authentication"
+                checked={twoFactor || !!twoFactorSetup}
+                disabled={twoFactorSaving}
+                onChange={() => handleToggleTwoFactor()}
+              />
             </div>
-            <Toggle
-              label="Two-factor authentication"
-              checked={twoFactor}
-              disabled={twoFactorSaving}
-              onChange={() => handleToggleTwoFactor()}
-            />
+
+            {twoFactorSetup && (
+              <div className="flex flex-col gap-3 border-t border-gray-100 pt-4">
+                <p className="text-sm text-gray-600">
+                  {twoFactorSetup.note ??
+                    "Enter the 6-digit code we just emailed you."}
+                </p>
+                <OtpInput
+                  value={twoFactorSetup.code}
+                  onChange={(next) =>
+                    setTwoFactorSetup((s) => (s ? { ...s, code: next } : s))
+                  }
+                  onComplete={(c) => void handleConfirmEnable(c)}
+                  disabled={twoFactorSaving}
+                  autoFocus
+                />
+                <div className="flex items-center gap-3">
+                  <Button
+                    value="Confirm"
+                    size="sm"
+                    fullWidth={false}
+                    loading={twoFactorSaving}
+                    disabled={twoFactorSetup.code.length !== 6}
+                    onClick={() => void handleConfirmEnable()}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleResendSetup}
+                    disabled={twoFactorSaving}
+                    className="text-sm font-semibold text-[#4C18EF] disabled:opacity-50"
+                  >
+                    Resend code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTwoFactorSetup(null);
+                      setTwoFactorError("");
+                    }}
+                    disabled={twoFactorSaving}
+                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {twoFactorError && (
+              <p className="text-sm text-red-600" role="alert">
+                {twoFactorError}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-4 border-t border-gray-100 pt-6">

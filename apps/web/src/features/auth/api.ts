@@ -1,6 +1,13 @@
 import type {
   LoginRequestType,
   LoginResponseType,
+  LoginOutcomeType,
+  VerifyTwoFactorLoginRequestType,
+  ResendTwoFactorLoginRequestType,
+  ResendTwoFactorLoginResponseType,
+  EnableTwoFactorRequestType,
+  SetupTwoFactorResponseType,
+  TwoFactorStatusResponseType,
   SignUpRequestType,
   SignUpResponseType,
   AvatarUploadResponseType,
@@ -17,11 +24,48 @@ import type {
 } from "@bakbak/contracts";
 import { apiClient } from "@/lib/api/client";
 
-export function login(data: LoginRequestType): Promise<LoginResponseType> {
+/** Resolves to tokens, or — when the account has 2FA on — a challenge that
+ * must be replayed to `verifyTwoFactorLogin` with the emailed code. */
+export function login(data: LoginRequestType): Promise<LoginOutcomeType> {
   return apiClient("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify(data),
   });
+}
+
+export function verifyTwoFactorLogin(
+  data: VerifyTwoFactorLoginRequestType,
+): Promise<LoginResponseType> {
+  return apiClient("/api/v1/auth/login/verify-2fa", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function resendTwoFactorLogin(
+  data: ResendTwoFactorLoginRequestType,
+): Promise<ResendTwoFactorLoginResponseType> {
+  return apiClient("/api/v1/auth/login/resend-2fa", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function setupTwoFactor(): Promise<SetupTwoFactorResponseType> {
+  return apiClient("/api/v1/auth/2fa/setup", { method: "POST" });
+}
+
+export function enableTwoFactor(
+  data: EnableTwoFactorRequestType,
+): Promise<TwoFactorStatusResponseType> {
+  return apiClient("/api/v1/auth/2fa/enable", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function disableTwoFactor(): Promise<TwoFactorStatusResponseType> {
+  return apiClient("/api/v1/auth/2fa/disable", { method: "POST" });
 }
 
 export function signup(data: SignUpRequestType): Promise<SignUpResponseType> {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+	bioSchema,
 	emailSchema,
 	okResponseSchema,
 	passwordSchema,
@@ -27,6 +28,82 @@ export const loginResponseSchema = z.object({
 export type LoginRequestType = z.infer<typeof loginRequestSchema>;
 export type LoginResponseType = z.infer<typeof loginResponseSchema>;
 
+// ─── Two-factor authentication (email OTP) ─────────────────────────
+
+/** A 6-digit one-time code, as typed by the user. */
+export const otpCodeSchema = z
+	.string()
+	.trim()
+	.regex(/^\d{6}$/, "Enter the 6-digit code");
+
+/**
+ * When the account has 2FA on, `POST /auth/login` returns this instead of
+ * tokens: a code has been emailed, and `challengeId` must be replayed to
+ * `POST /auth/login/verify-2fa` alongside the code.
+ */
+export const loginChallengeResponseSchema = z.object({
+	twoFactorRequired: z.literal(true),
+	challengeId: z.string().min(1),
+	message: z.string(),
+});
+
+export type LoginChallengeResponseType = z.infer<
+	typeof loginChallengeResponseSchema
+>;
+
+/** `POST /auth/login` may resolve to either tokens or a 2FA challenge. */
+export type LoginOutcomeType = LoginResponseType | LoginChallengeResponseType;
+
+export const verifyTwoFactorLoginRequestSchema = z.object({
+	challengeId: z.string().min(1),
+	code: otpCodeSchema,
+});
+
+export type VerifyTwoFactorLoginRequestType = z.infer<
+	typeof verifyTwoFactorLoginRequestSchema
+>;
+
+export const verifyTwoFactorLoginResponseSchema = loginResponseSchema;
+
+export const resendTwoFactorLoginRequestSchema = z.object({
+	challengeId: z.string().min(1),
+});
+
+export type ResendTwoFactorLoginRequestType = z.infer<
+	typeof resendTwoFactorLoginRequestSchema
+>;
+
+export const resendTwoFactorLoginResponseSchema = okResponseSchema;
+
+export type ResendTwoFactorLoginResponseType = z.infer<
+	typeof resendTwoFactorLoginResponseSchema
+>;
+
+/** Reports the 2FA flag after an enable/disable action. */
+export const twoFactorStatusResponseSchema = z.object({
+	twoFactorEnabled: z.boolean(),
+	message: z.string(),
+});
+
+export type TwoFactorStatusResponseType = z.infer<
+	typeof twoFactorStatusResponseSchema
+>;
+
+/** `POST /auth/2fa/setup` — emails a code so the user can turn 2FA on. */
+export const setupTwoFactorResponseSchema = okResponseSchema;
+
+export type SetupTwoFactorResponseType = z.infer<
+	typeof setupTwoFactorResponseSchema
+>;
+
+export const enableTwoFactorRequestSchema = z.object({
+	code: otpCodeSchema,
+});
+
+export type EnableTwoFactorRequestType = z.infer<
+	typeof enableTwoFactorRequestSchema
+>;
+
 // ─── Signup ────────────────────────────────────────────────────────
 
 export const signUpRequestSchema = z.object({
@@ -36,7 +113,7 @@ export const signUpRequestSchema = z.object({
 	firstname: safeString(100, 1),
 	lastname: safeString(100, 1),
 	displayname: safeString(100, 1),
-	bio: safeString(500).optional(),
+	bio: bioSchema.optional(),
 	avatarUrl: safeString(150).optional(),
 	avatarToken: z.string().uuid().optional(),
 });
@@ -112,6 +189,13 @@ export type ForgotPasswordResponseType = z.infer<
 export const resetPasswordBodySchema = z.object({
 	newPassword: passwordSchema,
 });
+
+export const resetPasswordQuerySchema = z.object({
+	token: tokenSchema("Reset token"),
+});
+
+export type ResetPasswordQueryType = z.infer<typeof resetPasswordQuerySchema>;
+export type ResetPasswordBodyType = z.infer<typeof resetPasswordBodySchema>;
 
 export const resetPasswordRequestSchema = resetPasswordBodySchema.extend({
 	token: tokenSchema("Reset token"),

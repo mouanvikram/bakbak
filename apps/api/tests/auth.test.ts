@@ -1,5 +1,7 @@
 import "./setup";
-import { mock } from "bun:test";
+// Must precede `../src/app` so the resend mock is in place before EmailService
+// instantiates its client.
+import "./mocks/resend";
 import {
 	beforeAll,
 	afterAll,
@@ -8,10 +10,12 @@ import {
 	describe,
 	test,
 	expect,
+	spyOn,
 } from "bun:test";
 import { createServer } from "node:http";
 import crypto from "node:crypto";
 import app from "../src/app";
+import { emailService } from "../src/services/service.container";
 import { prisma } from "@bakbak/db";
 import {
 	cleanupDatabase,
@@ -21,17 +25,22 @@ import {
 	isDatabaseAvailable,
 } from "./helpers";
 
-mock.module("resend", () => ({
-	Resend: class {
-		emails = {
-			send: mock(() =>
-				Promise.resolve({ data: { id: "test-email-id" }, error: null }),
-			),
-		};
-	},
-}));
-
 const DB_AVAILABLE = await isDatabaseAvailable();
+
+// Spy on the shared EmailService instance the container hands to AuthService,
+// so tests can read the plaintext 2FA code (only ever sent by email).
+const twoFactorEmailSpy = spyOn(
+	emailService,
+	"sendTwoFactorCode",
+).mockResolvedValue(undefined);
+
+/** The 6-digit code from the most recent `sendTwoFactorCode` call. */
+function lastTwoFactorCode(): string {
+	const calls = twoFactorEmailSpy.mock.calls;
+	const args = calls[calls.length - 1]?.[0] as { code?: string } | undefined;
+	if (!args?.code) throw new Error("sendTwoFactorCode was not called");
+	return args.code;
+}
 
 describe("Auth Endpoints", () => {
 	let server: ReturnType<typeof createServer>;
@@ -56,6 +65,7 @@ describe("Auth Endpoints", () => {
 
 	beforeEach(async () => {
 		await cleanupDatabase();
+		twoFactorEmailSpy.mockClear();
 	});
 
 	afterEach(async () => {
@@ -410,6 +420,198 @@ describe("Auth Endpoints", () => {
 		expect(record?.failedLoginAttempts).toBe(0);
 		expect(record?.lockedUntil).toBeNull();
 	}, 45000);
+
+	// ── Two-factor authentication (email OTP) ─────────────────────────
+
+	const PASSWORD = "TestPass123!";
+
+	const makeUser = async (twoFactor: boolean) => {
+		const user = await createTestUser({
+			email: `2fa-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`,
+			isEmailVerified: true,
+		});
+		if (twoFactor) {
+			await prisma.userSettings.create({
+				data: { userId: user.id, twoFactorEnabled: true },
+			});
+		}
+		return user;
+	};
+
+	const loginRaw = (identifier: string, password = PASSWORD) =>
+		fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ identifier, password }),
+		});
+
+	test("login without 2FA still returns tokens directly", async () => {
+		const user = await makeUser(false);
+		const res = await loginRaw(user.email);
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.accessToken).toBeDefined();
+		expect(data.twoFactorRequired).toBeUndefined();
+	});
+
+	test("login with 2FA returns a challenge and emails a code (no tokens)", async () => {
+		const user = await makeUser(true);
+		const res = await loginRaw(user.email);
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.twoFactorRequired).toBe(true);
+		expect(typeof data.challengeId).toBe("string");
+		expect(data.accessToken).toBeUndefined();
+
+		// A code was persisted (hashed) and emailed.
+		const token = await prisma.verificationToken.findFirst({
+			where: { userId: user.id, type: "TWO_FACTOR" },
+		});
+		expect(token).not.toBeNull();
+		expect(lastTwoFactorCode()).toMatch(/^\d{6}$/);
+	});
+
+	test("verify-2fa with the right code issues tokens and consumes it", async () => {
+		const user = await makeUser(true);
+		const { challengeId } = (await (await loginRaw(user.email)).json()) as any;
+		const code = lastTwoFactorCode();
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login/verify-2fa`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ challengeId, code }),
+		});
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.accessToken).toBeDefined();
+		expect(data.refreshToken).toBeDefined();
+
+		// The code is single-use.
+		const left = await prisma.verificationToken.count({
+			where: { userId: user.id, type: "TWO_FACTOR" },
+		});
+		expect(left).toBe(0);
+	});
+
+	test("verify-2fa rejects a wrong code", async () => {
+		const user = await makeUser(true);
+		const { challengeId } = (await (await loginRaw(user.email)).json()) as any;
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login/verify-2fa`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ challengeId, code: "000000" }),
+		});
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
+		expect(data.error.code).toBe("INVALID_OR_EXPIRED_2FA_CODE");
+	});
+
+	test("verify-2fa rejects a bogus challenge", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login/verify-2fa`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ challengeId: "not-a-jwt", code: "123456" }),
+		});
+		expect(res.status).toBe(401);
+	});
+
+	test("resend-2fa issues a fresh code that the old one no longer matches", async () => {
+		const user = await makeUser(true);
+		const { challengeId } = (await (await loginRaw(user.email)).json()) as any;
+		const firstCode = lastTwoFactorCode();
+
+		const resend = await fetch(`${baseUrl()}/api/v1/auth/login/resend-2fa`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ challengeId }),
+		});
+		expect(resend.status).toBe(200);
+		const secondCode = lastTwoFactorCode();
+
+		const stale = await fetch(`${baseUrl()}/api/v1/auth/login/verify-2fa`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ challengeId, code: firstCode }),
+		});
+		// If the two random codes happen to collide, the stale one still works.
+		if (firstCode !== secondCode) {
+			expect(stale.status).toBe(400);
+		}
+
+		const ok = await fetch(`${baseUrl()}/api/v1/auth/login/verify-2fa`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ challengeId, code: secondCode }),
+		});
+		expect(ok.status).toBe(200);
+	});
+
+	test("2fa setup + enable turns the flag on and makes the next login a challenge", async () => {
+		const user = await makeUser(false);
+		const { accessToken } = (await (await loginRaw(user.email)).json()) as any;
+		const auth = { Authorization: `Bearer ${accessToken}` };
+
+		const setup = await fetch(`${baseUrl()}/api/v1/auth/2fa/setup`, {
+			method: "POST",
+			headers: auth,
+		});
+		expect(setup.status).toBe(200);
+
+		// Wrong code first.
+		const bad = await fetch(`${baseUrl()}/api/v1/auth/2fa/enable`, {
+			method: "POST",
+			headers: { ...auth, "Content-Type": "application/json" },
+			body: JSON.stringify({ code: "000000" }),
+		});
+		expect(bad.status).toBe(400);
+
+		const good = await fetch(`${baseUrl()}/api/v1/auth/2fa/enable`, {
+			method: "POST",
+			headers: { ...auth, "Content-Type": "application/json" },
+			body: JSON.stringify({ code: lastTwoFactorCode() }),
+		});
+		expect(good.status).toBe(200);
+		expect(((await good.json()) as any).twoFactorEnabled).toBe(true);
+
+		const settings = await prisma.userSettings.findUnique({
+			where: { userId: user.id },
+		});
+		expect(settings?.twoFactorEnabled).toBe(true);
+
+		// Next login now needs a code.
+		const next = (await (await loginRaw(user.email)).json()) as any;
+		expect(next.twoFactorRequired).toBe(true);
+	});
+
+	test("2fa disable turns it back off", async () => {
+		const user = await makeUser(true);
+		const { challengeId } = (await (await loginRaw(user.email)).json()) as any;
+		const verify = (await (
+			await fetch(`${baseUrl()}/api/v1/auth/login/verify-2fa`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ challengeId, code: lastTwoFactorCode() }),
+			})
+		).json()) as any;
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/2fa/disable`, {
+			method: "POST",
+			headers: { Authorization: `Bearer ${verify.accessToken}` },
+		});
+		expect(res.status).toBe(200);
+		expect(((await res.json()) as any).twoFactorEnabled).toBe(false);
+
+		const after = (await (await loginRaw(user.email)).json()) as any;
+		expect(after.accessToken).toBeDefined();
+	});
+
+	test("2fa setup requires auth", async () => {
+		const res = await fetch(`${baseUrl()}/api/v1/auth/2fa/setup`, {
+			method: "POST",
+		});
+		expect(res.status).toBe(401);
+	});
 
 	test("POST /api/v1/auth/verify-email - should verify with valid token", async () => {
 		const user = await createTestUser({
@@ -1205,6 +1407,41 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 		expect(res.status).toBe(200);
+	});
+
+	test("signup - should reject a too-short bio", async () => {
+		await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
+			username: `shortbio-${Date.now()}`,
+			email: `shortbio-${Date.now()}@example.com`,
+			password: "TestPass123!",
+			firstname: "John",
+			lastname: "Doe",
+			displayname: "John Doe",
+			bio: "too short",
+		});
+	});
+
+	test("signup - a blank bio is stored as null, not an empty string", async () => {
+		const email = `blankbio-${Date.now()}@example.com`;
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: `blankbio-${Date.now()}`,
+				email,
+				password: "TestPass123!",
+				firstname: "John",
+				lastname: "Doe",
+				displayname: "John Doe",
+				bio: "   ",
+			}),
+		});
+		expect(res.status).toBe(200);
+		const created = await prisma.user.findFirst({
+			where: { email },
+			include: { profile: true },
+		});
+		expect(created?.profile?.bio).toBeNull();
 	});
 
 	test("signup - should reject bio over max (501)", async () => {
