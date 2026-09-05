@@ -1,15 +1,24 @@
-model RefreshToken{
+model Session {
+    id        String    @id @default(uuid()) @db.Uuid
+    userId    String    @db.Uuid
+    userAgent String?
+    createdAt DateTime  @default(now())
+    expiresAt DateTime?
+    revokedAt DateTime?
+
+    user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    refreshTokens RefreshToken[]
+
+    @@index([userId])
+}
+
+model RefreshToken {
     id String @id @default(uuid()) @db.Uuid
 
-    userId String @db.Uuid
+    userId    String @db.Uuid
     tokenHash String
 
-    // Stable login-session id: set at login, inherited by every rotated token,
-    // and carried in the access token as `sid`. Revoking one revokes the chain.
     sessionId String? @db.Uuid
-
-    // User-Agent captured at login; labels sessions on the Devices page.
-    userAgent String?
 
     expiresAt DateTime
     revokedAt DateTime?
@@ -17,7 +26,9 @@ model RefreshToken{
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    user User @relation(fields: [userId],references: [id],onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    session Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
     @@index([userId])
     @@index([tokenHash])

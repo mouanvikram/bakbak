@@ -8,7 +8,7 @@ model User {
   isEmailVerified Boolean @default(false)
 
   // Brute-force login protection
-  failedLoginAttempts Int      @default(0)
+  failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
 
   // Brute-force protection for 2FA code verification (login + setup)
@@ -18,12 +18,15 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 
-  verification     VerificationToken[]
-  profile          UserProfile?
-  settings         UserSettings?
-  refreshToken     RefreshToken[]
-  sentRequests     FriendRequest[]     @relation("FriendRequestSender")
-  receivedRequests FriendRequest[]     @relation("FriendRequestReceiver")
+  profile  UserProfile?
+  settings UserSettings?
+
+  verification VerificationToken[]
+  refreshToken RefreshToken[]
+  sessions     Session[]
+
+  sentRequests     FriendRequest[] @relation("FriendRequestSender")
+  receivedRequests FriendRequest[] @relation("FriendRequestReceiver")
 
   friendShips1 Friendship[] @relation("FriendshipUser1")
   friendShips2 Friendship[] @relation("FriendshipUser2")
@@ -57,9 +60,6 @@ model UserProfile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// One row per user, created lazily on first access.
-// Mirrors the fields rendered by the frontend settings pages:
-// NotificationsPage, AppearancePage, ChatSettingsPage, SecurityPrivacyPage.
 model UserSettings {
   userId String @id @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
