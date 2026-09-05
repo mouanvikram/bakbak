@@ -92,6 +92,7 @@ describe("Messages Endpoints", () => {
 			body: JSON.stringify({
 				type: "TEXT",
 				text: "Hello everyone!",
+				clientId: crypto.randomUUID(),
 			}),
 		});
 
@@ -136,6 +137,7 @@ describe("Messages Endpoints", () => {
 			},
 			body: JSON.stringify({
 				type: "IMAGE",
+				clientId: crypto.randomUUID(),
 			}),
 		});
 
@@ -167,7 +169,11 @@ describe("Messages Endpoints", () => {
 				"Content-Type": "application/json",
 				...(await authHeader(userA.id, userA.username)),
 			},
-			body: JSON.stringify({ attachmentIds: [attachment.id], text: "look" }),
+			body: JSON.stringify({
+				attachmentIds: [attachment.id],
+				text: "look",
+				clientId: crypto.randomUUID(),
+			}),
 		});
 
 		expect(res.status).toBe(201);
@@ -193,7 +199,10 @@ describe("Messages Endpoints", () => {
 				"Content-Type": "application/json",
 				...(await authHeader(userA.id, userA.username)),
 			},
-			body: JSON.stringify({ attachmentIds: [attachment.id] }),
+			body: JSON.stringify({
+				attachmentIds: [attachment.id],
+				clientId: crypto.randomUUID(),
+			}),
 		});
 
 		expect(res.status).toBe(403);
@@ -213,7 +222,10 @@ describe("Messages Endpoints", () => {
 				"Content-Type": "application/json",
 				...(await authHeader(userA.id, userA.username)),
 			},
-			body: JSON.stringify({ attachmentIds: [attachment.id] }),
+			body: JSON.stringify({
+				attachmentIds: [attachment.id],
+				clientId: crypto.randomUUID(),
+			}),
 		});
 
 		expect(res.status).toBe(400);
@@ -227,7 +239,10 @@ describe("Messages Endpoints", () => {
 				"Content-Type": "application/json",
 				...(await authHeader(userA.id, userA.username)),
 			},
-			body: JSON.stringify({ attachmentIds: [attachment.id] }),
+			body: JSON.stringify({
+				attachmentIds: [attachment.id],
+				clientId: crypto.randomUUID(),
+			}),
 		});
 
 		const list = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
@@ -249,6 +264,7 @@ describe("Messages Endpoints", () => {
 			body: JSON.stringify({
 				type: "TEXT",
 				text: "   ",
+				clientId: crypto.randomUUID(),
 			}),
 		});
 
@@ -290,6 +306,7 @@ describe("Messages Endpoints", () => {
 			body: JSON.stringify({
 				type: "TEXT",
 				text: "Hello from outside",
+				clientId: crypto.randomUUID(),
 			}),
 		});
 
@@ -650,7 +667,7 @@ describe("Messages Endpoints", () => {
 		const deletedMessage = await prisma.message.findUnique({
 			where: { id: message.id },
 		});
-		expect(deletedMessage?.deleted).toBe(true);
+		expect(deletedMessage?.deletedAt).not.toBeNull();
 		expect(deletedMessage?.text).toBeNull();
 	});
 
@@ -740,7 +757,11 @@ describe("Messages Endpoints", () => {
 				"Content-Type": "application/json",
 				...(await authHeader(userA.id, userA.username)),
 			},
-			body: JSON.stringify({ type: "TEXT", text: "New message" }),
+			body: JSON.stringify({
+				type: "TEXT",
+				text: "New message",
+				clientId: crypto.randomUUID(),
+			}),
 		});
 
 		expect(res.status).toBe(201);

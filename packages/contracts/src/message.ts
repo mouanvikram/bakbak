@@ -44,7 +44,9 @@ export const sendMessageRequestSchema = z.object({
 		.max(MAX_MESSAGE_ATTACHMENTS)
 		.optional(),
 	// Idempotency key: a retry with the same clientId returns the original message.
-	clientId: z.uuid().optional(),
+	// Required — the column is NOT NULL, so a missing one has to fail validation
+	// with a 400 rather than blowing up on insert.
+	clientId: z.uuid(),
 });
 
 export const sendMessageResponseSchema = messageResponseSchema;
@@ -139,7 +141,7 @@ export interface SendMessageDto extends ChatMessagesDto {
 	text?: string;
 	type: MessageType;
 	attachmentIds?: string[];
-	clientId?: string;
+	clientId: string;
 }
 
 export interface MessageIdDto {

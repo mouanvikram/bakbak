@@ -92,6 +92,7 @@ export class MessageService {
 		T extends {
 			createdAt: Date;
 			updatedAt: Date;
+			deletedAt: Date | null;
 			sender?: { profile?: { avatar?: string | null } | null };
 			attachments?: Array<{
 				id: string;
@@ -109,6 +110,7 @@ export class MessageService {
 	>(message: T) {
 		const serialized = {
 			...message,
+			deleted: message.deletedAt !== null,
 			createdAt: message.createdAt.toISOString(),
 			updatedAt: message.updatedAt.toISOString(),
 			attachments: message.attachments
@@ -179,7 +181,7 @@ export class MessageService {
 			include: messageInclude,
 		});
 
-		if (!message || message.deleted) {
+		if (!message || message.deletedAt) {
 			throw new AppError(
 				HTTP_STATUS.NOT_FOUND,
 				ERROR_CODES.MESSAGE_NOT_FOUND,
@@ -272,7 +274,7 @@ export class MessageService {
 	private async createMessageRow(row: {
 		type: MessageType;
 		text: string | undefined;
-		clientId: string | undefined;
+		clientId: string;
 		chatId: string;
 		senderId: string;
 	}) {
@@ -353,7 +355,7 @@ export class MessageService {
 		const messages = await this.messageRepository.findMany({
 			where: {
 				chatId: dto.chatId,
-				deleted: false,
+				deletedAt: null,
 			},
 			orderBy: {
 				createdAt: "desc",
@@ -434,7 +436,6 @@ export class MessageService {
 				id: dto.messageId,
 			},
 			data: {
-				deleted: true,
 				deletedAt: new Date(),
 				text: null,
 			},
@@ -461,7 +462,7 @@ export class MessageService {
 				await this.messageRepository.findFirst({
 					where: {
 						chatId: dto.chatId,
-						deleted: false,
+						deletedAt: null,
 					},
 					orderBy: {
 						createdAt: "desc",
@@ -498,7 +499,7 @@ export class MessageService {
 			where: {
 				id: messageId,
 				chatId: dto.chatId,
-				deleted: false,
+				deletedAt: null,
 			},
 			select: {
 				id: true,
@@ -554,7 +555,7 @@ export class MessageService {
 		const messages = await this.messageRepository.findMany({
 			where: {
 				chatId: dto.chatId,
-				deleted: false,
+				deletedAt: null,
 				text: {
 					contains: query,
 					mode: "insensitive",
@@ -593,7 +594,7 @@ export class MessageService {
 		return await this.messageRepository.count({
 			where: {
 				chatId: dto.chatId,
-				deleted: false,
+				deletedAt: null,
 				senderId: {
 					not: dto.currentUserId,
 				},

@@ -160,7 +160,12 @@ export async function sendFriendRequest(senderId: string, receiverId: string) {
 export async function createTestMessage(
 	chatId: string,
 	senderId: string,
-	overrides: { text?: string; type?: string; deleted?: boolean } = {},
+	overrides: {
+		text?: string;
+		type?: string;
+		deleted?: boolean;
+		clientId?: string;
+	} = {},
 ) {
 	return prisma.message.create({
 		data: {
@@ -168,7 +173,8 @@ export async function createTestMessage(
 			senderId,
 			type: (overrides.type as MessageType) || MessageType.TEXT,
 			text: overrides.text ?? "Hello world",
-			deleted: overrides.deleted ?? false,
+			clientId: overrides.clientId ?? randomUUID(),
+			deletedAt: overrides.deleted ? new Date() : undefined,
 		},
 		include: {
 			sender: { include: { profile: true } },
