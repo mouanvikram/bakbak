@@ -38,7 +38,11 @@ apps/api/src/seed/
 
 # git-ai auto generated commits
 .git-ai.json
-summary.md
-HANDOFF.md
-audit.md
 audit-prompt.md
+questions.md
+
+# local architecture diagram prompts (not for the repo)
+architecture_diagram.md
+
+# local auth-endpoint security audit skill (not for the repo)
+grilled-auth-skill.md
