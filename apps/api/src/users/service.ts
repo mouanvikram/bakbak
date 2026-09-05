@@ -245,12 +245,7 @@ export class UserService {
 	async deleteMe(dto: UserIdType): Promise<DeleteMeResponseType> {
 		const user = await this.userRepository.getProfile({
 			where: { id: dto.userId },
-			select: {
-				id: true,
-				profile: {
-					select: { avatar: true },
-				},
-			},
+			select: { id: true },
 		});
 		if (!user) {
 			throw new AppError(
@@ -260,30 +255,12 @@ export class UserService {
 			);
 		}
 
-		const avatarKey =
-			user.profile?.avatar && !/^https?:\/\//.test(user.profile.avatar)
-				? user.profile.avatar
-				: null;
-		const filePaths = await this.userRepository.getSentMessageFilePaths(
-			dto.userId,
-		);
-
-		// Message.sender is onDelete: NoAction, so remove the user's messages
-		// (and their attachments) before the user row can be deleted.
-		await this.userRepository.deleteSentMessages(dto.userId);
-
-		// Remove stored objects, then the user (cascades to profile, settings,
-		// tokens, friend requests, friendships and chat memberships). Each
-		// removal is best-effort so a missing object can't block deletion.
-		await Promise.all(
-			[...filePaths, ...(avatarKey ? [avatarKey] : [])].map((key) =>
-				this.storageProvider.delete(key).catch(() => {}),
-			),
-		);
-
-		await this.userRepository.deleteBy({
-			id: dto.userId,
-		});
+		// Soft delete only: nothing is removed, and messages they sent are left
+		// untouched — only a message the user explicitly deleted carries its own
+		// deletedAt. The account itself is just stamped deletedAt. A later pass
+		// can transition this into an unidentifiable (anonymized) user; that
+		// step isn't part of this one.
+		await this.userRepository.markDeleted(dto.userId);
 
 		return {
 			message: "Account Deleted Successfully",

@@ -1,4 +1,5 @@
 import "./setup";
+import crypto from "node:crypto";
 import { mock } from "bun:test";
 import {
 	beforeAll,
@@ -289,7 +290,7 @@ describe("Users Endpoints", () => {
 		expect(res.status).toBe(401);
 	});
 
-	test("DELETE /users/me - should delete account with auth", async () => {
+	test("DELETE /users/me - should mark the account deleted without removing it", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
 			method: "DELETE",
 			headers: await authHeader(testUser.id, testUser.username),
@@ -299,8 +300,64 @@ describe("Users Endpoints", () => {
 		const data = (await res.json()) as any;
 		expect(data.message).toBe("Account Deleted successfully");
 
+		// Soft delete only: the row (and its identifying fields) stay intact.
 		const user = await prisma.user.findUnique({ where: { id: testUser.id } });
-		expect(user).toBeNull();
+		expect(user).not.toBeNull();
+		expect(user?.deletedAt).not.toBeNull();
+		expect(user?.email).toBe(testUser.email);
+		expect(user?.username).toBe(testUser.username);
+	});
+
+	test("DELETE /users/me - leaves the user's sent messages untouched", async () => {
+		const other = await createTestUser({
+			email: `other-${Date.now()}@example.com`,
+		});
+		const chat = await prisma.chat.create({
+			data: {
+				createdById: testUser.id,
+				participants: {
+					create: [{ userId: testUser.id }, { userId: other.id }],
+				},
+			},
+		});
+		const message = await prisma.message.create({
+			data: {
+				chatId: chat.id,
+				senderId: testUser.id,
+				clientId: crypto.randomUUID(),
+				text: "hello there",
+			},
+		});
+
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "DELETE",
+			headers: await authHeader(testUser.id, testUser.username),
+		});
+		expect(res.status).toBe(200);
+
+		const updated = await prisma.message.findUnique({
+			where: { id: message.id },
+		});
+		expect(updated?.deletedAt).toBeNull();
+		expect(updated?.text).toBe("hello there");
+		expect(updated?.senderId).toBe(testUser.id);
+	});
+
+	test("DELETE /users/me - a deleted account can no longer log in", async () => {
+		await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "DELETE",
+			headers: await authHeader(testUser.id, testUser.username),
+		});
+
+		const login = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				identifier: testUser.email,
+				password: "TestPass123!",
+			}),
+		});
+		expect(login.status).toBe(401);
 	});
 
 	test("DELETE /users/me - should fail without auth", async () => {

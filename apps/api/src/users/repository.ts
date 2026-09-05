@@ -126,10 +126,7 @@ export class UserRepository {
 		});
 	}
 
-	/** Atomically bumps the counter and returns the new value, so concurrent
-	 * wrong-code requests each see their own accurate post-increment count
-	 * instead of racing on a stale read. */
-	async recordFailedTwoFactor(userId: string): Promise<number> {
+	async recordFailedTwoFactor(userId: string) {
 		const updated = await prisma.user.update({
 			where: { id: userId },
 			data: { twoFactorFailedAttempts: { increment: 1 } },
@@ -164,30 +161,12 @@ export class UserRepository {
 		return prisma.user.update(args);
 	}
 
-	async deleteBy(where: Prisma.UserWhereUniqueInput) {
-		return prisma.user.delete({
-			where,
+	/** Marks the account deleted without removing the row — nothing about the
+	 * user, or the messages they sent, is actually erased. */
+	async markDeleted(id: string) {
+		return prisma.user.update({
+			where: { id },
+			data: { deletedAt: new Date() },
 		});
-	}
-
-	async deleteSentMessages(userId: string) {
-		return prisma.message.deleteMany({
-			where: { senderId: userId },
-		});
-	}
-
-	async getSentMessageFilePaths(userId: string) {
-		const messages = await prisma.message.findMany({
-			where: { senderId: userId },
-			select: {
-				attachments: {
-					select: { filePath: true },
-				},
-			},
-		});
-
-		return messages.flatMap((message) =>
-			message.attachments.map((attachment) => attachment.filePath),
-		);
 	}
 }
