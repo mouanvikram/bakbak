@@ -280,12 +280,33 @@ export class AuthService {
 
 	// sessionId stays stable across every rotation of this login and rides in the
 	// access token's `sid` claim, so revoking a session can drop its live sockets.
+	// `existingSessionId` is set only when rotating an already-issued refresh
+	// token; a fresh login (or a legacy pre-session token being rotated for the
+	// first time since this feature shipped) always starts a brand new Session.
 	private async issueTokens(
 		userId: string,
 		username: string,
 		userAgent?: string | null,
-		sessionId: string = crypto.randomUUID(),
+		existingSessionId?: string | null,
 	): Promise<LoginResponseType> {
+		const expiresAt = new Date(
+			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+		);
+
+		let sessionId: string;
+		if (existingSessionId) {
+			sessionId = existingSessionId;
+			// Rolling lifetime: a session still being used stays alive.
+			await this.refreshTokenRepository.touchSession(sessionId, expiresAt);
+		} else {
+			const session = await this.refreshTokenRepository.createSession({
+				userId,
+				userAgent: userAgent ?? null,
+				expiresAt,
+			});
+			sessionId = session.id;
+		}
+
 		const token = this.jwtService.signJwt<AccessTokenPayload>(
 			{ sub: userId, username, sid: sessionId, typ: "access" },
 			{ expiresIn: "15m" },
@@ -294,16 +315,11 @@ export class AuthService {
 		const refreshTokenValue = crypto.randomBytes(32).toString("hex");
 		const refreshTokenHash = this.hashToken(refreshTokenValue);
 
-		const expiresAt = new Date(
-			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-		);
-
 		await this.refreshTokenRepository.create({
 			tokenHash: refreshTokenHash,
 			expiresAt,
-			userAgent: userAgent ?? null,
+			userId,
 			sessionId,
-			user: { connect: { id: userId } },
 		});
 
 		return {
@@ -315,39 +331,32 @@ export class AuthService {
 
 	// ─── Active sessions (Devices page) ───────────────────────────────
 
-	// One entry per login session; tokens rotate, so rows share a `sessionId`.
-	private async loadSessions(userId: string) {
-		const tokens = await this.refreshTokenRepository.findActiveByUser(userId);
-		const bySession = new Map<string, (typeof tokens)[number]>();
-		for (const t of tokens) {
-			const key = t.sessionId ?? t.id;
-			const seen = bySession.get(key);
-			if (!seen || seen.createdAt < t.createdAt) bySession.set(key, t);
-		}
-		return bySession;
-	}
-
 	async listSessions(
 		userId: string,
 		opts: { sessionId?: string; refreshToken?: string },
 	): Promise<ListSessionsResponseType> {
-		const bySession = await this.loadSessions(userId);
-		const found = opts.refreshToken
-			? [...bySession.values()].find(
-					(t) => t.tokenHash === this.hashToken(opts.refreshToken!),
-				)
-			: undefined;
-		// Match the same key `loadSessions` grouped by: sessionId, else the
-		// row's own id for a legacy pre-tracking token.
-		const currentKey = opts.sessionId ?? (found?.sessionId ?? found?.id);
+		const sessions = await this.refreshTokenRepository.findActiveSessionsByUser(
+			userId,
+		);
+
+		let currentKey = opts.sessionId ?? null;
+		if (!currentKey && opts.refreshToken) {
+			const found = await this.refreshTokenRepository.findFirst({
+				tokenHash: this.hashToken(opts.refreshToken),
+				userId,
+			});
+			currentKey = found?.sessionId ?? null;
+		}
 
 		return {
-			sessions: [...bySession.entries()].map(([key, t]) => ({
-				id: key,
-				userAgent: t.userAgent,
-				createdAt: t.createdAt.toISOString(),
-				expiresAt: t.expiresAt.toISOString(),
-				current: key === currentKey,
+			sessions: sessions.map((s) => ({
+				id: s.id,
+				userAgent: s.userAgent,
+				createdAt: s.createdAt.toISOString(),
+				// Every session created by issueTokens() always sets expiresAt;
+				// the fallback only matters for a hand-inserted/backfilled row.
+				expiresAt: (s.expiresAt ?? s.createdAt).toISOString(),
+				current: s.id === currentKey,
 			})),
 		};
 	}
@@ -381,12 +390,17 @@ export class AuthService {
 				tokenHash: this.hashToken(opts.refreshToken),
 				userId,
 			});
-			// Fall back to the row's own id for a legacy token with no
-			// sessionId, so the caller's current session is still identifiable.
-			keep = row?.sessionId ?? row?.id ?? null;
+			// A null sessionId here means the caller's own current token predates
+			// session tracking; there's no Session id left to spare it by, so
+			// this falls through to "revoke everything" — acceptable since such
+			// access tokens are short-lived (15 min) and this self-resolves.
+			keep = row?.sessionId ?? null;
 		}
 
-		await this.refreshTokenRepository.revokeAllExceptSession(userId, keep);
+		await this.refreshTokenRepository.revokeAllSessionsExceptForUser(
+			userId,
+			keep,
+		);
 		await disconnectSockets({ userId, keepSessionId: keep });
 		return { message: "Other sessions ended" };
 	}
@@ -737,17 +751,23 @@ export class AuthService {
 			});
 
 			if (stored && !stored.revokedAt) {
-				await this.refreshTokenRepository.revoke(stored.id);
 				if (stored.sessionId) {
+					await this.refreshTokenRepository.revokeSessionForUser(
+						userId,
+						stored.sessionId,
+					);
 					await disconnectSockets({
 						userId,
 						sessionIds: [stored.sessionId],
 					});
+				} else {
+					// Legacy token with no Session to revoke as a unit.
+					await this.refreshTokenRepository.revoke(stored.id);
 				}
 			}
 		} else {
 			// Log out everywhere.
-			await this.refreshTokenRepository.revokeAll(userId);
+			await this.refreshTokenRepository.revokeAllSessionsForUser(userId);
 			await disconnectSockets({ userId });
 		}
 
@@ -805,44 +825,14 @@ export class AuthService {
 			);
 		}
 
-		// Rotation keeps the session's stable id (and its UA).
-		const sessionId = stored.sessionId ?? crypto.randomUUID();
-
-		const newAccessToken = this.jwtService.signJwt<AccessTokenPayload>(
-			{
-				sub: user.id,
-				username: user.username,
-				sid: sessionId,
-				typ: "access",
-			},
-			{
-				expiresIn: "15m",
-			},
+		const { accessToken, refreshToken } = await this.issueTokens(
+			user.id,
+			user.username,
+			null,
+			stored.sessionId,
 		);
 
-		const newRefreshTokenValue = crypto.randomBytes(32).toString("hex");
-		const newRefreshTokenHash = this.hashToken(newRefreshTokenValue);
-
-		const expiresAt = new Date(
-			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-		);
-
-		await this.refreshTokenRepository.create({
-			tokenHash: newRefreshTokenHash,
-			expiresAt,
-			userAgent: stored.userAgent,
-			sessionId,
-			user: {
-				connect: {
-					id: stored.userId,
-				},
-			},
-		});
-
-		return {
-			accessToken: newAccessToken,
-			refreshToken: newRefreshTokenValue,
-		};
+		return { accessToken, refreshToken };
 	}
 
 	async forgotPassword(

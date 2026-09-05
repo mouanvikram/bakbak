@@ -185,6 +185,7 @@ export async function cleanupDatabase() {
 	await prisma.friendRequest.deleteMany({});
 	await prisma.verificationToken.deleteMany({});
 	await prisma.refreshToken.deleteMany({});
+	await prisma.session.deleteMany({});
 	await prisma.userProfile.deleteMany({});
 	await prisma.user.deleteMany({});
 }
