@@ -1155,6 +1155,49 @@ describe("Auth Endpoints", () => {
 		expect(data.error || data.message).toBeDefined();
 	});
 
+	test("POST /api/v1/auth/refresh-token - reusing an already-rotated token revokes every session", async () => {
+		const user = await createTestUser({
+			email: `reuse-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		// Two independent sessions/devices for this user.
+		const a = await loginAs(user.email);
+		const b = await loginAs(user.email);
+
+		// The legitimate client rotates device A's token once.
+		const rotated = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: a.refreshToken }),
+		});
+		expect(rotated.status).toBe(200);
+
+		// Replaying the now-revoked old token is the reuse signal.
+		const replay = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: a.refreshToken }),
+		});
+		expect(replay.status).toBe(401);
+		const data = (await replay.json()) as any;
+		expect(data.error.code).toBe("REFRESH_TOKEN_REUSE_DETECTED");
+
+		// Every refresh token for the user is dead, including device B's,
+		// which was never touched by the replay.
+		const live = await prisma.refreshToken.count({
+			where: { userId: user.id, revokedAt: null },
+		});
+		expect(live).toBe(0);
+
+		const bRefresh = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: b.refreshToken }),
+		});
+		expect(bRefresh.status).toBe(401);
+	});
+
 	test("POST /api/v1/auth/refresh-token - should fail with expired refresh token", async () => {
 		const user = await createTestUser({
 			email: `refreshexpired-${Date.now()}@example.com`,

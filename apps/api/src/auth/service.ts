@@ -52,13 +52,13 @@ import {
 
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
-/** How long an emailed 6-digit 2FA code stays valid. */
+// How long an emailed 6-digit 2FA code stays valid.
 const TWO_FACTOR_CODE_TTL_MINUTES = 10;
-/** Lifetime of the opaque challenge that ties a pending login to its 2FA step. */
+// Lifetime of the opaque challenge that ties a pending login to its 2FA step.
 const TWO_FACTOR_CHALLENGE_TTL = "10m";
-/** Wrong-code attempts (login or setup) allowed before a 2FA lockout. */
+// Wrong-code attempts (login or setup) allowed before a 2FA lockout.
 const TWO_FACTOR_MAX_ATTEMPTS = 10;
-/** How long a 2FA lockout lasts once triggered. */
+// How long a 2FA lockout lasts once triggered. (4 hours)
 const TWO_FACTOR_LOCKOUT_MS = 4 * 60 * 60 * 1000;
 
 interface TwoFactorChallengePayload {
@@ -100,7 +100,7 @@ export class AuthService {
 			(await this.resolveAvatar(dto.avatarToken)) ?? dto.avatarUrl ?? null;
 
 		const token = crypto.randomBytes(32).toString("hex");
-		const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+		const hashedToken = this.hashToken(token);
 
 		const user = await this.userRepository.create({
 			username: dto.username,
@@ -112,7 +112,7 @@ export class AuthService {
 					lastName: titleCaseName(dto.lastname),
 					avatar: avatarUrl,
 					displayName: titleCaseName(dto.displayname),
-					bio: dto.bio, 
+					bio: dto.bio,
 				},
 			},
 			verification: {
@@ -153,7 +153,9 @@ export class AuthService {
 	 * only once signup completes (it is called from register), so abandoned
 	 * signups never persist anything.
 	 */
-	private async resolveAvatar(avatarToken: string | undefined): Promise<string | null> {
+	private async resolveAvatar(
+		avatarToken: string | undefined,
+	): Promise<string | null> {
 		if (!avatarToken) return null;
 
 		const file = this.avatarTokenStore.consume(avatarToken);
@@ -200,6 +202,7 @@ export class AuthService {
 		userAgent?: string,
 	): Promise<LoginOutcomeType> {
 		const user = await this.userRepository.findFirst({
+			deletedAt: null,
 			OR: [{ username: dto.identifier }, { email: dto.identifier }],
 		});
 
@@ -335,9 +338,8 @@ export class AuthService {
 		userId: string,
 		opts: { sessionId?: string; refreshToken?: string },
 	): Promise<ListSessionsResponseType> {
-		const sessions = await this.refreshTokenRepository.findActiveSessionsByUser(
-			userId,
-		);
+		const sessions =
+			await this.refreshTokenRepository.findActiveSessionsByUser(userId);
 
 		let currentKey = opts.sessionId ?? null;
 		if (!currentKey && opts.refreshToken) {
@@ -425,9 +427,7 @@ export class AuthService {
 		await this.emailRepository.create({
 			tokenHash: codeHash,
 			type: VerificationTokenType.TWO_FACTOR,
-			expiresAt: new Date(
-				Date.now() + TWO_FACTOR_CODE_TTL_MINUTES * 60 * 1000,
-			),
+			expiresAt: new Date(Date.now() + TWO_FACTOR_CODE_TTL_MINUTES * 60 * 1000),
 			user: { connect: { id: userId } },
 		});
 
@@ -454,7 +454,10 @@ export class AuthService {
 		code: string,
 	): Promise<void> {
 		const user = await this.userRepository.findBy({ id: userId });
-		if (user?.twoFactorLockedUntil && user.twoFactorLockedUntil.getTime() > Date.now()) {
+		if (
+			user?.twoFactorLockedUntil &&
+			user.twoFactorLockedUntil.getTime() > Date.now()
+		) {
 			throw new AppError(
 				HTTP_STATUS.TOO_MANY_REQUESTS,
 				ERROR_CODES.TWO_FACTOR_LOCKED,
@@ -477,7 +480,10 @@ export class AuthService {
 			// read the same stale counter and slip past the threshold.
 			const attempts = await this.userRepository.recordFailedTwoFactor(userId);
 			if (attempts >= TWO_FACTOR_MAX_ATTEMPTS) {
-				await this.userRepository.lockTwoFactorFor(userId, TWO_FACTOR_LOCKOUT_MS);
+				await this.userRepository.lockTwoFactorFor(
+					userId,
+					TWO_FACTOR_LOCKOUT_MS,
+				);
 			}
 
 			throw new AppError(
@@ -497,10 +503,9 @@ export class AuthService {
 	private readChallenge(challengeId: string): string {
 		let payload: TwoFactorChallengePayload;
 		try {
-			payload =
-				this.jwtService.verifyJwt<
-					TwoFactorChallengePayload & { [key: string]: unknown }
-				>(challengeId);
+			payload = this.jwtService.verifyJwt<
+				TwoFactorChallengePayload & { [key: string]: unknown }
+			>(challengeId);
 		} catch {
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
@@ -583,9 +588,7 @@ export class AuthService {
 		};
 	}
 
-	async disableTwoFactor(
-		userId: string,
-	): Promise<TwoFactorStatusResponseType> {
+	async disableTwoFactor(userId: string): Promise<TwoFactorStatusResponseType> {
 		await this.settingsRepository.upsert(userId, { twoFactorEnabled: false });
 		await this.emailRepository.deleteAll({
 			userId,
@@ -795,10 +798,22 @@ export class AuthService {
 		}
 
 		if (stored.revokedAt) {
+			// Refresh tokens are single-use — revoked the instant they're rotated.
+			// Seeing one again means it was replayed after rotation: either a
+			// stolen token or a client bug. Either way this token's holder is no
+			// longer trusted, so kill every session on the account rather than
+			// just this one.
+			logger.warn(
+				{ userId: stored.userId, sessionId: stored.sessionId },
+				"Refresh token reuse detected — revoking all sessions",
+			);
+			await this.refreshTokenRepository.revokeAllSessionsForUser(stored.userId);
+			await disconnectSockets({ userId: stored.userId });
+
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
-				ERROR_CODES.INVALID_REFRESH_TOKEN,
-				"Refresh token has been revoked",
+				ERROR_CODES.REFRESH_TOKEN_REUSE_DETECTED,
+				"Refresh token reuse detected. All sessions have been revoked for your protection.",
 			);
 		}
 
