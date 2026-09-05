@@ -21,6 +21,7 @@ model User {
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
+  deletedAt DateTime?
 
   profile  UserProfile?
   settings UserSettings?
