@@ -5,13 +5,14 @@ enum VerificationTokenType {
 }
 
 model VerificationToken {
-    id        String        @id @default(uuid()) @db.Uuid
-    userId    String        @db.Uuid
-    user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        String                @id @default(uuid()) @db.Uuid
+    userId    String                @db.Uuid
+    user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
     type      VerificationTokenType
-    tokenHash      String
+    tokenHash String
     expiresAt DateTime
-    createdAt DateTime      @default(now())
+    createdAt DateTime              @default(now())
 
     @@unique([userId, type])
+    @@index([tokenHash])
 }
