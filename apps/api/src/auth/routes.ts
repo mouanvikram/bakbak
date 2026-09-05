@@ -20,10 +20,23 @@ import {
 	verifyTwoFactorLoginRequestSchema,
 } from "@bakbak/contracts";
 import { authMiddleware } from "../middleware/auth.middleware";
+import {
+	avatarMulterErrorHandler,
+	avatarUploadMiddleware,
+} from "../avatar/middleware";
 
 const router = Router();
 
-router.post("/signup", validate(signUpRequestSchema), authController.signUp);
+// The avatar (optional) is sent as multipart alongside the signup fields, so
+// multer has to parse the body before validation sees it. A plain JSON signup
+// passes straight through.
+router.post(
+	"/signup",
+	avatarUploadMiddleware,
+	avatarMulterErrorHandler,
+	validate(signUpRequestSchema),
+	authController.signUp,
+);
 router.post("/login", validate(loginRequestSchema), authController.login);
 router.post(
 	"/login/verify-2fa",

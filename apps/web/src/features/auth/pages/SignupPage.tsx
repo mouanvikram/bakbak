@@ -19,7 +19,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Branding } from "@/components/ui/Branding";
 import { useAuth } from "@/features/auth/auth-context";
 import { ImageCropModal } from "@/components/ImageCropModal";
-import { uploadAvatar } from "@/features/auth/api";
 import { checkUsername } from "@/features/users/api";
 
 interface SignupFormData {
@@ -47,7 +46,6 @@ export function SignupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<SignupFormData>({
     firstname: "",
@@ -60,7 +58,9 @@ export function SignupPage() {
   });
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [avatarToken, setAvatarToken] = useState<string | null>(null);
+  // The cropped avatar is held here and sent with the signup request itself,
+  // so an abandoned signup never puts a file on the server.
+  const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>({
     state: "idle",
   });
@@ -145,25 +145,15 @@ export function SignupPage() {
     reader.readAsDataURL(file);
   }
 
-  async function handleCropConfirm(blob: Blob) {
-    const file = cropSrc
-      ? new File([blob], "avatar.webp", { type: "image/webp" })
-      : null;
-    setUploading(true);
+  function handleCropConfirm(blob: Blob) {
     setError(null);
-    try {
-      const name = file?.name ?? "avatar.webp";
-      const result = await uploadAvatar(blob, name);
-      setAvatarToken(result.avatarToken);
-      setAvatarPreview(URL.createObjectURL(blob));
-      setCropSrc(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Avatar upload failed");
-      setCropSrc(null);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    setAvatarBlob(blob);
+    setAvatarPreview((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return URL.createObjectURL(blob);
+    });
+    setCropSrc(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   const { signup } = useAuth();
@@ -177,11 +167,13 @@ export function SignupPage() {
     setLoading(true);
     setError(null);
     try {
-      await signup({
-        ...user,
-        bio: trimmedBio || undefined,
-        avatarToken: avatarToken ?? undefined,
-      });
+      await signup(
+        {
+          ...user,
+          bio: trimmedBio || undefined,
+        },
+        avatarBlob ? { blob: avatarBlob, fileName: "avatar.webp" } : undefined,
+      );
       setStep(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
@@ -191,8 +183,11 @@ export function SignupPage() {
   }
 
   function handleRemoveAvatar() {
-    setAvatarPreview(null);
-    setAvatarToken(null);
+    setAvatarPreview((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return null;
+    });
+    setAvatarBlob(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -443,40 +438,28 @@ export function SignupPage() {
               <div className="flex flex-col items-center gap-2">
                 {avatarPreview ? (
                   <div className="relative">
-                    {uploading ? (
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-gray-200 bg-gray-50">
-                        <Loader2 className="size-6 animate-spin text-brand-500" />
-                      </div>
-                    ) : (
-                      <img
-                        src={avatarPreview}
-                        alt="Avatar preview"
-                        className="h-20 w-20 rounded-full border border-gray-200 object-cover"
-                      />
-                    )}
-                    {!uploading && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveAvatar}
-                        disabled={loading}
-                        className={`absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600 ${loading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-                        aria-label="Remove avatar"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
+                    <img
+                      src={avatarPreview}
+                      alt="Avatar preview"
+                      className="h-20 w-20 rounded-full border border-gray-200 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      disabled={loading}
+                      className={`absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600 ${loading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                      aria-label="Remove avatar"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ) : (
                   <>
                     <label
                       htmlFor="avatar"
-                      className={`flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 transition hover:border-brand-500 hover:text-brand-500 ${loading || uploading ? "cursor-not-allowed opacity-50 hover:border-gray-300 hover:text-gray-400" : "cursor-pointer"}`}
+                      className={`flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 transition hover:border-brand-500 hover:text-brand-500 ${loading ? "cursor-not-allowed opacity-50 hover:border-gray-300 hover:text-gray-400" : "cursor-pointer"}`}
                     >
-                      {uploading ? (
-                        <Loader2 className="size-6 animate-spin text-brand-500" />
-                      ) : (
-                        "Avatar"
-                      )}
+                      Avatar
                     </label>
                     <input
                       ref={fileInputRef}
@@ -486,16 +469,12 @@ export function SignupPage() {
                       accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/bmp"
                       className="hidden"
                       onChange={handleFileChange}
-                      disabled={loading || uploading}
+                      disabled={loading}
                     />
                   </>
                 )}
                 <p className="text-xs text-gray-400">
-                  {uploading
-                    ? "Uploading..."
-                    : avatarToken
-                      ? "Avatar ready"
-                      : "Upload a profile picture"}
+                  {avatarBlob ? "Avatar ready" : "Upload a profile picture"}
                 </p>
               </div>
               <div className="flex w-full flex-col gap-2">
@@ -514,7 +493,7 @@ export function SignupPage() {
                   className="w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-50"
                   value={user.bio}
                   onChange={handleChange}
-                  disabled={loading || uploading}
+                  disabled={loading}
                 />
                 <p className="text-xs text-gray-400">
                   Optional — leave blank, or write at least 10 characters.
@@ -525,7 +504,7 @@ export function SignupPage() {
                   type="button"
                   onClick={() => setStep(2)}
                   className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={loading || uploading}
+                  disabled={loading}
                 >
                   <ArrowLeft size={18} /> Back
                 </button>
@@ -534,7 +513,6 @@ export function SignupPage() {
                     value="Sign Up"
                     onClick={handleSignUp}
                     loading={loading}
-                    disabled={uploading}
                   />
                 </div>
               </div>

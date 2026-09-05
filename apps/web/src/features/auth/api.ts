@@ -95,33 +95,34 @@ export function revokeOtherSessions(): Promise<RevokeSessionResponseType> {
   });
 }
 
-export function signup(data: SignUpRequestType): Promise<SignUpResponseType> {
-  return apiClient("/api/v1/auth/signup", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
+/**
+ * Signs up, optionally carrying the avatar in the same request. The avatar is
+ * only written once the signup is accepted, so nothing is stored server-side
+ * for an abandoned signup.
+ */
+export function signup(
+  data: SignUpRequestType,
+  avatar?: { blob: Blob; fileName: string },
+): Promise<SignUpResponseType> {
+  if (!avatar) {
+    return apiClient("/api/v1/auth/signup", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
 
-export async function uploadAvatar(
-  blob: Blob,
-  fileName: string,
-): Promise<AvatarUploadResponseType> {
   const formData = new FormData();
-  formData.append("file", blob, fileName);
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined && value !== null) {
+      formData.append(key, String(value));
+    }
+  }
+  formData.append("file", avatar.blob, avatar.fileName);
 
-  const res = await fetch("/api/v1/auth/avatar", {
+  return apiClient("/api/v1/auth/signup", {
     method: "POST",
     body: formData,
   });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(
-      body.error?.message ?? body.message ?? `Upload failed (${res.status})`,
-    );
-  }
-
-  return res.json();
 }
 
 export function verifyEmail(token: string): Promise<{ message: string }> {

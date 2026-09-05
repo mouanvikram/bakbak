@@ -3,7 +3,7 @@ import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
-export const MAX_AVATAR_SIZE = 10 * 1024 * 1024; // 10 MB
+export const MAX_AVATAR_SIZE = 4 * 1024 * 1024; // 10 MB
 
 const ALLOWED_AVATAR_MIME = [
 	"image/jpeg",

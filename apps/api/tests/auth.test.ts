@@ -1031,6 +1031,89 @@ describe("Auth Endpoints", () => {
 		expect(data.error || data.message).toBeDefined();
 	});
 
+	test("POST /api/v1/auth/signup - accepts an avatar sent as multipart with the fields", async () => {
+		const email = `avatar-${Date.now()}@example.com`;
+		const form = new FormData();
+		form.append("username", `avatar-${Date.now()}`);
+		form.append("email", email);
+		form.append("password", "TestPass123!");
+		form.append("firstname", "John");
+		form.append("lastname", "Doe");
+		form.append("displayname", "John Doe");
+		form.append(
+			"file",
+			new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], {
+				type: "image/png",
+			}),
+			"avatar.png",
+		);
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			body: form,
+		});
+
+		expect(res.status).toBe(200);
+
+		const created = await prisma.user.findFirst({
+			where: { email },
+			include: { profile: true },
+		});
+		// The avatar is stored as a durable storage key, resolved to a signed
+		// URL when the profile is served.
+		expect(created?.profile?.avatar).toMatch(/^avatars\//);
+	});
+
+	test("POST /api/v1/auth/signup - rejects an unsupported avatar file type", async () => {
+		const email = `tiff-${Date.now()}@example.com`;
+		const form = new FormData();
+		form.append("username", `tiff-${Date.now()}`);
+		form.append("email", email);
+		form.append("password", "TestPass123!");
+		form.append("firstname", "John");
+		form.append("lastname", "Doe");
+		form.append("displayname", "John Doe");
+		form.append(
+			"file",
+			new Blob([Buffer.from("fake")], { type: "image/tiff" }),
+			"avatar.tiff",
+		);
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			body: form,
+		});
+
+		expect(res.status).toBe(400);
+
+		// The account must not exist — a rejected avatar rejects the signup.
+		const created = await prisma.user.findFirst({ where: { email } });
+		expect(created).toBeNull();
+	});
+
+	test("POST /api/v1/auth/signup - still accepts a plain JSON body with no avatar", async () => {
+		const email = `nofile-${Date.now()}@example.com`;
+		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: `nofile-${Date.now()}`,
+				email,
+				password: "TestPass123!",
+				firstname: "John",
+				lastname: "Doe",
+				displayname: "John Doe",
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		const created = await prisma.user.findFirst({
+			where: { email },
+			include: { profile: true },
+		});
+		expect(created?.profile?.avatar).toBeNull();
+	});
+
 	test("POST /api/v1/auth/signup - should handle optional bio and avatarUrl", async () => {
 		const email = `optional-${Date.now()}@example.com`;
 		const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {

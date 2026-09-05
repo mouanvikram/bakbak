@@ -19,7 +19,10 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   login: (data: LoginRequestType) => Promise<LoginResult>;
   verifyTwoFactorLogin: (challengeId: string, code: string) => Promise<void>;
-  signup: (data: SignUpRequestType) => Promise<void>;
+  signup: (
+    data: SignUpRequestType,
+    avatar?: { blob: Blob; fileName: string },
+  ) => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;

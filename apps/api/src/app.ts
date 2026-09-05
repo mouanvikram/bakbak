@@ -15,7 +15,6 @@ import friendRoutes from "./friends/routes";
 import { messageRoutes } from "./messages/routes";
 import settingsRoutes from "./settings/routes";
 import uploadRoutes from "./uploads/routes";
-import avatarRoutes from "./avatar/routes";
 import systemRoutes from "./system/routes";
 
 const app: Express = express();
@@ -42,8 +41,6 @@ app.use(express.json({ limit: "10kb" }));
 // Public build/version info (used by the client to spot a stale bundle)
 app.use("/api/v1/version", systemRoutes);
 app.use("/api/v1/auth", authRoutes);
-// Avatar pre-signup upload (mounted before auth routes; no auth required)
-app.use("/api/v1/auth", avatarRoutes);
 app.use("/api/v1/uploads", uploadRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/friends", friendRoutes);

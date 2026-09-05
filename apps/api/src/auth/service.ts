@@ -42,7 +42,7 @@ import type {
 } from "@bakbak/contracts";
 import type { StorageProvider } from "../uploads/storage.provider";
 import type { UploadRepository } from "../uploads/repository";
-import type { AvatarTokenStore } from "../avatar/token.store";
+import type { UploadFile } from "@bakbak/contracts";
 import { titleCaseName } from "../lib/name-case";
 import {
 	extensionFrom,
@@ -74,13 +74,15 @@ export class AuthService {
 		private readonly emailService: EmailService,
 		private readonly emailRepository: EmailRepository,
 		private readonly refreshTokenRepository: RefreshTokenRepository,
-		private readonly avatarTokenStore: AvatarTokenStore,
 		private readonly storageProvider: StorageProvider,
 		private readonly uploadRepository: UploadRepository,
 		private readonly settingsRepository: SettingsRepository,
 	) {}
 
-	async register(dto: SignUpRequestType): Promise<SignUpResponseType> {
+	async register(
+		dto: SignUpRequestType,
+		avatarFile?: UploadFile,
+	): Promise<SignUpResponseType> {
 		const userExists = await this.userRepository.findFirst({
 			OR: [{ username: dto.username }, { email: dto.email }],
 		});
@@ -95,9 +97,11 @@ export class AuthService {
 
 		const hashedPassword = await this.pwdService.hash(dto.password);
 
-		// resolve a pending avatar file (if any) from the pre-signup upload
+		// The avatar rides along with the signup request, so it is only written
+		// once we know the signup is valid — nothing is retained for abandoned
+		// signups.
 		const avatarUrl =
-			(await this.resolveAvatar(dto.avatarToken)) ?? dto.avatarUrl ?? null;
+			(await this.resolveAvatar(avatarFile)) ?? dto.avatarUrl ?? null;
 
 		const token = crypto.randomBytes(32).toString("hex");
 		const hashedToken = this.hashToken(token);
@@ -148,17 +152,14 @@ export class AuthService {
 	}
 
 	/**
-	 * Takes a pending avatar token from the pre-signup upload and writes the
-	 * file to object storage + the database, returning a public URL. This runs
-	 * only once signup completes (it is called from register), so abandoned
-	 * signups never persist anything.
+	 * Writes the avatar uploaded alongside signup to object storage + the
+	 * database, returning its storage key. Called from register once the
+	 * signup is known to be valid, so an abandoned or rejected signup never
+	 * persists anything.
 	 */
 	private async resolveAvatar(
-		avatarToken: string | undefined,
+		file: UploadFile | undefined,
 	): Promise<string | null> {
-		if (!avatarToken) return null;
-
-		const file = this.avatarTokenStore.consume(avatarToken);
 		if (!file) return null;
 
 		try {
@@ -181,8 +182,8 @@ export class AuthService {
 		} catch (error) {
 			// A failed avatar write must not block account creation.
 			logger.error(
-				{ err: error, avatarToken },
-				"Failed to persist pending avatar on signup",
+				{ err: error, fileName: file.originalname },
+				"Failed to persist avatar on signup",
 			);
 			return null;
 		}

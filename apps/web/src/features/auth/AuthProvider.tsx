@@ -102,9 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [startSession],
   );
 
-  const signup = useCallback(async (data: SignUpRequestType) => {
-    await apiSignup(data);
-  }, []);
+  const signup = useCallback(
+    async (data: SignUpRequestType, avatar?: { blob: Blob; fileName: string }) => {
+      await apiSignup(data, avatar);
+    },
+    [],
+  );
 
   const verifyEmail = useCallback(async (token: string) => {
     await apiVerifyEmail(token);

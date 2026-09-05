@@ -8,8 +8,12 @@ import {
 export async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const accessToken = getAccessToken();
 
+  // FormData must set its own Content-Type so the browser can add the
+  // multipart boundary; forcing application/json would corrupt the body.
+  const isFormData = options?.body instanceof FormData;
+
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...((options?.headers as Record<string, string>) ?? {}),
   };
 

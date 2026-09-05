@@ -21,10 +21,6 @@ import { UploadController } from "../uploads/controller";
 import { UploadRepository } from "../uploads/repository";
 import { UploadService } from "../uploads/service";
 import { storageProvider } from "../uploads/storage";
-import {
-	AvatarController,
-} from "../avatar/controller";
-import { avatarTokenStore } from "../avatar/token.store";
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
@@ -45,13 +41,11 @@ export const authService = new AuthService(
 	emailService,
 	emailRepository,
 	refreshTokenRepository,
-	avatarTokenStore,
 	storageProvider,
 	uploadRepository,
 	settingsRepository,
 );
 export const authController = new AuthController(authService);
-export const avatarController = new AvatarController(avatarTokenStore);
 
 export const friendRepository = new FriendRepository();
 export const friendService = new FriendService(friendRepository, storageProvider);

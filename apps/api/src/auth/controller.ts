@@ -38,7 +38,6 @@ export interface AuthRequest extends Request {
 		userId: string;
 		username?: string;
 		role?: string;
-		/** Login-session id from the access token's `sid` claim. */
 		sessionId?: string;
 	};
 }
@@ -48,9 +47,11 @@ export class AuthController {
 
 	signUp = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			// Use the validated + normalised body (e.g. a blank bio becomes null).
+			//bio if left blank will be null. matches db schema.
+			// An avatar, when sent, arrives as multipart alongside the fields.
 			const response = await this.authService.register(
 				req.valid?.body as SignUpRequestType,
+				req.file,
 			);
 
 			return validateResponse(
@@ -398,8 +399,8 @@ export class AuthController {
 	) => {
 		try {
 			const userId = this.requireUser(req);
-			const { refreshToken } =
-				req.valid?.body as RevokeOtherSessionsRequestType;
+			const { refreshToken } = req.valid
+				?.body as RevokeOtherSessionsRequestType;
 			const result = await this.authService.revokeOtherSessions(userId, {
 				sessionId: req.user?.sessionId,
 				refreshToken,
