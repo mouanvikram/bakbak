@@ -7,12 +7,15 @@ import {
 	refreshTokenSchema,
 	safeString,
 	tokenSchema,
+	usernameSchema,
 } from "./shared";
 
 // ─── Login ─────────────────────────────────────────────────────────
 
 export const loginRequestSchema = z.object({
-	identifier: safeString(100, 4),
+	// identifier is either a username or an email — both are stored lowercase
+	// (citext-backed), so normalize here too rather than relying on citext alone.
+	identifier: safeString(100, 4).trim().toLowerCase(),
 	password: passwordSchema,
 });
 
@@ -107,7 +110,7 @@ export type EnableTwoFactorRequestType = z.infer<
 // ─── Signup ────────────────────────────────────────────────────────
 
 export const signUpRequestSchema = z.object({
-	username: safeString(30, 4),
+	username: usernameSchema,
 	email: emailSchema,
 	password: passwordSchema,
 	firstname: safeString(100, 1),

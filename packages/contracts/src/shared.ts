@@ -7,7 +7,11 @@ export const safeString = (max: number, min = 1) =>
 		.max(max)
 		.regex(/^(?!.*\0)/, "Null bytes are not allowed");
 
-export const emailSchema = z.email().max(100);
+// Username is canonically lowercase (matches the citext column, which is the
+// backstop — this is what actually keeps stored values consistent).
+export const usernameSchema = safeString(30, 4).trim().toLowerCase();
+
+export const emailSchema = z.email().max(100).trim().toLowerCase();
 
 /** Smallest bio we'll store — anything shorter (once trimmed) isn't worth keeping. */
 export const BIO_MIN_LENGTH = 10;

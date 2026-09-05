@@ -8,6 +8,7 @@ import {
 	profileSnippetSchema,
 	safeString,
 	userSummarySchema,
+	usernameSchema,
 	type UserIdType,
 } from "./shared";
 
@@ -36,8 +37,8 @@ export const getMeResponseSchema = z.object({
 export type GetMeResponseType = z.infer<typeof getMeResponseSchema>;
 
 export const updateProfileRequestSchema = z.object({
-	// Same rules as signup (4–30 chars); the API also checks it's not taken.
-	username: safeString(30, 4).optional(),
+	// Same rules as signup (4–30 chars, lowercased); the API also checks it's not taken.
+	username: usernameSchema.optional(),
 	// `null`/blank clears the bio; a real value must be 10–500 chars.
 	bio: bioSchema.optional(),
 	firstName: safeString(100).optional(),
