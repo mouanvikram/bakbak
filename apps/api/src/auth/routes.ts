@@ -23,7 +23,7 @@ import { authMiddleware } from "../middleware/auth.middleware";
 import {
 	avatarMulterErrorHandler,
 	avatarUploadMiddleware,
-} from "../avatar/middleware";
+} from "../middleware/avatar.middleware";
 
 const router = Router();
 

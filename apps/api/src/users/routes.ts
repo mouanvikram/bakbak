@@ -5,7 +5,7 @@ import { validate } from "../middleware/validate";
 import {
 	avatarMulterErrorHandler,
 	avatarUploadMiddleware,
-} from "../avatar/middleware";
+} from "../middleware/avatar.middleware";
 import {
 	checkUsernameRequestSchema,
 	getProfileRequestSchema,
