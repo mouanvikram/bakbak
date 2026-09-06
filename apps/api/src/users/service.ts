@@ -248,13 +248,24 @@ export class UserService {
 	async deleteMe(dto: UserIdType): Promise<DeleteMeResponseType> {
 		const user = await this.userRepository.getProfile({
 			where: { id: dto.userId },
-			select: { id: true },
+			select: { id: true, isEmailVerified: true },
 		});
 		if (!user) {
 			throw new AppError(
 				HTTP_STATUS.NOT_FOUND,
 				ERROR_CODES.USER_NOT_FOUND,
 				"User not found",
+			);
+		}
+
+		// An unverified account owns no space (no one can find or message it),
+		// so its owner must prove the email before destruction — a stray signup
+		// shouldn't be able to delete a real account created with their address.
+		if (!user.isEmailVerified) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.EMAIL_NOT_VERIFIED,
+				"Email is not verified",
 			);
 		}
 

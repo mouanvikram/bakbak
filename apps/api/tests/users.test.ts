@@ -308,6 +308,26 @@ describe("Users Endpoints", () => {
 		expect(user?.username).toBe(testUser.username);
 	});
 
+	test("DELETE /users/me - unverified account cannot be deleted", async () => {
+		const unverified = await createTestUser({
+			email: `unver-${Date.now()}@example.com`,
+			isEmailVerified: false,
+		});
+
+		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "DELETE",
+			headers: await authHeader(unverified.id, unverified.username),
+		});
+
+		expect(res.status).toBe(403);
+		const data = (await res.json()) as any;
+		expect(data.error.code).toBe("EMAIL_NOT_VERIFIED");
+
+		// The account is untouched by the rejected delete.
+		const user = await prisma.user.findUnique({ where: { id: unverified.id } });
+		expect(user?.deletedAt).toBeNull();
+	});
+
 	test("DELETE /users/me - leaves the user's sent messages untouched", async () => {
 		const other = await createTestUser({
 			email: `other-${Date.now()}@example.com`,

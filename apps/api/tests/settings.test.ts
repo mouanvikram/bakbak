@@ -66,22 +66,24 @@ describe("Settings Endpoints", () => {
 
 	const baseUrl = () => `http://localhost:${port}`;
 	const auth = () => authHeader(user.id, user.username);
-	const jsonAuth = () => ({
-		"Content-Type": "application/json",
-		...auth(),
-	});
 
-	const getSettings = () =>
-		fetch(`${baseUrl()}/api/v1/settings`, { headers: auth() });
+	const getSettings = async () =>
+		fetch(`${baseUrl()}/api/v1/settings`, {
+			headers: await auth(),
+		});
 
-	const patch = (
+	const patch = async (
 		path: string,
 		body: unknown,
-		headers: Record<string, string> = jsonAuth(),
+		headers?: Record<string, string>,
 	) =>
 		fetch(`${baseUrl()}/api/v1/settings${path}`, {
 			method: "PATCH",
-			headers,
+			headers: {
+				"Content-Type": "application/json",
+				...headers,
+				...(await auth()),
+			},
 			body: JSON.stringify(body),
 		});
 
@@ -154,11 +156,16 @@ describe("Settings Endpoints", () => {
 	});
 
 	test("PATCH /settings/notifications - should fail without auth", async () => {
-		const res = await patch(
-			"/notifications",
-			{ messages: true, sounds: true, alerts: true, emailDigest: false },
-			{ "Content-Type": "application/json" },
-		);
+		const res = await fetch(`${baseUrl()}/api/v1/settings/notifications`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				messages: true,
+				sounds: true,
+				alerts: true,
+				emailDigest: false,
+			}),
+		});
 		expect(res.status).toBe(401);
 	});
 
@@ -220,11 +227,11 @@ describe("Settings Endpoints", () => {
 	});
 
 	test("PATCH /settings/appearance - should fail without auth", async () => {
-		const res = await patch(
-			"/appearance",
-			{ theme: "dark", fontSize: "large" },
-			{ "Content-Type": "application/json" },
-		);
+		const res = await fetch(`${baseUrl()}/api/v1/settings/appearance`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ theme: "dark", fontSize: "large" }),
+		});
 		expect(res.status).toBe(401);
 	});
 
@@ -255,11 +262,11 @@ describe("Settings Endpoints", () => {
 	});
 
 	test("PATCH /settings/chat - should fail without auth", async () => {
-		const res = await patch(
-			"/chat",
-			{ enterToSend: true, mediaPreview: true },
-			{ "Content-Type": "application/json" },
-		);
+		const res = await fetch(`${baseUrl()}/api/v1/settings/chat`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ enterToSend: true, mediaPreview: true }),
+		});
 		expect(res.status).toBe(401);
 	});
 

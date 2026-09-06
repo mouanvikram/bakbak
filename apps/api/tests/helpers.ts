@@ -8,7 +8,14 @@ import {
 import { storageProvider } from "../src/uploads/storage";
 import { env } from "@/config";
 
-export function authHeader(userId: string, username: string) {
+export async function authHeader(userId: string, username: string) {
+	// The access token must reference a real, live Session: the H2 middleware
+	// rejects any token without a `sid` claim (auth.middleware.ts), then
+	// confirms the session row exists, is unrevoked, and belongs to the user.
+	const session = await prisma.session.create({
+		data: { userId },
+	});
+
 	const jwtService = new JwtService(env.JWT_SECRET, {
 		issuer: env.JWT_ISSUER,
 		audience: env.JWT_AUDIENCE,
@@ -17,6 +24,7 @@ export function authHeader(userId: string, username: string) {
 		{
 			sub: userId,
 			username,
+			sid: session.id,
 			typ: "access",
 		},
 		{
