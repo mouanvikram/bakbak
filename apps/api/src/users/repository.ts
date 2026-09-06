@@ -7,6 +7,13 @@ export class UserRepository {
 		});
 	}
 
+	async findActiveById(id: string) {
+		return prisma.user.findFirst({
+			where: { id, deletedAt: null },
+			select: { id: true },
+		});
+	}
+
 	async findFirst(where: Prisma.UserWhereInput) {
 		return prisma.user.findFirst({
 			where,
@@ -99,21 +106,27 @@ export class UserRepository {
 		});
 	}
 
+	// Single-statement increment + conditional lock: the counter bump and
+	// the lockout decision happen under one row lock, so a burst of
+	// concurrent wrong passwords can't slip between a separate read/check
+	// and lock write. Tagged-template params are bound, not interpolated.
 	async recordFailedLogin(userId: string) {
-		return prisma.user.update({
-			where: { id: userId },
-			data: { failedLoginAttempts: { increment: 1 } },
-		});
-	}
-
-	async lockLoginFor(userId: string) {
-		return prisma.user.update({
-			where: { id: userId },
-			data: {
-				failedLoginAttempts: 0,
-				lockedUntil: new Date(Date.now() + env.LOGIN_LOCKOUT_MS),
-			},
-		});
+		const lockUntil = new Date(Date.now() + env.LOGIN_LOCKOUT_MS);
+		const rows = await prisma.$queryRaw<
+			{ failedLoginAttempts: number; lockedUntil: Date | null }[]
+		>`
+			UPDATE "User" SET
+				"failedLoginAttempts" = "failedLoginAttempts" + 1,
+				"lockedUntil" = CASE
+					WHEN "failedLoginAttempts" + 1 >= ${env.LOGIN_MAX_ATTEMPTS}
+						AND ("lockedUntil" IS NULL OR "lockedUntil" <= NOW())
+					THEN ${lockUntil}
+					ELSE "lockedUntil" END,
+				"updatedAt" = NOW()
+			WHERE "id" = ${userId}::uuid
+			RETURNING "failedLoginAttempts", "lockedUntil"
+		`;
+		return rows[0];
 	}
 
 	async resetLoginFailures(userId: string) {
@@ -126,23 +139,32 @@ export class UserRepository {
 		});
 	}
 
-	async recordFailedTwoFactor(userId: string) {
-		const updated = await prisma.user.update({
-			where: { id: userId },
-			data: { twoFactorFailedAttempts: { increment: 1 } },
-			select: { twoFactorFailedAttempts: true },
-		});
-		return updated.twoFactorFailedAttempts;
-	}
-
-	async lockTwoFactorFor(userId: string, ms: number) {
-		return prisma.user.update({
-			where: { id: userId },
-			data: {
-				twoFactorFailedAttempts: 0,
-				twoFactorLockedUntil: new Date(Date.now() + ms),
-			},
-		});
+	// Same single-statement pattern as login: bump + conditional lock in
+	// one UPDATE so concurrent wrong codes can't race the threshold check.
+	async recordFailedTwoFactor(
+		userId: string,
+		maxAttempts: number,
+		lockoutMs: number,
+	) {
+		const lockUntil = new Date(Date.now() + lockoutMs);
+		const rows = await prisma.$queryRaw<
+			{
+				twoFactorFailedAttempts: number;
+				twoFactorLockedUntil: Date | null;
+			}[]
+		>`
+			UPDATE "User" SET
+				"twoFactorFailedAttempts" = "twoFactorFailedAttempts" + 1,
+				"twoFactorLockedUntil" = CASE
+					WHEN "twoFactorFailedAttempts" + 1 >= ${maxAttempts}
+						AND ("twoFactorLockedUntil" IS NULL OR "twoFactorLockedUntil" <= NOW())
+					THEN ${lockUntil}
+					ELSE "twoFactorLockedUntil" END,
+				"updatedAt" = NOW()
+			WHERE "id" = ${userId}::uuid
+			RETURNING "twoFactorFailedAttempts", "twoFactorLockedUntil"
+		`;
+		return rows[0];
 	}
 
 	async resetTwoFactorFailures(userId: string) {

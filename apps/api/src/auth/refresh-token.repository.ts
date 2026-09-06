@@ -24,8 +24,6 @@ export class RefreshTokenRepository {
 		});
 	}
 
-	// ─── Sessions (one row per login; RefreshTokens rotate underneath it) ───
-
 	async createSession(data: {
 		userId: string;
 		userAgent: string | null;
@@ -34,7 +32,6 @@ export class RefreshTokenRepository {
 		return await prisma.session.create({ data });
 	}
 
-	/** Push a session's expiry out on a successful refresh (rolling lifetime). */
 	async touchSession(id: string, expiresAt: Date) {
 		return await prisma.session.update({
 			where: { id },
@@ -42,7 +39,13 @@ export class RefreshTokenRepository {
 		});
 	}
 
-	// Live (unrevoked) sessions for a user, newest first — the Devices page.
+	async findSessionById(id: string) {
+		return await prisma.session.findUnique({
+			where: { id },
+			select: { id: true, userId: true, revokedAt: true },
+		});
+	}
+
 	async findActiveSessionsByUser(userId: string) {
 		return await prisma.session.findMany({
 			where: { userId, revokedAt: null },
@@ -50,7 +53,6 @@ export class RefreshTokenRepository {
 		});
 	}
 
-	/** Revoke one session (scoped to its owner) and every token issued under it. */
 	async revokeSessionForUser(userId: string, sessionId: string) {
 		const result = await prisma.session.updateMany({
 			where: { id: sessionId, userId, revokedAt: null },
@@ -67,7 +69,6 @@ export class RefreshTokenRepository {
 		return result;
 	}
 
-	/** Revoke every live session (and its tokens) for a user except the current one. */
 	async revokeAllSessionsExceptForUser(userId: string, keepSessionId: string) {
 		await prisma.session.updateMany({
 			where: { userId, revokedAt: null, id: { not: keepSessionId } },
@@ -80,7 +81,6 @@ export class RefreshTokenRepository {
 		});
 	}
 
-	/** Revoke every session (and its tokens) for a user — full logout. */
 	async revokeAllSessionsForUser(userId: string) {
 		await prisma.session.updateMany({
 			where: { userId, revokedAt: null },

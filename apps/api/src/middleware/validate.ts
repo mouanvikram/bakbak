@@ -4,7 +4,6 @@ import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { AuthRequest } from "../auth/controller";
 import { userIdSchema } from "@bakbak/contracts";
 import logger from "@/lib/logger";
-import { env } from "@/config";
 
 export function validate<T>(
 	schema: ZodType<T>,
@@ -64,15 +63,11 @@ export function validateResponse<T>(
 			"Response schema mismatch",
 		);
 
-		if (env.NODE_ENV !== "production") {
-			throw new AppError(
-				HTTP_STATUS.INTERNAL_SERVER_ERROR,
-				ERROR_CODES.INVALID_API_RESPONSE,
-				"Invalid response from API",
-			);
-		}
-
-		return res.status(status).json(data);
+		throw new AppError(
+			HTTP_STATUS.INTERNAL_SERVER_ERROR,
+			ERROR_CODES.INVALID_API_RESPONSE,
+			"Invalid response from API",
+		);
 	}
 
 	return res.status(status).json(result.data);

@@ -379,8 +379,8 @@ describe("Auth Endpoints", () => {
 		});
 		expect(locked?.lockedUntil).not.toBeNull();
 
-		// Right password while locked: the caller has proven they own the
-		// account, so we can tell them it's locked (and it still won't log in).
+		// Locked means locked: right or wrong password gets the same 429,
+		// otherwise the lock becomes a password oracle (429 = correct guess).
 		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -390,17 +390,13 @@ describe("Auth Endpoints", () => {
 		const data = (await res.json()) as any;
 		expect(data.error.code).toBe("ACCOUNT_LOCKED");
 
-		// Wrong password while locked: indistinguishable from any other failed
-		// login, so the lock can't be used to enumerate accounts.
 		const wrong = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: body("WrongPass123!"),
 		});
-		expect(wrong.status).toBe(401);
-		expect(((await wrong.json()) as any).error.code).toBe(
-			"INVALID_CREDENTIALS",
-		);
+		expect(wrong.status).toBe(429);
+		expect(((await wrong.json()) as any).error.code).toBe("ACCOUNT_LOCKED");
 	}, 45000);
 
 	test("POST /api/v1/auth/login - successful login resets failed attempts", async () => {

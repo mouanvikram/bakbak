@@ -228,41 +228,32 @@ export class AuthService {
 			);
 		}
 
-		// A live lockout refuses the login. Tell the caller the account is
-		// locked only if they actually supplied the right password — otherwise
-		// that message (and the 429) would be an account-enumeration oracle.
-		// Either way the password is still verified, so the timing matches a
+		// A live lockout refuses every login with the same response, correct
+		// password or not — branching on the password here would turn the
+		// lock into a password oracle (429 = "that guess was right").
+		// The hash is still verified and discarded so timing matches a
 		// normal wrong-password attempt.
 		if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
-			const passwordOk = await this.pwdService.verify(
-				dto.password,
-				user.passwordHash,
+			await this.pwdService.verify(dto.password, user.passwordHash);
+			const minutesLeft = Math.ceil(
+				(user.lockedUntil.getTime() - Date.now()) / 60_000,
 			);
-			if (passwordOk) {
-				const minutesLeft = Math.ceil(
-					(user.lockedUntil.getTime() - Date.now()) / 60_000,
-				);
-				throw new AppError(
-					HTTP_STATUS.TOO_MANY_REQUESTS,
-					ERROR_CODES.ACCOUNT_LOCKED,
-					`Too many failed attempts. Try again in ${minutesLeft} minute${
-						minutesLeft === 1 ? "" : "s"
-					}.`,
-				);
-			}
 			throw new AppError(
-				HTTP_STATUS.UNAUTHORIZED,
-				ERROR_CODES.INVALID_CREDENTIALS,
-				"Invalid credentials",
+				HTTP_STATUS.TOO_MANY_REQUESTS,
+				ERROR_CODES.ACCOUNT_LOCKED,
+				`Too many failed attempts. Try again in ${minutesLeft} minute${
+					minutesLeft === 1 ? "" : "s"
+				}.`,
 			);
 		}
 
 		// An expired lockout is stale state — clear it so this attempt starts
 		// with a fresh window.
+
 		if (user.lockedUntil) {
-			await this.userRepository.resetLoginFailures(user.id);
-			user.failedLoginAttempts = 0;
-			user.lockedUntil = null;
+			const fresh = await this.userRepository.resetLoginFailures(user.id);
+			user.failedLoginAttempts = fresh.failedLoginAttempts;
+			user.lockedUntil = fresh.lockedUntil;
 		}
 
 		const matches = await this.pwdService.verify(
@@ -270,13 +261,12 @@ export class AuthService {
 			user.passwordHash,
 		);
 
+		// this uses raw query to be atomic 
+		// to avoid concurrent bypass.
 		if (!matches) {
-			const failedAttempts = user.failedLoginAttempts + 1;
-			if (failedAttempts >= env.LOGIN_MAX_ATTEMPTS) {
-				await this.userRepository.lockLoginFor(user.id);
-			} else {
-				await this.userRepository.recordFailedLogin(user.id);
-			}
+			// One trip: the repository bumps the counter and engages the
+			// lockout in the same UPDATE when the threshold is crossed.
+			await this.userRepository.recordFailedLogin(user.id);
 
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
@@ -364,7 +354,6 @@ export class AuthService {
 			user: { id: userId, identifier: username },
 		};
 	}
-
 
 	async listSessions(
 		userId: string,
@@ -491,16 +480,13 @@ export class AuthService {
 		});
 
 		if (!record) {
-			// Atomic increment: each concurrent wrong guess gets its own accurate
-			// post-increment count, so a burst of parallel attempts can't all
-			// read the same stale counter and slip past the threshold.
-			const attempts = await this.userRepository.recordFailedTwoFactor(userId);
-			if (attempts >= TWO_FACTOR_MAX_ATTEMPTS) {
-				await this.userRepository.lockTwoFactorFor(
-					userId,
-					TWO_FACTOR_LOCKOUT_MS,
-				);
-			}
+			// One trip: counter bump + conditional lockout in a single UPDATE,
+			// so a burst of parallel wrong codes can't race the threshold.
+			await this.userRepository.recordFailedTwoFactor(
+				userId,
+				TWO_FACTOR_MAX_ATTEMPTS,
+				TWO_FACTOR_LOCKOUT_MS,
+			);
 
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
