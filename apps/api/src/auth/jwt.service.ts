@@ -42,8 +42,4 @@ export class JwtService {
 			clockTolerance: 30,
 		}) as T;
 	}
-
-	decodeJwt<T extends JwtPayload>(token: string): T | null {
-		return jwt.decode(token) as T;
-	}
 }

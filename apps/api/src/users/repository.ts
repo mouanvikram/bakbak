@@ -14,6 +14,12 @@ export class UserRepository {
 		});
 	}
 
+	async findActiveByEmail(email: string) {
+		return prisma.user.findFirst({
+			where: { email, deletedAt: null },
+		});
+	}
+
 	async findFirst(where: Prisma.UserWhereInput) {
 		return prisma.user.findFirst({
 			where,

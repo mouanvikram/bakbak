@@ -3,6 +3,7 @@ import { authController } from "../services/service.container";
 import { validate, validateUserId } from "../middleware/validate";
 import {
 	changePasswordRequestSchema,
+	disableTwoFactorRequestSchema,
 	enableTwoFactorRequestSchema,
 	forgotPasswordRequestSchema,
 	listSessionsRequestSchema,
@@ -11,8 +12,7 @@ import {
 	refreshTokenRequestSchema,
 	resendTwoFactorLoginRequestSchema,
 	resendVerificationRequestSchema,
-	resetPasswordBodySchema,
-	resetPasswordQuerySchema,
+	resetPasswordRequestSchema,
 	revokeOtherSessionsRequestSchema,
 	revokeSessionRequestSchema,
 	signUpRequestSchema,
@@ -50,7 +50,7 @@ router.post(
 );
 router.post(
 	"/verify-email",
-	validate(verifyEmailRequestSchema, "query"),
+	validate(verifyEmailRequestSchema),
 	authController.verifyEmail,
 );
 router.post(
@@ -74,8 +74,7 @@ router.post(
 
 router.post(
 	"/reset-password",
-	validate(resetPasswordQuerySchema, "query"),
-	validate(resetPasswordBodySchema),
+	validate(resetPasswordRequestSchema),
 	authController.resetPassword,
 );
 
@@ -110,6 +109,7 @@ router.post(
 	"/2fa/disable",
 	authMiddleware,
 	validateUserId(),
+	validate(disableTwoFactorRequestSchema),
 	authController.disableTwoFactor,
 );
 

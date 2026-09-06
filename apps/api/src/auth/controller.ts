@@ -19,13 +19,18 @@ import {
 	revokeSessionResponseSchema,
 } from "@bakbak/contracts";
 import type {
-	ResetPasswordBodyType,
-	ResetPasswordQueryType,
+	ChangePasswordRequestType,
+	ForgotPasswordRequestType,
+	LoginRequestType,
+	RefreshTokenRequestType,
+	ResendVerificationRequestType,
+	ResetPasswordRequestType,
 	SignUpRequestType,
 	VerifyEmailRequestType,
 	VerifyTwoFactorLoginRequestType,
 	ResendTwoFactorLoginRequestType,
 	EnableTwoFactorRequestType,
+	DisableTwoFactorRequestType,
 	RevokeSessionRequestType,
 } from "@bakbak/contracts";
 import { validateResponse } from "../middleware/validate";
@@ -66,7 +71,7 @@ export class AuthController {
 	login = async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const response = await this.authService.login(
-				req.body,
+				req.valid?.body as LoginRequestType,
 				req.headers["user-agent"],
 			);
 
@@ -201,7 +206,10 @@ export class AuthController {
 					"Authentication required",
 				);
 			}
-			const response = await this.authService.disableTwoFactor(userId);
+			const response = await this.authService.disableTwoFactor(
+				userId,
+				req.valid?.body as DisableTwoFactorRequestType,
+			);
 			return validateResponse(
 				res,
 				HTTP_STATUS.OK,
@@ -215,7 +223,7 @@ export class AuthController {
 
 	verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const { token } = req.valid?.query as VerifyEmailRequestType;
+			const { token } = req.valid?.body as VerifyEmailRequestType;
 			const result = await this.authService.verifyEmail({ token });
 
 			return validateResponse(res, 200, verifyEmailResponseSchema, result);
@@ -230,7 +238,9 @@ export class AuthController {
 		next: NextFunction,
 	) => {
 		try {
-			const response = await this.authService.resendVerificationEmail(req.body);
+			const response = await this.authService.resendVerificationEmail(
+				req.valid?.body as ResendVerificationRequestType,
+			);
 			return validateResponse(
 				res,
 				HTTP_STATUS.OK,
@@ -258,7 +268,7 @@ export class AuthController {
 
 			const response = await this.authService.changePassword(
 				req.user?.userId,
-				req.body,
+				req.valid?.body as ChangePasswordRequestType,
 			);
 
 			return validateResponse(
@@ -274,7 +284,9 @@ export class AuthController {
 
 	forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const response = await this.authService.forgotPassword(req.body);
+			const response = await this.authService.forgotPassword(
+				req.valid?.body as ForgotPasswordRequestType,
+			);
 
 			return validateResponse(
 				res,
@@ -289,8 +301,7 @@ export class AuthController {
 
 	resetPassword = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const { token } = req.valid?.query as ResetPasswordQueryType;
-			const { newPassword } = req.valid?.body as ResetPasswordBodyType;
+			const { token, newPassword } = req.valid?.body as ResetPasswordRequestType;
 
 			const response = await this.authService.resetPassword({
 				token,
@@ -329,7 +340,9 @@ export class AuthController {
 
 	refreshToken = async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const result = await this.authService.refreshAccessToken(req.body);
+			const result = await this.authService.refreshAccessToken(
+				req.valid?.body as RefreshTokenRequestType,
+			);
 
 			return validateResponse(
 				res,

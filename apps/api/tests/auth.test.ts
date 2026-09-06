@@ -23,6 +23,11 @@ import {
 	authHeader,
 	isDatabaseAvailable,
 } from "./helpers";
+import {
+	type AccessTokenPayload,
+	JwtService,
+} from "../src/auth/jwt.service";
+import { env } from "@/config";
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 
@@ -272,6 +277,28 @@ describe("Auth Endpoints", () => {
 		expect(data.user.id).toBe(user.id);
 	});
 
+	test("POST /api/v1/auth/login - normalizes a mixed-case/padded identifier before lookup", async () => {
+		const user = await createTestUser({
+			email: `mixedcase-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		// The login schema lowercases + trims the identifier; the controller
+		// must hand the service the *validated* value or this never applies.
+		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				identifier: `  ${user.email.toUpperCase()}  `,
+				password: "TestPass123!",
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.user.id).toBe(user.id);
+	});
+
 	test("POST /api/v1/auth/login - should fail with wrong password", async () => {
 		const user = await createTestUser({
 			email: `wrongpwd-${Date.now()}@example.com`,
@@ -342,19 +369,22 @@ describe("Auth Endpoints", () => {
 		expect(data.error.code).toBe("VALIDATION_ERROR");
 	});
 
-	test("POST /api/v1/auth/login - should fail with weak password", async () => {
+	test("POST /api/v1/auth/login - accepts a simple password (enumeration-independent)", async () => {
+		// Login validates an existing credential — no complexity rules. A
+		// simple (but non-empty, <= 128-char) password is valid input and flows
+		// to the normal auth path: unknown account -> uniform 401, NOT a
+		// validation error. This keeps the failure signaled identically whether
+		// the password is "weak" or a wrong-but-strong one.
 		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
-				identifier: `test-${Date.now()}@example.com`,
+				identifier: `simple-${Date.now()}@example.com`,
 				password: "weak",
 			}),
 		});
 
-		expect(res.status).toBe(400);
-		const data = (await res.json()) as any;
-		expect(data.error.code).toBe("VALIDATION_ERROR");
+		expect(res.status).toBe(401);
 	});
 
 	test("POST /api/v1/auth/login - should lock the account after repeated failures", async () => {
@@ -638,9 +668,23 @@ describe("Auth Endpoints", () => {
 			})
 		).json()) as any;
 
+		const wrong = await fetch(`${baseUrl()}/api/v1/auth/2fa/disable`, {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${verify.accessToken}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ password: "WrongPass123!" }),
+		});
+		expect(wrong.status).toBe(403);
+
 		const res = await fetch(`${baseUrl()}/api/v1/auth/2fa/disable`, {
 			method: "POST",
-			headers: { Authorization: `Bearer ${verify.accessToken}` },
+			headers: {
+				Authorization: `Bearer ${verify.accessToken}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ password: "TestPass123!" }),
 		});
 		expect(res.status).toBe(200);
 		expect(((await res.json()) as any).twoFactorEnabled).toBe(false);
@@ -677,10 +721,11 @@ describe("Auth Endpoints", () => {
 		});
 
 		const res = await fetch(
-			`${baseUrl()}/api/v1/auth/verify-email?token=${token}`,
+			`${baseUrl()}/api/v1/auth/verify-email`,
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token }),
 			},
 		);
 
@@ -698,6 +743,7 @@ describe("Auth Endpoints", () => {
 		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({}),
 		});
 
 		expect(res.status).toBe(400);
@@ -706,13 +752,11 @@ describe("Auth Endpoints", () => {
 	});
 
 	test("POST /api/v1/auth/verify-email - should fail with invalid token", async () => {
-		const res = await fetch(
-			`${baseUrl()}/api/v1/auth/verify-email?token=invalid-token-12345`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-			},
-		);
+		const res = await fetch(`${baseUrl()}/api/v1/auth/verify-email`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ token: "invalid-token-12345" }),
+		});
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
@@ -740,10 +784,11 @@ describe("Auth Endpoints", () => {
 		});
 
 		const res = await fetch(
-			`${baseUrl()}/api/v1/auth/verify-email?token=${token}`,
+			`${baseUrl()}/api/v1/auth/verify-email`,
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token }),
 			},
 		);
 
@@ -846,7 +891,7 @@ describe("Auth Endpoints", () => {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...authHeader(user.id, user.username),
+				...(await authHeader(user.id, user.username)),
 			},
 			body: JSON.stringify({
 				currentPassword: "WrongPass123!",
@@ -860,13 +905,27 @@ describe("Auth Endpoints", () => {
 	});
 
 	test("POST /api/v1/auth/change-password - should fail for non-existent user", async () => {
-		const header = authHeader(`user-${Date.now()}`, "testuser");
+		// A token whose `sid` references a session that doesn't exist: the auth
+		// middleware rejects it with a uniform 401 (no live session row).
+		const jwtService = new JwtService(env.JWT_SECRET, {
+			issuer: env.JWT_ISSUER,
+			audience: env.JWT_AUDIENCE,
+		});
+		const token = jwtService.signJwt<AccessTokenPayload>(
+			{
+				sub: crypto.randomUUID(),
+				username: "testuser",
+				sid: crypto.randomUUID(),
+				typ: "access",
+			},
+			{ expiresIn: "15m" },
+		);
 
 		const res = await fetch(`${baseUrl()}/api/v1/auth/change-password`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...header,
+				Authorization: `Bearer ${token}`,
 			},
 			body: JSON.stringify({
 				currentPassword: "TestPass123!",
@@ -874,7 +933,7 @@ describe("Auth Endpoints", () => {
 			}),
 		});
 
-		expect(res.status).toBe(404);
+		expect(res.status).toBe(401);
 		const data = (await res.json()) as any;
 		expect(data.error || data.message).toBeDefined();
 	});
@@ -936,11 +995,11 @@ describe("Auth Endpoints", () => {
 		});
 
 		const res = await fetch(
-			`${baseUrl()}/api/v1/auth/reset-password?token=${token}`,
+			`${baseUrl()}/api/v1/auth/reset-password`,
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ newPassword: "NewResetPass123!" }),
+				body: JSON.stringify({ token, newPassword: "NewResetPass123!" }),
 			},
 		);
 
@@ -959,14 +1018,14 @@ describe("Auth Endpoints", () => {
 	});
 
 	test("POST /api/v1/auth/reset-password - should fail with invalid token", async () => {
-		const res = await fetch(
-			`${baseUrl()}/api/v1/auth/reset-password?token=invalid-token-123`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ newPassword: "NewResetPass123!" }),
-			},
-		);
+		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				token: "invalid-token-123",
+				newPassword: "NewResetPass123!",
+			}),
+		});
 
 		expect(res.status).toBe(400);
 		const data = (await res.json()) as any;
@@ -994,11 +1053,11 @@ describe("Auth Endpoints", () => {
 		});
 
 		const res = await fetch(
-			`${baseUrl()}/api/v1/auth/reset-password?token=${token}`,
+			`${baseUrl()}/api/v1/auth/reset-password`,
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ newPassword: "NewResetPass123!" }),
+				body: JSON.stringify({ token, newPassword: "NewResetPass123!" }),
 			},
 		);
 
@@ -1028,11 +1087,11 @@ describe("Auth Endpoints", () => {
 		});
 
 		const res = await fetch(
-			`${baseUrl()}/api/v1/auth/reset-password?token=${token}`,
+			`${baseUrl()}/api/v1/auth/reset-password`,
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({}),
+				body: JSON.stringify({ token }),
 			},
 		);
 

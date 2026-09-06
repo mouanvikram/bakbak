@@ -16,7 +16,10 @@ export const loginRequestSchema = z.object({
 	// identifier is either a username or an email — both are stored lowercase
 	// (citext-backed), so normalize here too rather than relying on citext alone.
 	identifier: safeString(100, 4).trim().toLowerCase(),
-	password: passwordSchema,
+	// Login validates an existing credential, so apply no complexity rules
+	// here — they'd turn vary the error path (enumeration) and reject a
+	// legitimately-stored simple password. min(1)/max(128) guards the no-op.
+	password: safeString(128, 1),
 });
 
 export const loginResponseSchema = z.object({
@@ -105,6 +108,18 @@ export const enableTwoFactorRequestSchema = z.object({
 
 export type EnableTwoFactorRequestType = z.infer<
 	typeof enableTwoFactorRequestSchema
+>;
+
+/** `POST /auth/2fa/disable` — turning 2FA off proves the password, so a
+ * stolen session token alone can't downgrade the account. Like
+ * `changePassword`'s `currentPassword`, no complexity rules here — the
+ * value is verified, not created. */
+export const disableTwoFactorRequestSchema = z.object({
+	password: safeString(128, 1),
+});
+
+export type DisableTwoFactorRequestType = z.infer<
+	typeof disableTwoFactorRequestSchema
 >;
 
 // ─── Signup ────────────────────────────────────────────────────────

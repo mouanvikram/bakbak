@@ -34,6 +34,7 @@ import type {
 	ResendTwoFactorLoginRequestType,
 	ResendTwoFactorLoginResponseType,
 	EnableTwoFactorRequestType,
+	DisableTwoFactorRequestType,
 	TwoFactorStatusResponseType,
 	SetupTwoFactorResponseType,
 	ListSessionsResponseType,
@@ -590,7 +591,31 @@ export class AuthService {
 		};
 	}
 
-	async disableTwoFactor(userId: string): Promise<TwoFactorStatusResponseType> {
+	async disableTwoFactor(
+		userId: string,
+		dto: DisableTwoFactorRequestType,
+	): Promise<TwoFactorStatusResponseType> {
+		const user = await this.userRepository.findBy({ id: userId });
+		if (!user) {
+			throw new AppError(
+				HTTP_STATUS.NOT_FOUND,
+				ERROR_CODES.USER_NOT_FOUND,
+				"User does not exist",
+			);
+		}
+
+		const matches = await this.pwdService.verify(
+			dto.password,
+			user.passwordHash,
+		);
+		if (!matches) {
+			throw new AppError(
+				HTTP_STATUS.FORBIDDEN,
+				ERROR_CODES.INVALID_CREDENTIALS,
+				"Credentials do not match",
+			);
+		}
+
 		await this.settingsRepository.upsert(userId, { twoFactorEnabled: false });
 		await this.emailRepository.deleteAll({
 			userId,
@@ -637,9 +662,9 @@ export class AuthService {
 	): Promise<ResendVerificationResponseType> {
 		const email = dto.email;
 
-		const user = await this.userRepository.findBy({
-			email,
-		});
+		// Soft-deleted accounts are treated as non-existent: no verification
+		// link, no token minted, no email.
+		const user = await this.userRepository.findActiveByEmail(email);
 
 		const genericResponse: ResendVerificationResponseType = {
 			message:
@@ -842,9 +867,9 @@ export class AuthService {
 	async forgotPassword(
 		dto: ForgotPasswordRequestType,
 	): Promise<ForgotPasswordResponseType> {
-		const user = await this.userRepository.findBy({
-			email: dto.email,
-		});
+		// Soft-deleted accounts are treated as non-existent: no reset link,
+		// no token minted, no email.
+		const user = await this.userRepository.findActiveByEmail(dto.email);
 		const genericResponse: ForgotPasswordResponseType = {
 			message: "If an account exists, reset link is sent to the email.",
 		};
@@ -903,6 +928,17 @@ export class AuthService {
 		});
 
 		if (!token) {
+			throw new AppError(
+				HTTP_STATUS.BAD_REQUEST,
+				ERROR_CODES.INVALID_OR_EXPIRED_RESET_TOKEN,
+				"Invalid or expired token",
+			);
+		}
+
+		// A soft-deleted account must not be recoverable via its email token —
+		// treat it like an invalid token so the reset link can't revive it.
+		const user = await this.userRepository.findActiveById(token.userId);
+		if (!user) {
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
 				ERROR_CODES.INVALID_OR_EXPIRED_RESET_TOKEN,
