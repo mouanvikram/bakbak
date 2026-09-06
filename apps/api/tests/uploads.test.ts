@@ -281,9 +281,11 @@ describe("Uploads Endpoints", () => {
 			});
 			const { attachment } = (await upload.json()) as any;
 
+			// An unsent upload is readable only by its owner (see the sibling
+			// test); fetching it back should hand the owner a fresh signed URL.
 			const res = await fetch(
 				`${baseUrl()}/api/v1/uploads/${attachment.id}`,
-				{ headers: await authHeader(userB.id, userB.username) },
+				{ headers: await authHeader(userA.id, userA.username) },
 			);
 
 			expect(res.status).toBe(200);
