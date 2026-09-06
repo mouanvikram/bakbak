@@ -15,6 +15,14 @@ export class EmailService {
 		subject: string;
 		html: string;
 	}): Promise<void> {
+		// Hard stop: tests must never reach the real provider (it bills, and
+		// non-prod mail is redirected to a personal inbox). Tests also replace
+		// this class wholesale via tests/mocks/email-service — this is a backstop.
+		if (env.NODE_ENV === "test") {
+			logger.warn({ subject: dto.subject }, "sendEmail skipped (test env)");
+			return;
+		}
+
 		const recipient = env.NODE_ENV === "production" ? (dto.to ?? DEV_EMAIL) : DEV_EMAIL;
 
 		try {
