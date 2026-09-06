@@ -6,6 +6,7 @@ import type {
   ResendTwoFactorLoginRequestType,
   ResendTwoFactorLoginResponseType,
   EnableTwoFactorRequestType,
+  DisableTwoFactorRequestType,
   SetupTwoFactorResponseType,
   TwoFactorStatusResponseType,
   SignUpRequestType,
@@ -67,8 +68,13 @@ export function enableTwoFactor(
   });
 }
 
-export function disableTwoFactor(): Promise<TwoFactorStatusResponseType> {
-  return apiClient("/api/v1/auth/2fa/disable", { method: "POST" });
+export function disableTwoFactor(
+  data: DisableTwoFactorRequestType,
+): Promise<TwoFactorStatusResponseType> {
+  return apiClient("/api/v1/auth/2fa/disable", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 // Refresh token is sent only as a fallback for identifying the current session.
@@ -126,8 +132,9 @@ export function signup(
 }
 
 export function verifyEmail(token: string): Promise<{ message: string }> {
-  return apiClient(`/api/v1/auth/verify-email?token=${token}`, {
+  return apiClient("/api/v1/auth/verify-email", {
     method: "POST",
+    body: JSON.stringify({ token }),
   });
 }
 
@@ -162,9 +169,9 @@ export function resetPassword(
   token: string,
   data: { newPassword: string },
 ): Promise<{ message: string }> {
-  return apiClient(`/api/v1/auth/reset-password?token=${encodeURIComponent(token)}`, {
+  return apiClient("/api/v1/auth/reset-password", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, token }),
   });
 }
 

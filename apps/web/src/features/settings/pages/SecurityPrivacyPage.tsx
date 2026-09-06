@@ -28,6 +28,7 @@ export function SecurityPrivacyPage() {
     note: string | null;
   } | null>(null);
   const [twoFactorError, setTwoFactorError] = useState("");
+  const [disablePassword, setDisablePassword] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
@@ -39,12 +40,17 @@ export function SecurityPrivacyPage() {
   async function handleToggleTwoFactor() {
     setTwoFactorError("");
     if (twoFactor) {
-      // Turning it off — no code needed, the session is proof enough.
+      // Turning it off proves the password — a session token alone is not enough.
+      if (!disablePassword) {
+        setTwoFactorError("Enter your current password to turn off 2FA.");
+        return;
+      }
       setTwoFactorSaving(true);
       try {
-        const res = await disableTwoFactor();
+        const res = await disableTwoFactor({ password: disablePassword });
         setTwoFactor(res.twoFactorEnabled);
         setTwoFactorSetup(null);
+        setDisablePassword("");
       } catch (err) {
         setTwoFactorError(
           err instanceof Error ? err.message : "Couldn't disable 2FA",
@@ -173,6 +179,19 @@ export function SecurityPrivacyPage() {
                 onChange={() => handleToggleTwoFactor()}
               />
             </div>
+
+            {twoFactor && !twoFactorSetup && (
+              <label className="flex flex-col gap-2 border-t border-gray-100 pt-4">
+                <span className="text-sm font-semibold text-gray-900">Current password</span>
+                <input
+                  type="password"
+                  value={disablePassword}
+                  onChange={(e) => setDisablePassword(e.target.value)}
+                  className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                  placeholder="Required to turn off 2FA"
+                />
+              </label>
+            )}
 
             {twoFactorSetup && (
               <div className="flex flex-col gap-3 border-t border-gray-100 pt-4">
