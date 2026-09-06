@@ -42,7 +42,7 @@ export class RefreshTokenRepository {
 		});
 	}
 
-	/** Live (unrevoked) sessions for a user, newest first — the Devices page. */
+	// Live (unrevoked) sessions for a user, newest first — the Devices page.
 	async findActiveSessionsByUser(userId: string) {
 		return await prisma.session.findMany({
 			where: { userId, revokedAt: null },
@@ -67,27 +67,15 @@ export class RefreshTokenRepository {
 		return result;
 	}
 
-	/**
-	 * Revoke every live session (and its tokens) for a user, keeping one.
-	 * A null `keepSessionId` (e.g. the caller's own token predates session
-	 * tracking) revokes everything.
-	 */
-	async revokeAllSessionsExceptForUser(userId: string, keepSessionId: string | null) {
+	/** Revoke every live session (and its tokens) for a user except the current one. */
+	async revokeAllSessionsExceptForUser(userId: string, keepSessionId: string) {
 		await prisma.session.updateMany({
-			where: {
-				userId,
-				revokedAt: null,
-				...(keepSessionId ? { id: { not: keepSessionId } } : {}),
-			},
+			where: { userId, revokedAt: null, id: { not: keepSessionId } },
 			data: { revokedAt: new Date() },
 		});
 
 		await prisma.refreshToken.updateMany({
-			where: {
-				userId,
-				revokedAt: null,
-				...(keepSessionId ? { sessionId: { not: keepSessionId } } : {}),
-			},
+			where: { userId, revokedAt: null, sessionId: { not: keepSessionId } },
 			data: { revokedAt: new Date() },
 		});
 	}

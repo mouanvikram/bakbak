@@ -28,7 +28,6 @@ import type {
 	VerifyEmailResponseType,
 	RefreshTokenRequestType,
 	RefreshTokenResponseType,
-	LogoutRequestType,
 	LogoutResponseType,
 	LoginOutcomeType,
 	VerifyTwoFactorLoginRequestType,
@@ -51,6 +50,12 @@ import {
 } from "../uploads/file-type";
 
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+
+// A real argon2id hash (of a throwaway value) verified against on the
+// user-not-found login path, so "no such account" costs the same wall-clock
+// time as "wrong password" and can't be told apart by response timing.
+const DUMMY_PASSWORD_HASH =
+	"$argon2id$v=19$m=65536,t=3,p=1$O33CfCzMnDsgKMk96pdnpiDwdAHBcp0kBtscfTiFe5E$RGazuyPBViMxQ/tuHPhhiz3lPxuoIf8FnCMGZDaDLlM";
 
 // How long an emailed 6-digit 2FA code stays valid.
 const TWO_FACTOR_CODE_TTL_MINUTES = 10;
@@ -78,78 +83,6 @@ export class AuthService {
 		private readonly uploadRepository: UploadRepository,
 		private readonly settingsRepository: SettingsRepository,
 	) {}
-
-	async register(
-		dto: SignUpRequestType,
-		avatarFile?: UploadFile,
-	): Promise<SignUpResponseType> {
-		const userExists = await this.userRepository.findFirst({
-			OR: [{ username: dto.username }, { email: dto.email }],
-		});
-
-		if (userExists) {
-			throw new AppError(
-				HTTP_STATUS.CONFLICT,
-				ERROR_CODES.ACCOUNT_ALREADY_EXISTS,
-				"Username or email already in use",
-			);
-		}
-
-		const hashedPassword = await this.pwdService.hash(dto.password);
-
-		// The avatar rides along with the signup request, so it is only written
-		// once we know the signup is valid — nothing is retained for abandoned
-		// signups.
-		const avatarUrl =
-			(await this.resolveAvatar(avatarFile)) ?? dto.avatarUrl ?? null;
-
-		const token = crypto.randomBytes(32).toString("hex");
-		const hashedToken = this.hashToken(token);
-
-		const user = await this.userRepository.create({
-			username: dto.username,
-			email: dto.email,
-			passwordHash: hashedPassword,
-			profile: {
-				create: {
-					firstName: titleCaseName(dto.firstname),
-					lastName: titleCaseName(dto.lastname),
-					avatar: avatarUrl,
-					displayName: titleCaseName(dto.displayname),
-					bio: dto.bio,
-				},
-			},
-			verification: {
-				create: {
-					tokenHash: hashedToken,
-					type: VerificationTokenType.EMAIL_VERIFICATION,
-					expiresAt: new Date(Date.now() + 1000 * 60 * 60),
-				},
-			},
-		});
-
-		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
-
-		// Best-effort: the user and token are already persisted, so a delivery
-		// failure must not fail the request — the client can use
-		// resend-verification instead of hitting a 500 with a zombie account.
-		try {
-			await this.emailService.sendVerificationEmail({
-				email: user.email,
-				username: user.username,
-				url,
-			});
-		} catch (error) {
-			logger.error(
-				{ err: error, userId: user.id },
-				"Failed to send verification email",
-			);
-		}
-
-		return {
-			message: "Verification email sent successfully",
-		} as SignUpResponseType;
-	}
 
 	/**
 	 * Writes the avatar uploaded alongside signup to object storage + the
@@ -198,6 +131,82 @@ export class AuthService {
 		return crypto.createHash("sha256").update(value).digest("hex");
 	}
 
+	private generateToken(): string {
+		return crypto.randomBytes(32).toString("hex");
+	}
+
+	async register(
+		dto: SignUpRequestType,
+		avatarFile?: UploadFile,
+	): Promise<SignUpResponseType> {
+		const userExists = await this.userRepository.findFirst({
+			OR: [{ username: dto.username }, { email: dto.email }],
+		});
+
+		if (userExists) {
+			throw new AppError(
+				HTTP_STATUS.CONFLICT,
+				ERROR_CODES.ACCOUNT_ALREADY_EXISTS,
+				"Username or email already in use",
+			);
+		}
+
+		const hashedPassword = await this.pwdService.hash(dto.password);
+
+		// The avatar rides along with the signup request, so it is only written
+		// once we know the signup is valid — nothing is retained for abandoned
+		// signups.
+		const avatarUrl =
+			(await this.resolveAvatar(avatarFile)) ?? dto.avatarUrl ?? null;
+
+		const token = this.generateToken();
+		const hashedToken = this.hashToken(token);
+
+		const user = await this.userRepository.create({
+			username: dto.username,
+			email: dto.email,
+			passwordHash: hashedPassword,
+			profile: {
+				create: {
+					firstName: titleCaseName(dto.firstname),
+					lastName: titleCaseName(dto.lastname),
+					avatar: avatarUrl,
+					displayName: titleCaseName(dto.displayname),
+					bio: dto.bio,
+				},
+			},
+			verification: {
+				create: {
+					tokenHash: hashedToken,
+					type: VerificationTokenType.EMAIL_VERIFICATION,
+					expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+				},
+			},
+		});
+
+		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
+
+		// Best-effort: the user and token are already persisted, so a delivery
+		// failure must not fail the request — the client can use
+		// resend-verification instead of hitting a 500 with a zombie account.
+		try {
+			await this.emailService.sendVerificationEmail({
+				email: user.email,
+				username: user.username,
+				url,
+			});
+		} catch (error) {
+			logger.error(
+				{ err: error, userId: user.id },
+				"Failed to send verification email",
+			);
+		}
+
+		return {
+			message: "Verification email sent successfully",
+		} as SignUpResponseType;
+	}
+
 	async login(
 		dto: LoginRequestType,
 		userAgent?: string,
@@ -208,6 +217,10 @@ export class AuthService {
 		});
 
 		if (!user) {
+			// Burn the same time a real password check would, so the response
+			// time can't be used to enumerate which identifiers exist.
+			await this.pwdService.verify(dto.password, DUMMY_PASSWORD_HASH);
+
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
 				ERROR_CODES.INVALID_CREDENTIALS,
@@ -215,18 +228,38 @@ export class AuthService {
 			);
 		}
 
-		// Reject attempts while the account is locked (checked before the
-		// password round-trip to avoid burning CPU on a locked account).
-		if (user.lockedUntil) {
-			if (user.lockedUntil.getTime() > Date.now()) {
+		// A live lockout refuses the login. Tell the caller the account is
+		// locked only if they actually supplied the right password — otherwise
+		// that message (and the 429) would be an account-enumeration oracle.
+		// Either way the password is still verified, so the timing matches a
+		// normal wrong-password attempt.
+		if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+			const passwordOk = await this.pwdService.verify(
+				dto.password,
+				user.passwordHash,
+			);
+			if (passwordOk) {
+				const minutesLeft = Math.ceil(
+					(user.lockedUntil.getTime() - Date.now()) / 60_000,
+				);
 				throw new AppError(
 					HTTP_STATUS.TOO_MANY_REQUESTS,
 					ERROR_CODES.ACCOUNT_LOCKED,
-					"Too many failed attempts. Account is temporarily locked.",
+					`Too many failed attempts. Try again in ${minutesLeft} minute${
+						minutesLeft === 1 ? "" : "s"
+					}.`,
 				);
 			}
-			// Lockout has expired — clear the stale state so the user
-			// gets a fresh attempt window.
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_CREDENTIALS,
+				"Invalid credentials",
+			);
+		}
+
+		// An expired lockout is stale state — clear it so this attempt starts
+		// with a fresh window.
+		if (user.lockedUntil) {
 			await this.userRepository.resetLoginFailures(user.id);
 			user.failedLoginAttempts = 0;
 			user.lockedUntil = null;
@@ -285,13 +318,12 @@ export class AuthService {
 	// sessionId stays stable across every rotation of this login and rides in the
 	// access token's `sid` claim, so revoking a session can drop its live sockets.
 	// `existingSessionId` is set only when rotating an already-issued refresh
-	// token; a fresh login (or a legacy pre-session token being rotated for the
-	// first time since this feature shipped) always starts a brand new Session.
+	// token; a fresh login always starts a brand new Session.
 	private async issueTokens(
 		userId: string,
 		username: string,
 		userAgent?: string | null,
-		existingSessionId?: string | null,
+		existingSessionId?: string,
 	): Promise<LoginResponseType> {
 		const expiresAt = new Date(
 			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
@@ -316,7 +348,7 @@ export class AuthService {
 			{ expiresIn: "15m" },
 		);
 
-		const refreshTokenValue = crypto.randomBytes(32).toString("hex");
+		const refreshTokenValue = this.generateToken();
 		const refreshTokenHash = this.hashToken(refreshTokenValue);
 
 		await this.refreshTokenRepository.create({
@@ -333,23 +365,13 @@ export class AuthService {
 		};
 	}
 
-	// ─── Active sessions (Devices page) ───────────────────────────────
 
 	async listSessions(
 		userId: string,
-		opts: { sessionId?: string; refreshToken?: string },
+		currentSessionId?: string,
 	): Promise<ListSessionsResponseType> {
 		const sessions =
 			await this.refreshTokenRepository.findActiveSessionsByUser(userId);
-
-		let currentKey = opts.sessionId ?? null;
-		if (!currentKey && opts.refreshToken) {
-			const found = await this.refreshTokenRepository.findFirst({
-				tokenHash: this.hashToken(opts.refreshToken),
-				userId,
-			});
-			currentKey = found?.sessionId ?? null;
-		}
 
 		return {
 			sessions: sessions.map((s) => ({
@@ -359,7 +381,7 @@ export class AuthService {
 				// Every session created by issueTokens() always sets expiresAt;
 				// the fallback only matters for a hand-inserted/backfilled row.
 				expiresAt: (s.expiresAt ?? s.createdAt).toISOString(),
-				current: s.id === currentKey,
+				current: s.id === currentSessionId,
 			})),
 		};
 	}
@@ -385,27 +407,20 @@ export class AuthService {
 
 	async revokeOtherSessions(
 		userId: string,
-		opts: { sessionId?: string; refreshToken?: string },
+		currentSessionId: string,
 	): Promise<RevokeSessionResponseType> {
-		let keep = opts.sessionId ?? null;
-		if (!keep && opts.refreshToken) {
-			const row = await this.refreshTokenRepository.findFirst({
-				tokenHash: this.hashToken(opts.refreshToken),
-				userId,
-			});
-			// A null sessionId here means the caller's own current token predates
-			// session tracking; there's no Session id left to spare it by, so
-			// this falls through to "revoke everything" — acceptable since such
-			// access tokens are short-lived (15 min) and this self-resolves.
-			keep = row?.sessionId ?? null;
-		}
-
 		await this.refreshTokenRepository.revokeAllSessionsExceptForUser(
 			userId,
-			keep,
+			currentSessionId,
 		);
-		await disconnectSockets({ userId, keepSessionId: keep });
+		await disconnectSockets({ userId, keepSessionId: currentSessionId });
 		return { message: "Other sessions ended" };
+	}
+
+	async revokeAllSessions(userId: string): Promise<RevokeSessionResponseType> {
+		await this.refreshTokenRepository.revokeAllSessionsForUser(userId);
+		await disconnectSockets({ userId });
+		return { message: "Signed out on all devices" };
 	}
 
 	// ─── Two-factor authentication ────────────────────────────────────
@@ -419,7 +434,7 @@ export class AuthService {
 		email: string,
 	): Promise<void> {
 		const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
-		const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+		const codeHash = this.hashToken(code);
 
 		await this.emailRepository.deleteAll({
 			userId,
@@ -466,7 +481,7 @@ export class AuthService {
 			);
 		}
 
-		const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+		const codeHash = this.hashToken(code);
 
 		const record = await this.emailRepository.findBy({
 			userId,
@@ -606,8 +621,7 @@ export class AuthService {
 		dto: VerifyEmailRequestType,
 	): Promise<VerifyEmailResponseType> {
 		const token = dto.token;
-
-		const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+		const hashedToken = this.hashToken(token);
 
 		const verification = await this.emailRepository.findBy({
 			tokenHash: hashedToken,
@@ -659,8 +673,8 @@ export class AuthService {
 			type: VerificationTokenType.EMAIL_VERIFICATION,
 		});
 
-		const token = crypto.randomBytes(32).toString("hex");
-		const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+		const token = this.generateToken();
+		const hashedToken = this.hashToken(token);
 
 		await this.emailRepository.create({
 			tokenHash: hashedToken,
@@ -738,42 +752,26 @@ export class AuthService {
 			},
 		);
 
+		// revoke every session on password change.
+		await this.refreshTokenRepository.revokeAllSessionsForUser(user.id);
+		await disconnectSockets({ userId });
+
 		return {
 			message: "Password changed successfully",
 		};
 	}
 
+	// Ends just the caller's own session. "Sign out on all devices" is a
+	// separate action — see revokeAllSessions.
 	async logout(
 		userId: string,
-		dto: LogoutRequestType,
+		currentSessionId: string,
 	): Promise<LogoutResponseType> {
-		if (dto.refreshToken) {
-			// Log out this one session.
-			const stored = await this.refreshTokenRepository.findFirst({
-				tokenHash: this.hashToken(dto.refreshToken),
-				userId,
-			});
-
-			if (stored && !stored.revokedAt) {
-				if (stored.sessionId) {
-					await this.refreshTokenRepository.revokeSessionForUser(
-						userId,
-						stored.sessionId,
-					);
-					await disconnectSockets({
-						userId,
-						sessionIds: [stored.sessionId],
-					});
-				} else {
-					// Legacy token with no Session to revoke as a unit.
-					await this.refreshTokenRepository.revoke(stored.id);
-				}
-			}
-		} else {
-			// Log out everywhere.
-			await this.refreshTokenRepository.revokeAllSessionsForUser(userId);
-			await disconnectSockets({ userId });
-		}
+		await this.refreshTokenRepository.revokeSessionForUser(
+			userId,
+			currentSessionId,
+		);
+		await disconnectSockets({ userId, sessionIds: [currentSessionId] });
 
 		return { message: "Logged out successfully" };
 	}
@@ -799,11 +797,6 @@ export class AuthService {
 		}
 
 		if (stored.revokedAt) {
-			// Refresh tokens are single-use — revoked the instant they're rotated.
-			// Seeing one again means it was replayed after rotation: either a
-			// stolen token or a client bug. Either way this token's holder is no
-			// longer trusted, so kill every session on the account rather than
-			// just this one.
 			logger.warn(
 				{ userId: stored.userId, sessionId: stored.sessionId },
 				"Refresh token reuse detected — revoking all sessions",
@@ -814,7 +807,7 @@ export class AuthService {
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
 				ERROR_CODES.REFRESH_TOKEN_REUSE_DETECTED,
-				"Refresh token reuse detected. All sessions have been revoked for your protection.",
+				"Unauthorized access detected. All sessions have been revoked for your protection.",
 			);
 		}
 
@@ -845,7 +838,7 @@ export class AuthService {
 			user.id,
 			user.username,
 			null,
-			stored.sessionId,
+			stored.sessionId ?? undefined,
 		);
 
 		return { accessToken, refreshToken };
@@ -869,8 +862,8 @@ export class AuthService {
 			type: VerificationTokenType.PASSWORD_RESET,
 		});
 
-		const token = crypto.randomBytes(32).toString("hex");
-		const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+		const token = this.generateToken();
+		const tokenHash = this.hashToken(token);
 
 		await this.emailRepository.create({
 			tokenHash,
@@ -932,6 +925,11 @@ export class AuthService {
 			passwordHash,
 			token.id,
 		);
+
+		// Account-recovery path: kill every existing session so a compromised
+		// login can't outlive the password it was signed in with.
+		await this.refreshTokenRepository.revokeAllSessionsForUser(token.userId);
+		await disconnectSockets({ userId: token.userId });
 
 		return {
 			message: "Password reset successful",

@@ -221,9 +221,8 @@ export type RefreshTokenResponseType = z.infer<
 	typeof refreshTokenResponseSchema
 >;
 
-export const logoutRequestSchema = z.object({
-	refreshToken: refreshTokenSchema.optional(),
-});
+// Logout ends the session the access token belongs to — nothing to pass.
+export const logoutRequestSchema = z.object({});
 
 export const logoutResponseSchema = okResponseSchema;
 
@@ -243,11 +242,8 @@ export const sessionSchema = z.object({
 
 export type SessionType = z.infer<typeof sessionSchema>;
 
-// refreshToken is only a fallback identifier for the current session, for
-// tokens minted before the access token carried a `sid` claim.
-export const listSessionsRequestSchema = z.object({
-	refreshToken: refreshTokenSchema.optional(),
-});
+// The current session is identified by the access token's `sid` claim.
+export const listSessionsRequestSchema = z.object({});
 
 export type ListSessionsRequestType = z.infer<
 	typeof listSessionsRequestSchema
@@ -269,9 +265,7 @@ export type RevokeSessionRequestType = z.infer<
 	typeof revokeSessionRequestSchema
 >;
 
-export const revokeOtherSessionsRequestSchema = z.object({
-	refreshToken: refreshTokenSchema.optional(),
-});
+export const revokeOtherSessionsRequestSchema = z.object({});
 
 export type RevokeOtherSessionsRequestType = z.infer<
 	typeof revokeOtherSessionsRequestSchema

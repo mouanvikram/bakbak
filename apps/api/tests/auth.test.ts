@@ -379,6 +379,8 @@ describe("Auth Endpoints", () => {
 		});
 		expect(locked?.lockedUntil).not.toBeNull();
 
+		// Right password while locked: the caller has proven they own the
+		// account, so we can tell them it's locked (and it still won't log in).
 		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -387,6 +389,18 @@ describe("Auth Endpoints", () => {
 		expect(res.status).toBe(429);
 		const data = (await res.json()) as any;
 		expect(data.error.code).toBe("ACCOUNT_LOCKED");
+
+		// Wrong password while locked: indistinguishable from any other failed
+		// login, so the lock can't be used to enumerate accounts.
+		const wrong = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: body("WrongPass123!"),
+		});
+		expect(wrong.status).toBe(401);
+		expect(((await wrong.json()) as any).error.code).toBe(
+			"INVALID_CREDENTIALS",
+		);
 	}, 45000);
 
 	test("POST /api/v1/auth/login - successful login resets failed attempts", async () => {
@@ -1346,19 +1360,20 @@ describe("Auth Endpoints", () => {
 
 	// ── Logout ───────────────────────────────────────────────────────
 
-	test("POST /api/v1/auth/logout - should revoke all tokens without body", async () => {
+	test("POST /api/v1/auth/logout - ends only the caller's session, not the others", async () => {
 		const user = await createTestUser({
-			email: `logoutall-${Date.now()}@example.com`,
+			email: `logoutcurrent-${Date.now()}@example.com`,
 			isEmailVerified: true,
 		});
 
-		const loginData = await loginAs(user.email);
+		const here = await loginAs(user.email);
+		const elsewhere = await loginAs(user.email);
 
 		const res = await fetch(`${baseUrl()}/api/v1/auth/logout`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${loginData.accessToken}`,
+				Authorization: `Bearer ${here.accessToken}`,
 			},
 			body: JSON.stringify({}),
 		});
@@ -1367,38 +1382,19 @@ describe("Auth Endpoints", () => {
 		const data = (await res.json()) as any;
 		expect(data.message).toBe("Logged out successfully");
 
-		const tokens = await prisma.refreshToken.findMany({
-			where: { userId: user.id },
+		// This session's refresh token is dead…
+		const mine = await prisma.refreshToken.findFirst({
+			where: { tokenHash: hashToken(here.refreshToken) },
 		});
-		expect(tokens.length).toBeGreaterThan(0);
-		expect(tokens.every((t) => t.revokedAt !== null)).toBe(true);
-	});
+		expect(mine?.revokedAt).not.toBeNull();
 
-	test("POST /api/v1/auth/logout - should revoke a specific refresh token", async () => {
-		const user = await createTestUser({
-			email: `logoutspecific-${Date.now()}@example.com`,
-			isEmailVerified: true,
-		});
-
-		const loginData = await loginAs(user.email);
-
-		const res = await fetch(`${baseUrl()}/api/v1/auth/logout`, {
+		// …the other session still works.
+		const stillGood = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
 			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${loginData.accessToken}`,
-			},
-			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: elsewhere.refreshToken }),
 		});
-
-		expect(res.status).toBe(200);
-		const data = (await res.json()) as any;
-		expect(data.message).toBe("Logged out successfully");
-
-		const token = await prisma.refreshToken.findFirst({
-			where: { tokenHash: hashToken(loginData.refreshToken) },
-		});
-		expect(token?.revokedAt).not.toBeNull();
+		expect(stillGood.status).toBe(200);
 	});
 
 	test("POST /api/v1/auth/logout - revoked refresh token should not be usable", async () => {

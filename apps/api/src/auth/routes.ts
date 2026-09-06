@@ -135,5 +135,12 @@ router.post(
 	validate(revokeOtherSessionsRequestSchema),
 	authController.revokeOtherSessions,
 );
+router.post(
+	"/sessions/revoke-all",
+	authMiddleware,
+	validateUserId(),
+	validate(revokeOtherSessionsRequestSchema),
+	authController.revokeAllSessions,
+);
 
 export default router;
