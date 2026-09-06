@@ -56,7 +56,7 @@ const getChatInclude = (messageTake = 1) =>
 		},
 		messages: {
 			where: {
-				deleted: false,
+				deletedAt: null,
 			},
 			orderBy: {
 				createdAt: "desc",

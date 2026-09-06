@@ -17,7 +17,7 @@ export class UploadRepository {
 	async findByIdWithChat(id: string) {
 		return await prisma.attachment.findUnique({
 			where: { id },
-			include: { message: { select: { chatId: true, deleted: true } } },
+			include: { message: { select: { chatId: true, deletedAt: true } } },
 		});
 	}
 

@@ -54,7 +54,7 @@ export class UploadService {
 
 		// A soft-deleted message's attachment is gone as far as any reader is
 		// concerned, chat membership included.
-		if (attachment.message?.deleted) {
+		if (attachment.message?.deletedAt) {
 			throw new AppError(
 				HTTP_STATUS.NOT_FOUND,
 				ERROR_CODES.ATTACHMENT_NOT_FOUND,
