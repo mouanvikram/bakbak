@@ -40,8 +40,8 @@ export class UserController {
 	};
 
 	updateMe = async (req: AuthRequest, res: Response) => {
-		const { username, bio, firstName, lastName, displayName } =
-			req.valid?.body as UpdateProfileRequestType;
+		const { username, bio, firstName, lastName, displayName } = req.valid
+			?.body as UpdateProfileRequestType;
 		const userId = req.user?.userId;
 
 		if (!userId) {
@@ -127,9 +127,11 @@ export class UserController {
 				"Enter a valid user id",
 			);
 		}
+
 		await this.userService.deleteMe({
 			userId,
 		});
+
 
 		return validateResponse(res, 200, deleteMeResponseSchema, {
 			message: "Account Deleted successfully",
@@ -161,7 +163,12 @@ export class UserController {
 			currentUserId,
 		});
 
-		return validateResponse(res, 200, getProfileResponseSchema, otherUserProfile);
+		return validateResponse(
+			res,
+			200,
+			getProfileResponseSchema,
+			otherUserProfile,
+		);
 	};
 
 	checkUsername = async (req: AuthRequest, res: Response) => {

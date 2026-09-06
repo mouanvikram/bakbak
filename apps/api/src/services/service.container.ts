@@ -58,6 +58,7 @@ export const userService = new UserService(
 	userRepository,
 	storageProvider,
 	friendRepository,
+	refreshTokenRepository,
 );
 export const userController = new UserController(userService);
 

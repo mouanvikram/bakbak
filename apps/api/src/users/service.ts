@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { Prisma } from "@bakbak/db";
 import type { UserRepository } from "./repository";
 import type { FriendRepository } from "../friends/repository";
+import type { RefreshTokenRepository } from "../auth/refresh-token.repository";
+import { disconnectSockets } from "../websocket/emitter";
 import type { StorageProvider } from "../uploads/storage.provider";
 import type {
 	CheckUsernameRequestType,
@@ -40,6 +42,7 @@ export class UserService {
 		private userRepository: UserRepository,
 		private readonly storageProvider: StorageProvider,
 		private readonly friendRepository: FriendRepository,
+		private readonly refreshTokenRepository: RefreshTokenRepository,
 	) {}
 
 	async getMe(dto: UserIdType): Promise<GetMeResponseType> {
@@ -256,11 +259,14 @@ export class UserService {
 		}
 
 		// Soft delete only: nothing is removed, and messages they sent are left
-		// untouched — only a message the user explicitly deleted carries its own
-		// deletedAt. The account itself is just stamped deletedAt. A later pass
-		// can transition this into an unidentifiable (anonymized) user; that
-		// step isn't part of this one.
+
 		await this.userRepository.markDeleted(dto.userId);
+
+		// A deleted account must not keep calling the API: revoke every
+		// session (and its refresh tokens) 
+
+		await this.refreshTokenRepository.revokeAllSessionsForUser(dto.userId);
+		await disconnectSockets({ userId: dto.userId });
 
 		return {
 			message: "Account Deleted Successfully",

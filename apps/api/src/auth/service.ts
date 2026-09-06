@@ -261,7 +261,7 @@ export class AuthService {
 			user.passwordHash,
 		);
 
-		// this uses raw query to be atomic 
+		// this uses raw query to be atomic
 		// to avoid concurrent bypass.
 		if (!matches) {
 			// One trip: the repository bumps the counter and engages the
@@ -765,10 +765,7 @@ export class AuthService {
 	async refreshAccessToken(
 		dto: RefreshTokenRequestType,
 	): Promise<RefreshTokenResponseType> {
-		const tokenHash = crypto
-			.createHash("sha256")
-			.update(dto.refreshToken)
-			.digest("hex");
+		const tokenHash = this.hashToken(dto.refreshToken);
 
 		const stored = await this.refreshTokenRepository.findFirst({
 			tokenHash,
@@ -805,20 +802,32 @@ export class AuthService {
 			);
 		}
 
-		// Revoke the old token (rotation)
-		await this.refreshTokenRepository.revoke(stored.id);
+		// The session itself must still be live — the token row alone isn't
+		// enough (logout/revoke-all stamp both, but only the session is the
+		// authority the middleware also enforces). Uniform error either way.
+		const session = stored.sessionId
+			? await this.refreshTokenRepository.findSessionById(stored.sessionId)
+			: null;
+		if (!session || session.revokedAt || session.userId !== stored.userId) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.INVALID_REFRESH_TOKEN,
+				"Invalid refresh token",
+			);
+		}
 
-		const user = await this.userRepository.findBy({
-			id: stored.userId,
-		});
-
+		// Soft-deleted accounts must not mint fresh tokens.
+		const user = await this.userRepository.findActiveById(stored.userId);
 		if (!user) {
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
 				ERROR_CODES.INVALID_REFRESH_TOKEN,
-				"User not found",
+				"Invalid refresh token",
 			);
 		}
+
+		// Revoke the old token (rotation)
+		await this.refreshTokenRepository.revoke(stored.id);
 
 		const { accessToken, refreshToken } = await this.issueTokens(
 			user.id,
@@ -883,10 +892,7 @@ export class AuthService {
 	async resetPassword(
 		dto: ResetPasswordRequestType,
 	): Promise<ResetPasswordResponseType> {
-		const tokenHash = crypto
-			.createHash("sha256")
-			.update(dto.token)
-			.digest("hex");
+		const tokenHash = this.hashToken(dto.token);
 
 		const token = await this.emailRepository.findBy({
 			tokenHash,

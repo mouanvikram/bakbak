@@ -1,6 +1,10 @@
 import type { Socket } from "socket.io";
 import type { ExtendedError } from "socket.io";
-import { jwtService } from "../services/service.container";
+import {
+	jwtService,
+	refreshTokenRepository,
+	userRepository,
+} from "../services/service.container";
 import type { AccessTokenPayload } from "../auth/jwt.service";
 
 export interface AuthenticatedSocket extends Socket {
@@ -12,7 +16,7 @@ export interface AuthenticatedSocket extends Socket {
 	};
 }
 
-export function socketAuthMiddleware(
+export async function socketAuthMiddleware(
 	socket: Socket,
 	next: (err?: ExtendedError) => void,
 ) {
@@ -35,6 +39,18 @@ export function socketAuthMiddleware(
 			return next(new Error("Invalid or expired token"));
 		}
 
+		const [session, user] = await Promise.all([
+			refreshTokenRepository.findSessionById(payload.sid!),
+			userRepository.findActiveById(payload.sub),
+		]);
+		if (
+			!session ||
+			session.revokedAt ||
+			session.userId !== payload.sub ||
+			!user
+		) {
+			return next(new Error("Invalid or expired token"));
+		}
 		socket.data.userId = payload.sub;
 		socket.data.username = payload.username;
 		socket.data.sessionId = payload.sid;
