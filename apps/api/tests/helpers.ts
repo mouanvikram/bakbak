@@ -9,7 +9,10 @@ import { storageProvider } from "../src/uploads/storage";
 import { env } from "@/config";
 
 export function authHeader(userId: string, username: string) {
-	const jwtService = new JwtService(env.JWT_SECRET);
+	const jwtService = new JwtService(env.JWT_SECRET, {
+		issuer: env.JWT_ISSUER,
+		audience: env.JWT_AUDIENCE,
+	});
 	const token = jwtService.signJwt<AccessTokenPayload>(
 		{
 			sub: userId,

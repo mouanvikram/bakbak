@@ -28,7 +28,10 @@ import { env } from "@/config";
 
 export const userRepository = new UserRepository();
 export const pwdService = new PasswordService();
-export const jwtService = new JwtService(env.JWT_SECRET);
+export const jwtService = new JwtService(env.JWT_SECRET, {
+	issuer: env.JWT_ISSUER,
+	audience: env.JWT_AUDIENCE,
+});
 export const emailService = new EmailService();
 export const emailRepository = new EmailRepository();
 export const refreshTokenRepository = new RefreshTokenRepository();
