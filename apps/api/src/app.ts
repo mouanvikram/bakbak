@@ -36,7 +36,10 @@ app.use(helmet());
 
 app.use(compression());
 
-app.use(express.json({ limit: "10kb" }));
+// 32kb fully covers a schema-max 5000-char message in any multi-byte script
+// (CJK ~3 B/char, emoji ~4 B/char) while staying small enough to ignore as a
+// DoS vector. Every other JSON body is well under 10kb.
+app.use(express.json({ limit: "32kb" }));
 
 // Public build/version info (used by the client to spot a stale bundle)
 app.use("/api/v1/version", systemRoutes);
