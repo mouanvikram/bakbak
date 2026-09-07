@@ -7,12 +7,21 @@ import {
 	uploadMiddleware,
 } from "../middleware/upload.middleware";
 import { attachmentIdParamsSchema } from "@bakbak/contracts";
+import { rateLimitAuthorized } from "../redis/rate-limit";
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
-router.post("/", uploadMiddleware, multerErrorHandler, uploadController.upload);
+// Rate-limited before multer, so a throttled client never gets its multipart
+// buffered and rejected — the upload bucket gates the expensive path first.
+router.post(
+	"/",
+	rateLimitAuthorized("uploads"),
+	uploadMiddleware,
+	multerErrorHandler,
+	uploadController.upload,
+);
 
 router.get(
 	"/:attachmentId",

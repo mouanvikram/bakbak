@@ -24,6 +24,12 @@ import {
 	avatarMulterErrorHandler,
 	avatarUploadMiddleware,
 } from "../middleware/avatar.middleware";
+import {
+	rateLimitAuthorized,
+	rateLimitEmails,
+	rateLimitIp,
+} from "../redis/rate-limit";
+
 
 const router = Router();
 
@@ -35,17 +41,25 @@ router.post(
 	avatarUploadMiddleware,
 	avatarMulterErrorHandler,
 	validate(signUpRequestSchema),
+	rateLimitEmails(),
 	authController.signUp,
 );
-router.post("/login", validate(loginRequestSchema), authController.login);
+router.post(
+	"/login",
+	validate(loginRequestSchema),
+	rateLimitIp("login"),
+	authController.login,
+);
 router.post(
 	"/login/verify-2fa",
 	validate(verifyTwoFactorLoginRequestSchema),
+	rateLimitIp("login"),
 	authController.verifyTwoFactorLogin,
 );
 router.post(
 	"/login/resend-2fa",
 	validate(resendTwoFactorLoginRequestSchema),
+	rateLimitEmails(),
 	authController.resendTwoFactorLogin,
 );
 router.post(
@@ -56,6 +70,7 @@ router.post(
 router.post(
 	"/resend-verification",
 	validate(resendVerificationRequestSchema),
+	rateLimitEmails(),
 	authController.resendVerification,
 );
 router.post(
@@ -69,6 +84,7 @@ router.post(
 router.post(
 	"/forgot-password",
 	validate(forgotPasswordRequestSchema),
+	rateLimitEmails(),
 	authController.forgotPassword,
 );
 
@@ -96,6 +112,7 @@ router.post(
 	"/2fa/setup",
 	authMiddleware,
 	validateUserId(),
+	rateLimitAuthorized("email"),
 	authController.setupTwoFactor,
 );
 router.post(

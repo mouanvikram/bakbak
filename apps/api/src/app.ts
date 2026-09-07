@@ -7,7 +7,7 @@ import { env } from "@/config";
 import { errorHandler } from "./middleware/error.middleware";
 import { requestIdMiddleware } from "./middleware/request-id.middleware";
 import { requestLoggerMiddleware } from "./middleware/request-logger.middleware";
-import { rateLimiterMiddleware } from "./middleware/rate-limiter.middleware";
+import { rateLimitGlobal } from "./redis/rate-limit";
 import authRoutes from "./auth/routes";
 import userRoutes from "./users/routes";
 import chatRoutes from "./chat/routes";
@@ -23,7 +23,10 @@ app.use(requestIdMiddleware);
 
 app.use(requestLoggerMiddleware);
 
-app.use(rateLimiterMiddleware);
+// Redis token-bucket global ceiling per IP (per-route buckets ride along
+// on their own routes; the in-memory limiter remains in
+// middleware/rate-limiter.middleware as the documented no-Redis fallback).
+app.use(rateLimitGlobal());
 
 app.use(
 	cors({

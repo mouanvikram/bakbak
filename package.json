@@ -7,7 +7,7 @@
     "dev:frontend": "bun --cwd apps/web dev",
     "dev:backend": "bun --watch apps/api/index.ts",
     "dev:prisma": "bun --cwd packages/db dev",
-    "infra:up": "docker compose -f infra/docker-compose.yml up -d postgres minio minio-init",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d postgres minio minio-init redis",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "db:migrate": "bun --cwd packages/db migrate",
     "db:migrate:deploy": "bun --cwd packages/db migrate:deploy",

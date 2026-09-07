@@ -7,6 +7,7 @@ import {
 	friendRequestIdParamsSchema,
 	sendFriendRequestRequestSchema,
 } from "@bakbak/contracts";
+import { rateLimitAuthorized } from "../redis/rate-limit";
 
 const router = express.Router();
 
@@ -14,6 +15,7 @@ router.use(authMiddleware);
 router.post(
 	"/requests/:receiverId",
 	validate(sendFriendRequestRequestSchema, "params"),
+	rateLimitAuthorized("friendRequest"),
 	friendController.sendRequest,
 );
 router.post(

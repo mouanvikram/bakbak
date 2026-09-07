@@ -13,12 +13,14 @@ import {
 	updateAvatarRequestSchema,
 	updateProfileRequestSchema,
 } from "@bakbak/contracts";
+import { rateLimitUsernameCheck } from "../redis/rate-limit";
 
 const router = express.Router();
 
 router.get(
 	"/check-username",
 	validate(checkUsernameRequestSchema, "query"),
+	rateLimitUsernameCheck(),
 	userController.checkUsername,
 );
 

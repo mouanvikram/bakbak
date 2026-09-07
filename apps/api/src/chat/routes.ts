@@ -12,11 +12,17 @@ import {
 	updateChatParticipantRequestSchema,
 	updateChatRequestSchema,
 } from "@bakbak/contracts";
+import { rateLimitAuthorized } from "../redis/rate-limit";
 
 const router = express.Router();
 router.use(authMiddleware);
 
-router.post("/", validate(createChatRequestSchema), chatController.createChat);
+router.post(
+	"/",
+	validate(createChatRequestSchema),
+	rateLimitAuthorized("chat"),
+	chatController.createChat,
+);
 router.get(
 	"/",
 	validate(listChatsQuerySchema, "query"),
@@ -60,6 +66,7 @@ router.post(
 	"/:chatId/members",
 	validate(chatIdParamsSchema, "params"),
 	validate(addParticipantRequestSchema),
+	rateLimitAuthorized("chat"),
 	chatController.addParticipant,
 );
 router.delete(
