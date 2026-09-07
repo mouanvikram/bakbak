@@ -1,72 +1,11 @@
-import Redis from "ioredis";
-import { getRedisClient } from "./client";
+import type Redis from "ioredis";
+import { getRedisClient, isRedisReady } from "./client";
 import type { NextFunction, Request, Response } from "express";
 import type { AuthRequest } from "@/auth/controller";
 import { redisConfig } from "./config";
 import type { RateLimitBucketName } from "./config";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import logger from "@/lib/logger";
-
-// lua script is used for
-// concurrency/burst protection.
-// it executes each request in sequential order.
-const TOKEN_BUCKET_SCRIPT = `
-local capacity = tonumber(ARGV[1])
-local refill_rate = tonumber(ARGV[2])
-local now = tonumber(ARGV[3])
-local requested = tonumber(ARGV[4])
-
-local tokens = tonumber(redis.call("HGET", KEYS[1], "tokens"))
-local timestamp = tonumber(redis.call("HGET", KEYS[1], "timestamp"))
-
-if tokens == nil then
-    tokens = capacity
-end
-
-if timestamp == nil then
-    timestamp = now
-end
-
-local elapsed = math.max(0, now - timestamp)
-local refill = (elapsed / 1000) * refill_rate
-
-tokens = math.min(capacity, tokens + refill)
-
-local allowed = 0
-local retry_after = 0
-
-if tokens >= requested then
-    tokens = tokens - requested
-    allowed = 1
-else
-    local missing = requested - tokens
-
-    if refill_rate > 0 then
-        retry_after = math.ceil(missing / refill_rate)
-    end
-end
-
-redis.call(
-    "HSET",
-    KEYS[1],
-    "tokens", tokens,
-    "timestamp", now
-)
-
-local ttl = math.ceil(capacity / refill_rate)
-
-if ttl > 0 then
-    redis.call("EXPIRE", KEYS[1], ttl)
-end
-
-local remaining = math.floor(tokens)
-
-return {
-    allowed,
-    remaining,
-    retry_after
-}
-`;
 
 export type TokenBucketOptions = {
 	key: string;
@@ -81,25 +20,26 @@ export type RateLimitResult = {
 	retryAfter: number;
 };
 
+// The command is registered on the shared client in client.ts (defineCommand),
+// so ioredis runs it via EVALSHA after the first call.
+type BucketCommander = {
+	consumeBucket: (
+		key: string,
+		...args: Array<string | number>
+	) => Promise<[number, number, number]>;
+};
+
 async function consumeToken(
 	redis: Redis,
 	options: TokenBucketOptions,
 ): Promise<RateLimitResult> {
-	const { key, capacity, refillRate, cost = 1 } = options;
-	const [allowed, remaining, retryAfter] = (await redis.eval(
-		TOKEN_BUCKET_SCRIPT,
-		1, //no of keys
-		key, // 1 key
-		// rest of the arguments ARGV =
-		// ARGV[1] = capacity. max-capacity of bucket.
-		capacity,
-		// ARGV[2] = refillRate. ( e.g 1 token per second)
-		refillRate,
-		// ARGV[3] = now. (current timestamp) to calculate minted tokens in the elapsed duration
-		Date.now(),
-		// how many tokens this should deduct.
-		cost,
-	)) as [number, number, number];
+	const { key, capacity, refillRate } = options;
+	// A cost above the bucket capacity could never be satisfied and would
+	// report a plausible-but-never-true retry; clamp it to a satisfiable size.
+	const cost = Math.min(options.cost ?? 1, capacity);
+	const [allowed, remaining, retryAfter] = await (
+		redis as unknown as BucketCommander
+	).consumeBucket(key, capacity, refillRate, cost);
 
 	return {
 		allowed: allowed === 1,
@@ -114,20 +54,31 @@ function checkAndApplyLimit<R extends Request>(
 	return async (req: R, res: Response, next: NextFunction) => {
 		const redis = getRedisClient();
 		if (!redis) return next(); // fail-open
+		const opts = build(req);
+
+		res.setHeader("RateLimit-Limit", String(opts.capacity));
+		const resetIn = Math.ceil(opts.capacity / opts.refillRate);
+		res.setHeader(
+			"RateLimit-Reset",
+			String(Math.floor(Date.now() / 1000) + resetIn),
+		);
+
+		if (!isRedisReady()) {
+			res.setHeader("RateLimit-Remaining", String(opts.capacity));
+			return next();
+		}
+
 		try {
-			const opts = build(req);
 			const { allowed, remaining, retryAfter } = await consumeToken(
 				redis,
 				opts,
 			);
-			res.setHeader("RateLimit-Limit", String(opts.capacity));
 			res.setHeader("RateLimit-Remaining", String(remaining));
 
-            // if limit is left. let 
-            // the request go next stop.
+			// if limit is left. let the request go to the next stop.
 			if (allowed) return next();
 
-            // if not set retry-after header.
+			// if not set retry-after header.
 			res.setHeader("Retry-After", String(retryAfter));
 			throw new AppError(
 				HTTP_STATUS.TOO_MANY_REQUESTS,
@@ -145,7 +96,7 @@ function checkAndApplyLimit<R extends Request>(
 	};
 }
 
-//global rate-limiter how many total request can come
+// global rate-limiter how many total request can come
 // from a single ip per minute.
 export function rateLimitGlobal() {
 	return checkAndApplyLimit((req: Request) => ({
@@ -166,6 +117,7 @@ export function rateLimitAuthorized(bucket: RateLimitBucketName) {
 // Per-IP rate limit for a named bucket. Used on public endpoints (login,
 // signup, mail-sending routes, username checks) where the submitted email or
 // username is attacker-controlled — keying by it would let a loop of rotating
+// emails/usernames mint a fresh bucket every attempt.
 export function rateLimitIp(bucket: RateLimitBucketName) {
 	return checkAndApplyLimit((req: Request) => ({
 		key: `rl:${bucket}:${req.ip || "unknown"}`,
@@ -177,6 +129,6 @@ export function rateLimitIp(bucket: RateLimitBucketName) {
 // per-IP, for the reasons above.
 export const rateLimitEmails = () => rateLimitIp("email");
 
-// The username-availability bucket (signup check) — per-IP, same reasoning:
-// per-submitted-username buckets don't stop enumeration.
+// The username-availability check — per-IP, because per-submitted-username
+// buckets don't stop enumeration.
 export const rateLimitUsernameCheck = () => rateLimitIp("usernameCheck");

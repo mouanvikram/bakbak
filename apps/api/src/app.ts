@@ -16,18 +16,17 @@ import { messageRoutes } from "./messages/routes";
 import settingsRoutes from "./settings/routes";
 import uploadRoutes from "./uploads/routes";
 import systemRoutes from "./system/routes";
+import { rateLimiterMiddleware } from "./middleware/rate-limiter.middleware";
 
 const app: Express = express();
 
-app.use(requestIdMiddleware);
+// 1. Reverse-proxy awareness
+app.set("trust proxy", env.TRUST_PROXY);
 
-app.use(requestLoggerMiddleware);
+// 2. Security headers
+app.use(helmet());
 
-// Redis token-bucket global ceiling per IP (per-route buckets ride along
-// on their own routes; the in-memory limiter remains in
-// middleware/rate-limiter.middleware as the documented no-Redis fallback).
-app.use(rateLimitGlobal());
-
+// 3. CORS
 app.use(
 	cors({
 		origin: env.CORS_ORIGINS,
@@ -35,27 +34,33 @@ app.use(
 	}),
 );
 
-app.use(helmet());
+// 4. Request identity
+app.use(requestIdMiddleware);
 
-app.use(compression());
+// 5. Request logging
+app.use(requestLoggerMiddleware);
 
-// 32kb fully covers a schema-max 5000-char message in any multi-byte script
-// (CJK ~3 B/char, emoji ~4 B/char) while staying small enough to ignore as a
-// DoS vector. Every other JSON body is well under 10kb.
+// 6. Request body parsing
 app.use(express.json({ limit: "32kb" }));
 
-// Public build/version info (used by the client to spot a stale bundle)
+// 7. Global rate limiting
+app.use(rateLimitGlobal());
+// app.use(rateLimiterMiddleware)
+
+// 8. Response compression
+app.use(compression());
+
+// 9. Routes
 app.use("/api/v1/version", systemRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/uploads", uploadRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/friends", friendRoutes);
 app.use("/api/v1/settings", settingsRoutes);
-// Chats (includes nested /:chatId/messages routes)
 app.use("/api/v1/chats", chatRoutes);
-// Messages (chat-agnostic item routes: /:messageId)
 app.use("/api/v1/messages", messageRoutes);
 
+// 10. Error handler
 app.use(errorHandler);
 
 export default app;

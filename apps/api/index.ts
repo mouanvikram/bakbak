@@ -6,7 +6,6 @@ import app from "./src/app";
 import { env } from "./src/config";
 import { initializeWebSocket } from "./src/websocket";
 import { refreshTokenRepository } from "./src/services/service.container";
-import { stopRateLimiterCleanup } from "./src/middleware/rate-limiter.middleware";
 import { closeRedisClient } from "./src/redis/client";
 import logger from "@/lib/logger";
 
@@ -67,7 +66,6 @@ async function shutdown(signal: string) {
 
 	// Stop background timers so nothing new is scheduled mid-teardown.
 	clearInterval(tokenCleanupTimer);
-	stopRateLimiterCleanup();
 	closeRedisClient();
 
 	// Force-exit if a connection refuses to drain in time.

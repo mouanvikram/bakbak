@@ -97,11 +97,11 @@ See [`infra/README.md`](infra/README.md).
 - **Media** — S3-compatible storage abstraction, presigned URLs, size + MIME limits; images & videos preview inline in the thread (respecting the "media preview" chat setting), other files render as download chips. `GET /uploads/:id` checks the requester is an active member of the attachment's chat (or, for a not-yet-sent upload, its owner) before signing a URL.
 - **Client** — full auth flow (incl. the 2FA code step), chat list + conversation UI, attachment upload, emoji picker, right-click context menus (delete a chat; edit/delete your own message), media message bubbles with overlaid receipts, active-session management (Devices), friends, settings, dark mode, avatar upload, typed delete-account confirmation.
 - **Versioning** — the deploy version string (a git tag, else the commit SHA) is baked into both the API (`APP_VERSION` → `GET /api/v1/version`) and the web bundle (`VITE_APP_VERSION`); the About page compares them and prompts a reload when a tab is running stale cached code. Falls back to `"dev"` and disables the check for unstamped local builds.
-- **Infrastructure** — typed error codes, Zod request/response validation, pino structured logging + request IDs, global rate limiter, graceful shutdown, `/healthz`.
+- **Infrastructure** — typed error codes, Zod request/response validation, pino structured logging + request IDs, Redis token-bucket rate limiting (per-IP global ceiling + per-route buckets, fail-open, `RateLimit-*` headers), a Redis JSON cache module (`cacheAside`, not yet wired to routes), configurable `trust proxy`, graceful shutdown (drains HTTP, closes Socket.IO, stops timers, disconnects Prisma **and Redis**), `/healthz`.
 
 ### 🚧 Not yet built
 
-- **Horizontal scaling** — no Socket.IO Redis adapter; presence, the rate limiter, and the pre-signup avatar buffer are all in-process, so realtime only works with a single backend instance.
+- **Horizontal scaling** — the rate limiter is already distributed on Redis, but there's no Socket.IO Redis adapter; presence and the pre-signup avatar buffer are still in-process, so realtime only works with a single backend instance.
 - **Notifications** — no in-app / email / push notifications; the `UserSettings.notify*` toggles are stored but unused.
 - **Missed-message recovery / offline support** — a client that disconnects doesn't catch up on messages sent while it was away.
 - **Message features** — reactions, replies, forwarding, pinning.
@@ -112,11 +112,11 @@ See [`infra/README.md`](infra/README.md).
 
 1. Isolated test database + CI (lint + typecheck + tests on PR), then a deploy job for Vercel or AWS
 2. Containerize (API + web + Postgres + MinIO) and add readiness/liveness probes
-3. Redis: Socket.IO adapter + distributed rate limiter + presence (unblocks >1 instance)
+3. Redis: Socket.IO adapter + presence (the distributed rate limiter is done; a Redis auth/TLS story and a connect-window gate are the remaining hardening)
 4. Missed-message recovery on reconnect
 5. Notifications: in-app model + socket delivery + web-push; honour the settings toggles
 6. Message reactions & replies
-7. `trust proxy`, explicit CSP/security headers, magic-byte MIME validation
+7. Explicit CSP/security headers, magic-byte MIME validation (`trust proxy` is done)
 8. Metrics (`/metrics`) + tracing
 9. Group admin: promote/demote, ownership transfer; calls (WebRTC) — stretch
 

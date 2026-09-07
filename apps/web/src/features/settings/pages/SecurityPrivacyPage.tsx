@@ -108,7 +108,10 @@ export function SecurityPrivacyPage() {
 
   async function handleChangePassword() {
     setError("");
-    if (newPassword !== confirmPassword) { setError("Passwords do not match."); return; }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     setLoading(true);
     try {
       await changePassword({ currentPassword, newPassword });
@@ -118,7 +121,9 @@ export function SecurityPrivacyPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to change password");
+      setError(
+        err instanceof Error ? err.message : "Failed to change password",
+      );
     } finally {
       setLoading(false);
     }
@@ -127,23 +132,53 @@ export function SecurityPrivacyPage() {
   return (
     <div className="flex h-full w-full flex-col gap-6 overflow-y-auto p-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Security & Privacy</h1>
-        <p className="text-sm text-gray-500">Manage your password and security preferences</p>
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Security & Privacy
+        </h1>
+        <p className="text-sm text-gray-500">
+          Manage your password and security preferences
+        </p>
       </div>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Change Password
+          </h2>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">Current Password</span>
-            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" placeholder="Enter current password" />
+            <span className="text-sm font-semibold text-gray-900">
+              Current Password
+            </span>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="focus:border-brand-500 focus:ring-brand-500/15 h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
+              placeholder="Enter current password"
+            />
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">New Password</span>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" placeholder="Enter new password" />
+            <span className="text-sm font-semibold text-gray-900">
+              New Password
+            </span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="focus:border-brand-500 focus:ring-brand-500/15 h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
+              placeholder="Enter new password"
+            />
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">Confirm New Password</span>
-            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" placeholder="Confirm new password" />
+            <span className="text-sm font-semibold text-gray-900">
+              Confirm New Password
+            </span>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="focus:border-brand-500 focus:ring-brand-500/15 h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
+              placeholder="Confirm new password"
+            />
           </label>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex items-center justify-end gap-3">
@@ -163,11 +198,15 @@ export function SecurityPrivacyPage() {
           </div>
         </div>
         <div className="flex flex-col gap-4 border-t border-gray-100 pt-6">
-          <h2 className="text-lg font-semibold text-gray-900">Two-Factor Authentication</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Two-Factor Authentication
+          </h2>
           <div className="flex flex-col gap-4 rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="font-semibold text-gray-900">Enable 2FA Authentication</p>
+                <p className="font-semibold text-gray-900">
+                  Enable 2FA Authentication
+                </p>
                 <p className="text-sm text-gray-500">
                   We'll email a 6-digit code every time you sign in.
                 </p>
@@ -182,12 +221,14 @@ export function SecurityPrivacyPage() {
 
             {twoFactor && !twoFactorSetup && (
               <label className="flex flex-col gap-2 border-t border-gray-100 pt-4">
-                <span className="text-sm font-semibold text-gray-900">Current password</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  Current password
+                </span>
                 <input
                   type="password"
                   value={disablePassword}
                   onChange={(e) => setDisablePassword(e.target.value)}
-                  className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                  className="focus:border-brand-500 focus:ring-brand-500/15 h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
                   placeholder="Required to turn off 2FA"
                 />
               </label>
@@ -221,7 +262,7 @@ export function SecurityPrivacyPage() {
                     type="button"
                     onClick={handleResendSetup}
                     disabled={twoFactorSaving}
-                    className="text-sm font-semibold text-[#4C18EF] disabled:opacity-50"
+                    className="text-brand-600 text-sm font-semibold disabled:opacity-50"
                   >
                     Resend code
                   </button>
@@ -250,7 +291,8 @@ export function SecurityPrivacyPage() {
         <div className="flex flex-col gap-4 border-t border-gray-100 pt-6">
           <h2 className="text-lg font-semibold text-red-600">Danger Zone</h2>
           <p className="text-sm text-gray-500">
-            Deleting your account permanently removes your profile, messages, chats, friends and all related data. This action cannot be undone.
+            Deleting your account permanently removes your profile, messages,
+            chats, friends and all related data. This action cannot be undone.
           </p>
           <button
             type="button"

@@ -26,4 +26,7 @@ export const env = {
 	NODE_ENV: process.env.NODE_ENV ?? "development",
 	PORT: Number(process.env.PORT) || 3000,
 	CORS_ORIGINS: parseOrigins(process.env.CORS_ORIGINS),
+	// Reverse-proxy hops in front of the API (0 = none — X-Forwarded-For
+	// ignored, req.ip is the socket peer).
+	TRUST_PROXY: Number(process.env.TRUST_PROXY) || false,
 };

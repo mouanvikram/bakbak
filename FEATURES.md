@@ -80,8 +80,9 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 - [x] **Layered API** — routes → Zod validation → controller → service → repository; shared `@bakbak/contracts` validate every request and every response before it leaves the server.
 - [x] **Typed errors** — `AppError` with stable machine codes; a single error handler leaks no stack traces or Prisma internals.
 - [x] **Request hygiene** — pino structured logs with request/correlation IDs, token redaction, body-size cap, Helmet headers, CORS allowlist, gzip.
-- [x] **Global rate limiting** — fixed-window per IP+path with `429` + `Retry-After`, background pruning, shutdown hook.
-- [x] **Graceful shutdown** — drains HTTP, closes Socket.IO, stops timers, disconnects Prisma, stops rate-limiter cleanup.
+- [x] **Redis token-bucket rate limiting** — a per-IP **global** ceiling (200/4s) in `app.ts` plus dedicated buckets per abuse surface (`login`, `emails`, `uploads`, `messageSend`, `usernameCheck`, `friendRequest`, `chat`, per-user 2FA email), one atomic Lua consume via `EVALSHA`, authoritative Redis-time refills, fail-open when Redis is down, and `RateLimit-Limit`/`Remaining`/`Reset` + `Retry-After` headers. The old in-memory fixed-window limiter (`rate-limiter.middleware.ts`) is archived and unmounted.
+- [x] **Redis readiness + cache module** — `isRedisReady()`-gated, fail-open JSON cache (`getJson`/`setJson`/`invalidate`/`invalidatePattern`/`cacheAside` with a stampede guard) under a `cache:` prefix; implemented and available, not yet wired into routes.
+- [x] **Graceful shutdown** — drains HTTP, closes Socket.IO, stops timers, disconnects Prisma, and quits Redis (`closeRedisClient()` → `quit()` then `disconnect()` fallback).
 - [x] **Soft-delete discipline** — `deletedAt`-filtered lookups across auth, refresh, verification, reset, WebSocket, and search.
 
 ## 🧪 Testing

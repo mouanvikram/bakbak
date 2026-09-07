@@ -38,10 +38,10 @@ const router = Router();
 // passes straight through.
 router.post(
 	"/signup",
+	rateLimitEmails(),
 	avatarUploadMiddleware,
 	avatarMulterErrorHandler,
 	validate(signUpRequestSchema),
-	rateLimitEmails(),
 	authController.signUp,
 );
 router.post(

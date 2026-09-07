@@ -2,7 +2,83 @@ import Redis from "ioredis";
 import logger from "@/lib/logger";
 import { redisConfig } from "./config";
 
+// Token-bucket Lua: atomic read/refill/deduct per key. Registered once via
+// defineCommand so ioredis runs it as EVALSHA (script is cached on the
+// server after the first call) instead of shipping the body on every request.
+const TOKEN_BUCKET_SCRIPT = `
+local capacity = tonumber(ARGV[1])
+local refill_rate = tonumber(ARGV[2])
+local requested = tonumber(ARGV[3])
+
+-- Single authoritative clock: the Redis server's TIME, so refill math stays
+-- consistent across multiple API replicas sharing one keyspace.
+local time = redis.call("TIME")
+local now = tonumber(time[1]) * 1000 + math.floor(tonumber(time[2]) / 1000)
+
+local tokens = tonumber(redis.call("HGET", KEYS[1], "tokens"))
+local timestamp = tonumber(redis.call("HGET", KEYS[1], "timestamp"))
+
+if tokens == nil then
+    tokens = capacity
+end
+
+if timestamp == nil then
+    timestamp = now
+end
+
+local elapsed = math.max(0, now - timestamp)
+local refill = (elapsed / 1000) * refill_rate
+
+tokens = math.min(capacity, tokens + refill)
+
+local allowed = 0
+local retry_after = 0
+
+if tokens >= requested then
+    tokens = tokens - requested
+    allowed = 1
+else
+    local missing = requested - tokens
+
+    if refill_rate > 0 then
+        retry_after = math.ceil(missing / refill_rate)
+    end
+end
+
+redis.call(
+    "HSET",
+    KEYS[1],
+    "tokens", tokens,
+    "timestamp", now
+)
+
+-- Only keys that can refill should be allowed to expire away; a non-positive
+-- refill rate would otherwise reject every request AND leave a permanent
+-- hash behind (the ttl <= 0 guard skips EXPIRE entirely).
+local ttl = 0
+if refill_rate > 0 then
+    ttl = math.ceil(capacity / refill_rate)
+end
+
+if ttl > 0 then
+    redis.call("EXPIRE", KEYS[1], ttl)
+end
+
+return {
+    allowed,
+    math.floor(tokens),
+    retry_after
+}
+`;
+
 let redis: Redis | null = null;
+
+// Gate for the cache: true only while a connection is actually usable. This
+// keeps cache reads/writes from hammering Redis during the connect window or
+// a reconnect — the cache simply bypasses itself until the client is ready.
+export function isRedisReady(): boolean {
+	return redis?.status === "ready";
+}
 
 export function getRedisClient(): Redis {
 	if (redis) {
@@ -14,6 +90,10 @@ export function getRedisClient(): Redis {
 		port: Number(redisConfig.port),
 		maxRetriesPerRequest: 1,
 		enableOfflineQueue: false,
+	});
+	redis.defineCommand("consumeBucket", {
+		numberOfKeys: 1,
+		lua: TOKEN_BUCKET_SCRIPT,
 	});
 	redis.on("connect", () => {
 		logger.info("[Redis] connected");
@@ -40,11 +120,6 @@ export function getRedisClient(): Redis {
 
 export function closeRedisClient(): void {
 	if (!redis) return;
-	const client = redis;
+	void redis.quit().catch(() => redis?.disconnect());
 	redis = null;
-
-	// Graceful close first: stop the client and flush any pending commands.
-	// If that rejects or hangs (e.g. a dead connection), force-disconnect so
-	// the process can still exit.
-	void client.quit().catch(() => client.disconnect());
 }
