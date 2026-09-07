@@ -380,6 +380,48 @@ describe("Users Endpoints", () => {
 		expect(login.status).toBe(401);
 	});
 
+	test("DELETE /users/me - revokes all sessions: old access and refresh tokens stop working", async () => {
+		// Sign in to get tokens bound to a real session (S1).
+		const login = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				identifier: testUser.email,
+				password: "TestPass123!",
+			}),
+		});
+		const loginData = (await login.json()) as any;
+
+		const delRes = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			method: "DELETE",
+			headers: await authHeader(testUser.id, testUser.username),
+		});
+		expect(delRes.status).toBe(200);
+
+		// Every session row for the user is now revoked ...
+		const sessions = await prisma.session.findMany({
+			where: { userId: testUser.id },
+		});
+		expect(sessions.length).toBeGreaterThan(0);
+		for (const s of sessions) {
+			expect(s.revokedAt).not.toBeNull();
+		}
+
+		// ... so the pre-delete access token is rejected with the uniform 401.
+		const meRes = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			headers: { Authorization: `Bearer ${loginData.accessToken}` },
+		});
+		expect(meRes.status).toBe(401);
+
+		// And the pre-delete refresh token can no longer rotate.
+		const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+		expect(refreshRes.status).toBe(401);
+	});
+
 	test("DELETE /users/me - should fail without auth", async () => {
 		const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
 			method: "DELETE",
