@@ -38,6 +38,16 @@ const twoFactorEmailSpy = spyOn(
 	"sendTwoFactorCode",
 ).mockResolvedValue(undefined);
 
+const passwordChangedEmailSpy = spyOn(
+	emailService,
+	"sendPasswordChangedEmail",
+).mockResolvedValue(undefined);
+
+const newDeviceLoginEmailSpy = spyOn(
+	emailService,
+	"sendNewDeviceLoginEmail",
+).mockResolvedValue(undefined);
+
 /** The 6-digit code from the most recent `sendTwoFactorCode` call. */
 function lastTwoFactorCode(): string {
 	const calls = twoFactorEmailSpy.mock.calls;
@@ -70,6 +80,8 @@ describe("Auth Endpoints", () => {
 	beforeEach(async () => {
 		await cleanupDatabase();
 		twoFactorEmailSpy.mockClear();
+		passwordChangedEmailSpy.mockClear();
+		newDeviceLoginEmailSpy.mockClear();
 	});
 
 	afterEach(async () => {
@@ -242,7 +254,10 @@ describe("Auth Endpoints", () => {
 
 		const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				"User-Agent": "Bakbak-Test-Agent/1.0",
+			},
 			body: JSON.stringify({
 				identifier: user.email,
 				password: "TestPass123!",
@@ -255,6 +270,13 @@ describe("Auth Endpoints", () => {
 		expect(typeof data.accessToken).toBe("string");
 		expect(data.user.id).toBe(user.id);
 		expect(data.user.identifier).toBe(user.username);
+
+		// A fresh login creates a brand-new session → new-device alert.
+		expect(newDeviceLoginEmailSpy).toHaveBeenCalledWith({
+			email: user.email,
+			username: user.username,
+			userAgent: "Bakbak-Test-Agent/1.0",
+		});
 	});
 
 	test("POST /api/v1/auth/login - should login with username as identifier", async () => {
@@ -864,6 +886,12 @@ describe("Auth Endpoints", () => {
 		expect(res.status).toBe(200);
 		const data = (await res.json()) as any;
 		expect(data.message).toBe("Password changed successfully");
+
+		// Security alert: the owner must be told when their password changes.
+		expect(passwordChangedEmailSpy).toHaveBeenCalledWith({
+			email: user.email,
+			username: user.username,
+		});
 	});
 
 	test("POST /api/v1/auth/change-password - should fail without auth token", async () => {
@@ -938,6 +966,54 @@ describe("Auth Endpoints", () => {
 		expect(data.error || data.message).toBeDefined();
 	});
 
+	test("POST /api/v1/auth/change-password - revokes all sessions: old access and refresh tokens stop working", async () => {
+		const user = await createTestUser({
+			email: `chargerevoke-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		// Sign in to get tokens bound to a real session (S1).
+		const loginData = await loginAs(user.email);
+
+		// Change the password from a second, also-live session.
+		const changeRes = await fetch(`${baseUrl()}/api/v1/auth/change-password`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(await authHeader(user.id, user.username)),
+			},
+			body: JSON.stringify({
+				currentPassword: "TestPass123!",
+				newPassword: "NewwPass123!",
+			}),
+		});
+		expect(changeRes.status).toBe(200);
+
+		// Every session row for the user is now revoked ...
+		const sessions = await prisma.session.findMany({
+			where: { userId: user.id },
+		});
+		expect(sessions.length).toBeGreaterThan(0);
+		for (const s of sessions) {
+			expect(s.revokedAt).not.toBeNull();
+		}
+
+		// ... so the pre-change access token (its `sid` session is gone) is
+		// rejected with the uniform 401 — no more authed calls on it.
+		const meRes = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			headers: { Authorization: `Bearer ${loginData.accessToken}` },
+		});
+		expect(meRes.status).toBe(401);
+
+		// And the pre-change refresh token can no longer rotate.
+		const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+		expect(refreshRes.status).toBe(401);
+	});
+
 	test("POST /api/v1/auth/forgot-password - should create reset token for valid email", async () => {
 		const user = await createTestUser({
 			email: `forgot-${Date.now()}@example.com`,
@@ -974,6 +1050,32 @@ describe("Auth Endpoints", () => {
 		expect(data.message).toBeDefined();
 	});
 
+	test("POST /api/v1/auth/forgot-password - unverified account gets the generic response and no reset token", async () => {
+		const user = await createTestUser({
+			email: `forgotunverified-${Date.now()}@example.com`,
+			isEmailVerified: false,
+		});
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/forgot-password`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email: user.email }),
+		});
+
+		// Same response as a non-existent account — no enumeration oracle.
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as any;
+		expect(data.message).toBe(
+			"If an account exists, reset link is sent to the email.",
+		);
+
+		// No token was minted, so no reset email can go out.
+		const token = await prisma.verificationToken.findFirst({
+			where: { userId: user.id, type: "PASSWORD_RESET" },
+		});
+		expect(token).toBeNull();
+	});
+
 	test("POST /api/v1/auth/reset-password - should reset password with valid token", async () => {
 		const user = await createTestUser({
 			email: `reset-${Date.now()}@example.com`,
@@ -1007,6 +1109,12 @@ describe("Auth Endpoints", () => {
 		const data = (await res.json()) as any;
 		expect(data.message).toBe("Password reset successful");
 
+		// Account-recovery is a credential change too — the owner gets an alert.
+		expect(passwordChangedEmailSpy).toHaveBeenCalledWith({
+			email: user.email,
+			username: user.username,
+		});
+
 		const updatedUser = await prisma.user.findUnique({
 			where: { id: user.id },
 		});
@@ -1015,6 +1123,104 @@ describe("Auth Endpoints", () => {
 			updatedUser!.passwordHash,
 		);
 		expect(valid).toBe(true);
+	});
+
+	test("POST /api/v1/auth/reset-password - rejects a valid token for an unverified account", async () => {
+		const user = await createTestUser({
+			email: `resetunverified-${Date.now()}@example.com`,
+			isEmailVerified: false,
+		});
+
+		const token = `reset-token-unverified-${Date.now()}`;
+		const hashedToken = await crypto.subtle
+			.digest("SHA-256", Buffer.from(token))
+			.then((buf) => Buffer.from(buf).toString("hex"));
+
+		await prisma.verificationToken.create({
+			data: {
+				userId: user.id,
+				type: "PASSWORD_RESET",
+				tokenHash: hashedToken,
+				expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+			},
+		});
+
+		const res = await fetch(
+			`${baseUrl()}/api/v1/auth/reset-password`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token, newPassword: "NewResetPass123!" }),
+			},
+		);
+
+		// Same error as a deleted account / invalid token — no new oracle.
+		expect(res.status).toBe(400);
+		const data = (await res.json()) as any;
+		expect(data.error.code).toBe("INVALID_OR_EXPIRED_RESET_TOKEN");
+
+		const updatedUser = await prisma.user.findUnique({
+			where: { id: user.id },
+		});
+		const passwordStillHolds = await Bun.password.verify(
+			"TestPass123!",
+			updatedUser!.passwordHash,
+		);
+		expect(passwordStillHolds).toBe(true);
+	});
+
+	test("POST /api/v1/auth/reset-password - revokes all sessions: old access and refresh tokens stop working", async () => {
+		const user = await createTestUser({
+			email: `resetrevoke-${Date.now()}@example.com`,
+			isEmailVerified: true,
+		});
+
+		// Sign in to get tokens bound to a real session (S1).
+		const loginData = await loginAs(user.email);
+
+		const token = `reset-revoke-${Date.now()}`;
+		const hashedToken = await crypto.subtle
+			.digest("SHA-256", Buffer.from(token))
+			.then((buf) => Buffer.from(buf).toString("hex"));
+
+		await prisma.verificationToken.create({
+			data: {
+				userId: user.id,
+				type: "PASSWORD_RESET",
+				tokenHash: hashedToken,
+				expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+			},
+		});
+
+		const res = await fetch(`${baseUrl()}/api/v1/auth/reset-password`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ token, newPassword: "NewResetPass123!" }),
+		});
+		expect(res.status).toBe(200);
+
+		// Every session row for the user is now revoked ...
+		const sessions = await prisma.session.findMany({
+			where: { userId: user.id },
+		});
+		expect(sessions.length).toBeGreaterThan(0);
+		for (const s of sessions) {
+			expect(s.revokedAt).not.toBeNull();
+		}
+
+		// ... so the pre-reset access token is rejected with the uniform 401.
+		const meRes = await fetch(`${baseUrl()}/api/v1/users/me`, {
+			headers: { Authorization: `Bearer ${loginData.accessToken}` },
+		});
+		expect(meRes.status).toBe(401);
+
+		// And the pre-reset refresh token can no longer rotate.
+		const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+		});
+		expect(refreshRes.status).toBe(401);
 	});
 
 	test("POST /api/v1/auth/reset-password - should fail with invalid token", async () => {
@@ -1249,11 +1455,17 @@ describe("Auth Endpoints", () => {
 
 		const loginData = await loginAs(user.email);
 
+		// The initial login alerted; a rotation reuses the same session and
+		// must NOT be treated as a new device.
+		newDeviceLoginEmailSpy.mockClear();
+
 		const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ refreshToken: loginData.refreshToken }),
 		});
+
+		expect(newDeviceLoginEmailSpy).not.toHaveBeenCalled();
 
 		expect(res.status).toBe(200);
 		const data = (await res.json()) as any;

@@ -3,6 +3,10 @@ import { Resend } from "resend";
 import logger from "@/lib/logger";
 import { resetPasswordEmail } from "./templates/reset-password";
 import { twoFactorCodeEmail } from "./templates/two-factor-code";
+import {
+	newDeviceLoginEmail,
+	passwordChangedEmail,
+} from "./templates/security-alert";
 import { env } from "@/config";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -79,6 +83,35 @@ export class EmailService {
 				dto.username ?? dto.email,
 				dto.code,
 				dto.expiresInMinutes,
+			),
+		});
+	}
+
+	async sendPasswordChangedEmail(dto: {
+		email: string;
+		username: string;
+	}) {
+		return this.sendEmail({
+			to: dto.email,
+			subject: "Your password was changed",
+			html: passwordChangedEmail(
+				dto.username,
+				new Date().toLocaleString(),
+			),
+		});
+	}
+
+	async sendNewDeviceLoginEmail(dto: {
+		email: string;
+		username: string;
+		userAgent?: string | null;
+	}) {
+		return this.sendEmail({
+			to: dto.email,
+			subject: "New sign-in to your account",
+			html: newDeviceLoginEmail(
+				dto.username,
+				dto.userAgent ?? "Unknown browser",
 			),
 		});
 	}

@@ -58,13 +58,10 @@ const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const DUMMY_PASSWORD_HASH =
 	"$argon2id$v=19$m=65536,t=3,p=1$O33CfCzMnDsgKMk96pdnpiDwdAHBcp0kBtscfTiFe5E$RGazuyPBViMxQ/tuHPhhiz3lPxuoIf8FnCMGZDaDLlM";
 
-// How long an emailed 6-digit 2FA code stays valid.
+// 2FA consts.
 const TWO_FACTOR_CODE_TTL_MINUTES = 10;
-// Lifetime of the opaque challenge that ties a pending login to its 2FA step.
 const TWO_FACTOR_CHALLENGE_TTL = "10m";
-// Wrong-code attempts (login or setup) allowed before a 2FA lockout.
 const TWO_FACTOR_MAX_ATTEMPTS = 10;
-// How long a 2FA lockout lasts once triggered. (4 hours)
 const TWO_FACTOR_LOCKOUT_MS = 4 * 60 * 60 * 1000;
 
 interface TwoFactorChallengePayload {
@@ -303,7 +300,9 @@ export class AuthService {
 			};
 		}
 
-		return this.issueTokens(user.id, user.username, userAgent);
+		const result = await this.issueTokens(user.id, user.username, userAgent);
+		this.sendNewDeviceLoginAlert(user, userAgent);
+		return result;
 	}
 
 	// sessionId stays stable across every rotation of this login and rides in the
@@ -413,11 +412,44 @@ export class AuthService {
 		return { message: "Signed out on all devices" };
 	}
 
-	// ─── Two-factor authentication ────────────────────────────────────
+	// change password email
+	private async sendPasswordChangedAlert(user: {
+		id: string;
+		email: string;
+		username: string;
+	}) {
+		try {
+			await this.emailService.sendPasswordChangedEmail({
+				email: user.email,
+				username: user.username,
+			});
+		} catch (error) {
+			logger.error(
+				{ err: error, userId: user.id },
+				"Failed to send password-changed alert",
+			);
+		}
+	}
+	// new device login email.
+	private async sendNewDeviceLoginAlert(
+		user: { id: string; email: string; username: string },
+		userAgent?: string | null,
+	) {
+		try {
+			await this.emailService.sendNewDeviceLoginEmail({
+				email: user.email,
+				username: user.username,
+				userAgent,
+			});
+		} catch (error) {
+			logger.error(
+				{ err: error, userId: user.id },
+				"Failed to send new-device alert",
+			);
+		}
+	}
 
-	/** Generate, store (hashed), and email a fresh 6-digit code. Replaces any
-	 * outstanding code for the user. Email failure is logged, not thrown, so a
-	 * flaky mail provider can't wedge the account. */
+	// send 2FA code.
 	private async sendTwoFactorCode(
 		userId: string,
 		username: string,
@@ -449,12 +481,7 @@ export class AuthService {
 		}
 	}
 
-	/**
-	 * Verify a submitted code against the stored hash and consume it. Wrong
-	 * codes count toward a lockout (`TWO_FACTOR_MAX_ATTEMPTS` within a window,
-	 * cleared on success) so a challenge can't be brute-forced by resending
-	 * for a fresh code and re-guessing.
-	 */
+	// verify 2FA code.
 	private async consumeTwoFactorCode(
 		userId: string,
 		code: string,
@@ -543,7 +570,9 @@ export class AuthService {
 
 		await this.consumeTwoFactorCode(userId, dto.code);
 
-		return this.issueTokens(user.id, user.username, userAgent);
+		const result = await this.issueTokens(user.id, user.username, userAgent);
+		this.sendNewDeviceLoginAlert(user, userAgent);
+		return result;
 	}
 
 	async resendLoginTwoFactor(
@@ -763,6 +792,8 @@ export class AuthService {
 			},
 		);
 
+		this.sendPasswordChangedAlert(user);
+
 		// revoke every session on password change.
 		await this.refreshTokenRepository.revokeAllSessionsForUser(user.id);
 		await disconnectSockets({ userId });
@@ -877,6 +908,15 @@ export class AuthService {
 			return genericResponse;
 		}
 
+		// An account that never proved it owns its email can't use the reset
+		// path — otherwise anyone who merely controls the inbox could change
+		// credentials on an account whose address was never confirmed at
+		// signup. Same generic response, no token minted, no email, so
+		// "unverified" stays indistinguishable from "non-existent".
+		if (!user.isEmailVerified) {
+			return genericResponse;
+		}
+
 		await this.emailRepository.deleteAll({
 			userId: user.id,
 			type: VerificationTokenType.PASSWORD_RESET,
@@ -936,9 +976,11 @@ export class AuthService {
 		}
 
 		// A soft-deleted account must not be recoverable via its email token —
-		// treat it like an invalid token so the reset link can't revive it.
+		// treat it like an invalid token so the reset link can't revive it. An
+		// unverified account is treated the same way: verification first is
+		// the only way in for an account that never proved it owns its email.
 		const user = await this.userRepository.findActiveById(token.userId);
-		if (!user) {
+		if (!user || !user.isEmailVerified) {
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
 				ERROR_CODES.INVALID_OR_EXPIRED_RESET_TOKEN,
@@ -958,6 +1000,8 @@ export class AuthService {
 		// login can't outlive the password it was signed in with.
 		await this.refreshTokenRepository.revokeAllSessionsForUser(token.userId);
 		await disconnectSockets({ userId: token.userId });
+
+		this.sendPasswordChangedAlert(user);
 
 		return {
 			message: "Password reset successful",

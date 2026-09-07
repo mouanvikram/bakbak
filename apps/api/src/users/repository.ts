@@ -10,7 +10,12 @@ export class UserRepository {
 	async findActiveById(id: string) {
 		return prisma.user.findFirst({
 			where: { id, deletedAt: null },
-			select: { id: true, username: true },
+			select: {
+				id: true,
+				username: true,
+				email: true,
+				isEmailVerified: true,
+			},
 		});
 	}
 

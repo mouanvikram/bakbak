@@ -41,6 +41,17 @@ export class MockEmailService {
 		code: string;
 		expiresInMinutes: number;
 	}): Promise<void> {}
+
+	async sendPasswordChangedEmail(_dto: {
+		email: string;
+		username: string;
+	}): Promise<void> {}
+
+	async sendNewDeviceLoginEmail(_dto: {
+		email: string;
+		username: string;
+		userAgent?: string | null;
+	}): Promise<void> {}
 }
 
 mock.module("../../src/email/service", () => ({
