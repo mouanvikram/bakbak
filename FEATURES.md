@@ -6,12 +6,13 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🔐 Auth
 
-- [x] **Registration & email verification** — signup (optional avatar) persists the account atomically, then emails a 256-bit one-time verification link; resend returns a generic response whether or not the account exists (no account enumeration).
-- [x] **Secure credentials** — Argon2id password hashing; all opaque tokens are SHA-256-hashed at rest; verification/reset tokens travel only in POST bodies and are redacted from every log line.
-- [x] **Enumeration-resistant login** — username-or-email with identifier normalization, dummy-hash timing parity for unknown accounts, and a per-account brute-force lockout (5 tries / 15 min, enforced atomically). No password-complexity rules on login, so a "weak" guess can't be told apart from a wrong-but-strong one.
-- [x] **Hardened password recovery** — forgot/reset uses single-use 256-bit tokens; reset is refused (same generic error) for unverified or soft-deleted accounts — no oracle.
-- [x] **Password change & reset revoke every session** — all sessions are revoked and their sockets force-disconnected; old access and refresh tokens stop working (covered by tests for change-password, reset, and account deletion).
-- [x] **Security alert emails** — the owner is notified on password change/reset and on every brand-new device login; token rotation is deliberately silent.
+- [x] **Registration & email verification** — signup (optional avatar, persisted atomically once valid), 256-bit one-time verification email; resend returns a generic response whether or not the account exists (no enumeration).
+- [x] **Secure credential storage** — Argon2id password hashing; refresh/verification/reset tokens and 2FA codes stored only as SHA-256 hashes (256-bit entropy); tokens travel in POST bodies, never URLs, and are redacted from every log line.
+- [x] **Enumeration-resistant login** — username-or-email with normalization, dummy-hash timing parity for unknown accounts, per-account brute-force lockout (5 tries / 15 min, enforced atomically) with a uniform `429` for right and wrong passwords; no complexity rules on the login password; `EMAIL_NOT_VERIFIED` surfaces only after a correct password.
+- [x] **Hardened password recovery** — forgot/reset via single-use tokens; unverified or soft-deleted accounts get the same generic responses as non-existent ones (no token minted, no email, no oracle).
+- [x] **Password change & reset revoke every session** — change requires the current password + a verified email; all sessions revoked, sockets force-disconnected; stale access and refresh tokens stop working (tested for change, reset, and account deletion).
+- [x] **Re-auth by construction** — 2FA disable re-proves the account password; delete requires a verified email + live session. Email is read-only in this API version (change deferred to a future version).
+- [x] **Security alert emails** — owner notified on password change/reset and on every brand-new device login; token rotation deliberately silent; best-effort, never blocks the action.
 
 ## 🔁 Sessions & Refresh Tokens
 
