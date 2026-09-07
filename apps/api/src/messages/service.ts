@@ -13,8 +13,7 @@ import type {
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "../uploads/storage.provider";
 import { resolveAvatarUrl } from "../uploads/avatar-url";
-
-const ATTACHMENT_URL_TTL_SECONDS = 3600;
+import { messagesConfig } from "./config";
 
 // Non-TEXT message types, keyed by the attachment kind that implies them.
 const KIND_TO_MESSAGE_TYPE: Record<AttachmentKind, MessageType> = {
@@ -82,7 +81,7 @@ export class MessageService {
 			duration: attachment.duration,
 			url: await this.storageProvider.getSignedUrl(
 				attachment.filePath,
-				ATTACHMENT_URL_TTL_SECONDS,
+				messagesConfig.attachmentUrlTtlSeconds,
 			),
 			createdAt: attachment.createdAt.toISOString(),
 		};

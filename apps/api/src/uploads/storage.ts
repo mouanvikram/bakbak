@@ -1,4 +1,4 @@
-import { env } from "@/config";
+import { uploadsConfig } from "./config";
 import type { StorageProvider } from "./storage.provider";
 import { S3StorageProvider } from "./storage-s3";
 
@@ -10,14 +10,14 @@ import { S3StorageProvider } from "./storage-s3";
  */
 function createStorageProvider(): StorageProvider {
 	return new S3StorageProvider({
-		endpoint: env.STORAGE_ENDPOINT,
-		port: env.STORAGE_PORT,
-		useSsl: env.STORAGE_USE_SSL,
-		region: env.STORAGE_REGION,
-		accessKeyId: env.STORAGE_ACCESS_KEY,
-		secretAccessKey: env.STORAGE_SECRET_KEY,
-		bucket: env.STORAGE_BUCKET,
-		publicUrl: env.STORAGE_PUBLIC_URL,
+		endpoint: uploadsConfig.endpoint,
+		port: uploadsConfig.port,
+		useSsl: uploadsConfig.useSsl,
+		region: uploadsConfig.region,
+		accessKeyId: uploadsConfig.accessKeyId,
+		secretAccessKey: uploadsConfig.secretAccessKey,
+		bucket: uploadsConfig.bucket,
+		publicUrl: uploadsConfig.publicUrl,
 	});
 }
 

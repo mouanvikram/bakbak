@@ -27,7 +27,7 @@ import {
 	type AccessTokenPayload,
 	JwtService,
 } from "../src/auth/jwt.service";
-import { env } from "@/config";
+import { servicesConfig } from "../src/services/config";
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 
@@ -935,9 +935,9 @@ describe("Auth Endpoints", () => {
 	test("POST /api/v1/auth/change-password - should fail for non-existent user", async () => {
 		// A token whose `sid` references a session that doesn't exist: the auth
 		// middleware rejects it with a uniform 401 (no live session row).
-		const jwtService = new JwtService(env.JWT_SECRET, {
-			issuer: env.JWT_ISSUER,
-			audience: env.JWT_AUDIENCE,
+		const jwtService = new JwtService(servicesConfig.jwtSecret, {
+			issuer: servicesConfig.jwtIssuer,
+			audience: servicesConfig.jwtAudience,
 		});
 		const token = jwtService.signJwt<AccessTokenPayload>(
 			{

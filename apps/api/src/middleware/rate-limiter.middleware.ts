@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { env } from "@/config";
+import { middlewareConfig } from "./config";
 import logger from "@/lib/logger";
 
 interface ClientWindow {
@@ -18,7 +18,7 @@ function pruneOldEntries(key: string, now: number): void {
 	if (!window) return;
 
 	window.timestamps = window.timestamps.filter(
-		(ts) => now - ts < env.RATE_LIMIT_WINDOW_MS,
+		(ts) => now - ts < middlewareConfig.rateLimitWindowMs,
 	);
 
 	if (window.timestamps.length === 0 && window.blockedUntil <= now) {
@@ -31,7 +31,7 @@ const cleanupTimer = setInterval(() => {
 	for (const key of clients.keys()) {
 		pruneOldEntries(key, now);
 	}
-}, env.RATE_LIMIT_WINDOW_MS);
+}, middlewareConfig.rateLimitWindowMs);
 // Don't keep the event loop alive just for cleanup.
 cleanupTimer.unref?.();
 
@@ -67,11 +67,11 @@ export const rateLimiterMiddleware = (
 	const current = clients.get(key) || { timestamps: [], blockedUntil: 0 };
 	current.timestamps.push(now);
 
-	if (current.timestamps.length > env.RATE_LIMIT_MAX_REQUESTS) {
-		current.blockedUntil = now + env.RATE_LIMIT_WINDOW_MS;
+	if (current.timestamps.length > middlewareConfig.rateLimitMaxRequests) {
+		current.blockedUntil = now + middlewareConfig.rateLimitWindowMs;
 		clients.set(key, current);
 
-		const retryAfter = Math.ceil(env.RATE_LIMIT_WINDOW_MS / 1000);
+		const retryAfter = Math.ceil(middlewareConfig.rateLimitWindowMs / 1000);
 		res.setHeader("Retry-After", String(retryAfter));
 
 		logger.warn(

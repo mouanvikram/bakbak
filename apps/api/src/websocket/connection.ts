@@ -2,8 +2,7 @@ import type { Server, Socket } from "socket.io";
 import { prisma } from "@bakbak/db";
 import logger from "@/lib/logger";
 import type { AuthenticatedSocket } from "./auth";
-
-const TYPING_THROTTLE_MS = 3_000;
+import { websocketConfig } from "./config";
 
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -82,7 +81,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 			if (typingTimers.has(key)) return;
 			typingTimers.set(
 				key,
-				setTimeout(() => typingTimers.delete(key), TYPING_THROTTLE_MS),
+				setTimeout(() => typingTimers.delete(key), websocketConfig.typingThrottleMs),
 			);
 		} else {
 			// Release the throttle so the next "started typing" is delivered.

@@ -6,7 +6,7 @@ import {
 	JwtService,
 } from "../src/auth/jwt.service";
 import { storageProvider } from "../src/uploads/storage";
-import { env } from "@/config";
+import { servicesConfig } from "../src/services/config";
 
 export async function authHeader(userId: string, username: string) {
 	// The access token must reference a real, live Session: the H2 middleware
@@ -16,9 +16,9 @@ export async function authHeader(userId: string, username: string) {
 		data: { userId },
 	});
 
-	const jwtService = new JwtService(env.JWT_SECRET, {
-		issuer: env.JWT_ISSUER,
-		audience: env.JWT_AUDIENCE,
+	const jwtService = new JwtService(servicesConfig.jwtSecret, {
+		issuer: servicesConfig.jwtIssuer,
+		audience: servicesConfig.jwtAudience,
 	});
 	const token = jwtService.signJwt<AccessTokenPayload>(
 		{
@@ -150,7 +150,7 @@ export async function createTestDirectChat(user1Id: string, user2Id: string) {
 export async function createTestFriendship(user1Id: string, user2Id: string) {
 	// Column order is normalised the same way the app does it, so lookups that
 	// assume `user1Id <= user2Id` still match.
-	const [a, b] = [user1Id, user2Id].sort();
+	const [a, b] = [user1Id, user2Id].sort() as [string, string];
 	return prisma.friendship.create({ data: { user1Id: a, user2Id: b } });
 }
 

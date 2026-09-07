@@ -1,5 +1,5 @@
 import { prisma, Prisma } from "@bakbak/db";
-import { env } from "@/config";
+import { usersConfig } from "./config";
 export class UserRepository {
 	async findBy(where: Prisma.UserWhereUniqueInput) {
 		return prisma.user.findUnique({
@@ -122,14 +122,14 @@ export class UserRepository {
 	// concurrent wrong passwords can't slip between a separate read/check
 	// and lock write. Tagged-template params are bound, not interpolated.
 	async recordFailedLogin(userId: string) {
-		const lockUntil = new Date(Date.now() + env.LOGIN_LOCKOUT_MS);
+		const lockUntil = new Date(Date.now() + usersConfig.loginLockoutMs);
 		const rows = await prisma.$queryRaw<
 			{ failedLoginAttempts: number; lockedUntil: Date | null }[]
 		>`
 			UPDATE "User" SET
 				"failedLoginAttempts" = "failedLoginAttempts" + 1,
 				"lockedUntil" = CASE
-					WHEN "failedLoginAttempts" + 1 >= ${env.LOGIN_MAX_ATTEMPTS}
+					WHEN "failedLoginAttempts" + 1 >= ${usersConfig.loginMaxAttempts}
 						AND ("lockedUntil" IS NULL OR "lockedUntil" <= NOW())
 					THEN ${lockUntil}
 					ELSE "lockedUntil" END,

@@ -8,8 +8,7 @@ import {
 	kindFromExtension,
 	kindFromMime,
 } from "./file-type";
-
-const SIGNED_URL_TTL_SECONDS = 3600;
+import { uploadsConfig } from "./config";
 
 export class UploadService {
 	constructor(
@@ -34,7 +33,7 @@ export class UploadService {
 			fileSize: file.size,
 		});
 
-		const url = await this.storageProvider.getSignedUrl(key, SIGNED_URL_TTL_SECONDS);
+		const url = await this.storageProvider.getSignedUrl(key, uploadsConfig.signedUrlTtlSeconds);
 
 		return this.toResponse(attachment, url);
 	}
@@ -78,7 +77,7 @@ export class UploadService {
 
 		const url = await this.storageProvider.getSignedUrl(
 			attachment.filePath,
-			SIGNED_URL_TTL_SECONDS,
+			uploadsConfig.signedUrlTtlSeconds,
 		);
 
 		return this.toResponse(attachment, url);

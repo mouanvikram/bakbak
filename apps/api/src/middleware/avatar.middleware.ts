@@ -2,26 +2,16 @@ import multer from "multer";
 import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-
-export const MAX_AVATAR_SIZE = 4 * 1024 * 1024; // 10 MB
-
-const ALLOWED_AVATAR_MIME = [
-	"image/jpeg",
-	"image/png",
-	"image/webp",
-	"image/avif",
-	"image/gif",
-	"image/bmp",
-];
+import { uploadsConfig } from "../uploads/config";
 
 export const avatarUpload = multer({
 	storage: multer.memoryStorage(),
 	limits: {
-		fileSize: MAX_AVATAR_SIZE,
+		fileSize: uploadsConfig.maxAvatarSize,
 		files: 1,
 	},
 	fileFilter: (_req, file, cb) => {
-		if (!ALLOWED_AVATAR_MIME.includes(file.mimetype)) {
+		if (!uploadsConfig.allowedAvatarMime.includes(file.mimetype)) {
 			return cb(
 				new AppError(
 					HTTP_STATUS.BAD_REQUEST,

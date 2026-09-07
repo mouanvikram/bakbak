@@ -1,6 +1,5 @@
 import type { StorageProvider } from "./storage.provider";
-
-export const AVATAR_URL_TTL_SECONDS = 3600;
+import { uploadsConfig } from "./config";
 
 /**
  * Resolves a stored avatar (either a legacy URL or a storage key) into a
@@ -16,5 +15,5 @@ export async function resolveAvatarUrl(
 ): Promise<string | null> {
 	if (!avatar) return null;
 	if (/^https?:\/\//.test(avatar)) return avatar;
-	return storageProvider.getSignedUrl(avatar, AVATAR_URL_TTL_SECONDS);
+	return storageProvider.getSignedUrl(avatar, uploadsConfig.avatarUrlTtlSeconds);
 }

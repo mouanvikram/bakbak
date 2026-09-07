@@ -1,7 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import logger from "@/lib/logger";
+import { middlewareConfig } from "./config";
 
-const SENSITIVE_QUERY_PARAMS = new Set(["token", "code"]);
+const SENSITIVE_QUERY_PARAMS = new Set(middlewareConfig.sensitiveQueryParams);
 
 function sanitizedUrl(originalUrl: string): string {
 	const q = originalUrl.indexOf("?");

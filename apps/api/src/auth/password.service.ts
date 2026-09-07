@@ -1,9 +1,11 @@
+import { authConfig } from "./config";
+
 export class PasswordService {
   async hash(password: string) {
     return Bun.password.hash(password, {
-      algorithm: "argon2id",
-      timeCost: 3,
-      memoryCost: 65536,
+      algorithm: authConfig.passwordHashing.algorithm,
+      timeCost: authConfig.passwordHashing.timeCost,
+      memoryCost: authConfig.passwordHashing.memoryCost,
     });
   }
 

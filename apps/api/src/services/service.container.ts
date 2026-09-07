@@ -24,13 +24,13 @@ import { storageProvider } from "../uploads/storage";
 import { UserController } from "../users/controller";
 import { UserRepository } from "../users/repository";
 import { UserService } from "../users/service";
-import { env } from "@/config";
+import { servicesConfig } from "./config";
 
 export const userRepository = new UserRepository();
 export const pwdService = new PasswordService();
-export const jwtService = new JwtService(env.JWT_SECRET, {
-	issuer: env.JWT_ISSUER,
-	audience: env.JWT_AUDIENCE,
+export const jwtService = new JwtService(servicesConfig.jwtSecret, {
+	issuer: servicesConfig.jwtIssuer,
+	audience: servicesConfig.jwtAudience,
 });
 export const emailService = new EmailService();
 export const emailRepository = new EmailRepository();

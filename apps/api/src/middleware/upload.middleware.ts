@@ -3,13 +3,12 @@ import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../auth/controller";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { kindFromMime } from "../uploads/file-type";
-
-export const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+import { uploadsConfig } from "../uploads/config";
 
 export const upload = multer({
 	storage: multer.memoryStorage(),
 	limits: {
-		fileSize: MAX_FILE_SIZE,
+		fileSize: uploadsConfig.maxFileSize,
 		files: 1,
 	},
 	fileFilter: (_req, file, cb) => {

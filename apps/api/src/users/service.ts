@@ -24,7 +24,8 @@ import type {
 import type { UploadFile } from "@bakbak/contracts";
 import { BIO_MIN_LENGTH } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-import { resolveAvatarUrl, AVATAR_URL_TTL_SECONDS } from "../uploads/avatar-url";
+import { resolveAvatarUrl } from "../uploads/avatar-url";
+import { uploadsConfig } from "../uploads/config";
 import { titleCaseName } from "../lib/name-case";
 
 /**
@@ -240,7 +241,7 @@ export class UserService {
 		return {
 			avatar: await this.storageProvider.getSignedUrl(
 				key,
-				AVATAR_URL_TTL_SECONDS,
+				uploadsConfig.avatarUrlTtlSeconds,
 			),
 		};
 	}

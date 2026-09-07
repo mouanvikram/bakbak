@@ -9,7 +9,7 @@ import type { SettingsRepository } from "../settings/repository";
 import { disconnectSockets } from "../websocket/emitter";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-import { env } from "@/config";
+import { authConfig } from "./config";
 import logger from "@/lib/logger";
 import type {
 	ChangePasswordRequestType,
@@ -49,20 +49,6 @@ import {
 	kindFromExtension,
 	kindFromMime,
 } from "../uploads/file-type";
-
-const REFRESH_TOKEN_EXPIRY_DAYS = 7;
-
-// A real argon2id hash (of a throwaway value) verified against on the
-// user-not-found login path, so "no such account" costs the same wall-clock
-// time as "wrong password" and can't be told apart by response timing.
-const DUMMY_PASSWORD_HASH =
-	"$argon2id$v=19$m=65536,t=3,p=1$O33CfCzMnDsgKMk96pdnpiDwdAHBcp0kBtscfTiFe5E$RGazuyPBViMxQ/tuHPhhiz3lPxuoIf8FnCMGZDaDLlM";
-
-// 2FA consts.
-const TWO_FACTOR_CODE_TTL_MINUTES = 10;
-const TWO_FACTOR_CHALLENGE_TTL = "10m";
-const TWO_FACTOR_MAX_ATTEMPTS = 10;
-const TWO_FACTOR_LOCKOUT_MS = 4 * 60 * 60 * 1000;
 
 interface TwoFactorChallengePayload {
 	sub: string;
@@ -177,12 +163,12 @@ export class AuthService {
 				create: {
 					tokenHash: hashedToken,
 					type: VerificationTokenType.EMAIL_VERIFICATION,
-					expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+					expiresAt: new Date(Date.now() + authConfig.verificationTokenTtlMs),
 				},
 			},
 		});
 
-		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
+		const url = `${authConfig.frontendUrl}/verify-email?token=${token}`;
 
 		// Best-effort: the user and token are already persisted, so a delivery
 		// failure must not fail the request — the client can use
@@ -217,7 +203,7 @@ export class AuthService {
 		if (!user) {
 			// Burn the same time a real password check would, so the response
 			// time can't be used to enumerate which identifiers exist.
-			await this.pwdService.verify(dto.password, DUMMY_PASSWORD_HASH);
+			await this.pwdService.verify(dto.password, authConfig.dummyPasswordHash);
 
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
@@ -290,7 +276,7 @@ export class AuthService {
 
 			const challengeId = this.jwtService.signJwt<TwoFactorChallengePayload>(
 				{ sub: user.id, purpose: "login_2fa" },
-				{ expiresIn: TWO_FACTOR_CHALLENGE_TTL },
+				{ expiresIn: Number(authConfig.twoFactor.challengeTtl) },
 			);
 
 			return {
@@ -316,7 +302,7 @@ export class AuthService {
 		existingSessionId?: string,
 	): Promise<LoginResponseType> {
 		const expiresAt = new Date(
-			Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+			Date.now() + authConfig.refreshTokenExpiryDays * 24 * 60 * 60 * 1000,
 		);
 
 		let sessionId: string;
@@ -465,7 +451,9 @@ export class AuthService {
 		await this.emailRepository.create({
 			tokenHash: codeHash,
 			type: VerificationTokenType.TWO_FACTOR,
-			expiresAt: new Date(Date.now() + TWO_FACTOR_CODE_TTL_MINUTES * 60 * 1000),
+			expiresAt: new Date(
+				Date.now() + authConfig.twoFactor.codeTtlMinutes * 60 * 1000,
+			),
 			user: { connect: { id: userId } },
 		});
 
@@ -474,7 +462,7 @@ export class AuthService {
 				email,
 				username,
 				code,
-				expiresInMinutes: TWO_FACTOR_CODE_TTL_MINUTES,
+				expiresInMinutes: authConfig.twoFactor.codeTtlMinutes,
 			});
 		} catch (error) {
 			logger.error({ err: error, userId }, "Failed to send 2FA code email");
@@ -512,8 +500,8 @@ export class AuthService {
 			// so a burst of parallel wrong codes can't race the threshold.
 			await this.userRepository.recordFailedTwoFactor(
 				userId,
-				TWO_FACTOR_MAX_ATTEMPTS,
-				TWO_FACTOR_LOCKOUT_MS,
+				authConfig.twoFactor.maxAttempts,
+				authConfig.twoFactor.lockoutMs,
 			);
 
 			throw new AppError(
@@ -719,7 +707,7 @@ export class AuthService {
 		await this.emailRepository.create({
 			tokenHash: hashedToken,
 			type: VerificationTokenType.EMAIL_VERIFICATION,
-			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			expiresAt: new Date(Date.now() + authConfig.verificationTokenTtlMs),
 			user: {
 				connect: {
 					id: user.id,
@@ -727,7 +715,7 @@ export class AuthService {
 			},
 		});
 
-		const url = `${env.FRONTEND_URL}/verify-email?token=${token}`;
+		const url = `${authConfig.frontendUrl}/verify-email?token=${token}`;
 
 		try {
 			await this.emailService.sendVerificationEmail({
@@ -927,7 +915,7 @@ export class AuthService {
 
 		await this.emailRepository.create({
 			tokenHash,
-			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			expiresAt: new Date(Date.now() + authConfig.passwordResetTokenTtlMs),
 			type: VerificationTokenType.PASSWORD_RESET,
 			user: {
 				connect: {
@@ -936,7 +924,7 @@ export class AuthService {
 			},
 		});
 
-		const url = `${env.FRONTEND_URL}/reset-password?token=${token}`;
+		const url = `${authConfig.frontendUrl}/reset-password?token=${token}`;
 
 		try {
 			await this.emailService.sendPasswordResetEmail({

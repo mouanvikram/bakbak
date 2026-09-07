@@ -8,10 +8,11 @@ import {
 	passwordChangedEmail,
 } from "./templates/security-alert";
 import { env } from "@/config";
+import { emailConfig } from "./config";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(emailConfig.resendApiKey);
 
-const DEV_EMAIL = "mouanvikram@gmail.com";
+const DEV_EMAIL = emailConfig.devInbox;
 
 export class EmailService {
 	async sendEmail(dto: {
