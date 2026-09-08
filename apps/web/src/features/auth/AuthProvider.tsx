@@ -114,9 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    const { refreshToken } = getStoredTokens();
     try {
-      await apiLogout({ refreshToken: refreshToken ?? undefined });
+      await apiLogout();
     } finally {
       clearStoredTokens();
       setUser(null);

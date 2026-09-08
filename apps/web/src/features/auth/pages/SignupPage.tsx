@@ -8,7 +8,6 @@ import {
   ArrowRight,
   AtSign,
   Check,
-  Loader2,
   Mail,
   User,
   Trash2,
