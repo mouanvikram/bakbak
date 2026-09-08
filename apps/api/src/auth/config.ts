@@ -12,7 +12,7 @@ export const authConfig = {
 	} as const,
 	twoFactor: {
 		codeTtlMinutes: 10,
-		challengeTtl: "10m",
+		challengeTtl: "10m" as const,
 		maxAttempts: 10,
 		lockoutMs: 4 * 60 * 60 * 1000,
 	},

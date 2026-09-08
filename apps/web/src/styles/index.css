@@ -330,8 +330,8 @@ a[href] {
  * Chat conversation background — swaps with the theme.
  * ------------------------------------------------------------------ */
 .chat-surface {
-  background-color: #ece5dd;
-  background-image: url("/images/backgrounds/chat_bg_light.png");
+  background-color: #ffffff;
+  background-image: url("/images/backgrounds/chat_bg_light.webp");
   background-size: cover;
   background-position: center;
 }

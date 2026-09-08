@@ -276,7 +276,7 @@ export class AuthService {
 
 			const challengeId = this.jwtService.signJwt<TwoFactorChallengePayload>(
 				{ sub: user.id, purpose: "login_2fa" },
-				{ expiresIn: Number(authConfig.twoFactor.challengeTtl) },
+				{ expiresIn: authConfig.twoFactor.challengeTtl },
 			);
 
 			return {

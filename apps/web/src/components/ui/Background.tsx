@@ -14,10 +14,10 @@ export function Background({ children }: { children: React.ReactNode }) {
         style={{
           backgroundImage: `url('${
             dark
-              ? "/images/backgrounds/chat_bg_dark.png"
-              : "/images/backgrounds/chat_bg_light.png"
+              ? "/images/backgrounds/chat_bg_dark.webp"
+              : "/images/backgrounds/chat_bg_light.webp"
           }')`,
-          backgroundColor: dark ? "#10151b" : "#ece5dd",
+          backgroundColor: dark ? "#10151b" : "#ffffff",
         }}
       />
 
