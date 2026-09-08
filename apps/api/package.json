@@ -1,11 +1,16 @@
 {
-  "name": "bakbak-api",
+  "name": "@bakbak/api",
   "module": "index.ts",
   "type": "module",
   "private": true,
   "scripts": {
     "dev": "cd ../.. && bun --watch apps/api/index.ts | bunx pino-pretty",
-    "test": "bun test --serial --preload ./tests/setup.ts tests/"
+    "test": "bun test --serial --preload ./tests/setup.ts tests/",
+    "generate": "bun --cwd ../../packages/db run generate",
+    "typecheck": "tsc --noEmit",
+    "build": "bun run generate && bunx tsc --noEmit",
+    "start": "bun apps/api/index.ts",
+    "vercel-build": "bun run generate && bunx tsc --noEmit"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

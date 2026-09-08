@@ -45,3 +45,7 @@ audit-prompt.md
 
 # local security/review reports (not for the repo)
 reports/
+
+# deployment files
+infra/Dockerfile.prod
+infra/AWS_DEPLOYMENT.md
