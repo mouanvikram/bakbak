@@ -1,8 +1,7 @@
-import type { NextFunction, Response } from "express";
-import type { AuthRequest } from "../auth/controller";
+import type { Response } from "express";
+import { requireUserId, type AuthRequest } from "../auth/auth-request";
 import type { FriendService } from "./service";
 import { validateResponse } from "../middleware/validate";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import {
 	acceptFriendRequestResponseSchema,
 	cancelFriendRequestResponseSchema,
@@ -19,181 +18,111 @@ import type {
 	SendFriendRequestRequestType,
 } from "@bakbak/contracts";
 
-/** Every friend route runs `authMiddleware`, so this is always set in practice. */
-function requireUserId(req: AuthRequest): string {
-	const userId = req.user?.userId;
-	if (!userId) {
-		throw new AppError(
-			HTTP_STATUS.UNAUTHORIZED,
-			ERROR_CODES.UNAUTHORIZED,
-			"Unauthorized",
-		);
-	}
-	return userId;
-}
-
 export class FriendController {
 	constructor(private readonly friendService: FriendService) {}
 
-	sendRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
-		try {
-			const senderId = requireUserId(req);
-			const { receiverId } = req.valid?.params as SendFriendRequestRequestType;
+	sendRequest = async (req: AuthRequest, res: Response) => {
+		const senderId = requireUserId(req);
+		const { receiverId } = req.valid?.params as SendFriendRequestRequestType;
 
-			const response = await this.friendService.sendRequest({
-				senderId,
-				receiverId,
-			});
+		const response = await this.friendService.sendRequest({
+			senderId,
+			receiverId,
+		});
 
-			return validateResponse(
-				res,
-				200,
-				sendFriendRequestResponseSchema,
-				response,
-			);
-		} catch (error) {
-			next(error);
-		}
+		return validateResponse(res, 200, sendFriendRequestResponseSchema, response);
 	};
 
-	cancelRequest = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = requireUserId(req);
-			const { requestId } = req.valid?.params as FriendRequestIdParamsType;
-			const response = await this.friendService.cancelRequest({
-				requestId,
-				userId,
-			});
+	cancelRequest = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
+		const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 
-			return validateResponse(
-				res,
-				200,
-				cancelFriendRequestResponseSchema,
-				response,
-			);
-		} catch (error) {
-			next(error);
-		}
+		const response = await this.friendService.cancelRequest({
+			requestId,
+			userId,
+		});
+
+		return validateResponse(
+			res,
+			200,
+			cancelFriendRequestResponseSchema,
+			response,
+		);
 	};
 
-	acceptRequest = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = requireUserId(req);
-			const { requestId } = req.valid?.params as FriendRequestIdParamsType;
-			const response = await this.friendService.acceptRequest({
-				requestId,
-				userId,
-			});
+	acceptRequest = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
+		const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 
-			return validateResponse(
-				res,
-				200,
-				acceptFriendRequestResponseSchema,
-				response,
-			);
-		} catch (error) {
-			next(error);
-		}
+		const response = await this.friendService.acceptRequest({
+			requestId,
+			userId,
+		});
+
+		return validateResponse(
+			res,
+			200,
+			acceptFriendRequestResponseSchema,
+			response,
+		);
 	};
 
-	rejectRequest = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = requireUserId(req);
-			const { requestId } = req.valid?.params as FriendRequestIdParamsType;
-			const response = await this.friendService.rejectRequest({
-				requestId,
-				userId,
-			});
+	rejectRequest = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
+		const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 
-			return validateResponse(
-				res,
-				200,
-				rejectFriendRequestResponseSchema,
-				response,
-			);
-		} catch (error) {
-			next(error);
-		}
+		const response = await this.friendService.rejectRequest({
+			requestId,
+			userId,
+		});
+
+		return validateResponse(
+			res,
+			200,
+			rejectFriendRequestResponseSchema,
+			response,
+		);
 	};
 
-	getFriends = async (req: AuthRequest, res: Response, next: NextFunction) => {
-		try {
-			const userId = requireUserId(req);
-			const response = await this.friendService.getFriends({ userId });
+	getFriends = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 
-			return validateResponse(res, 200, getFriendsResponseSchema, {
-				friendships: response,
-			});
-		} catch (error) {
-			next(error);
-		}
+		const response = await this.friendService.getFriends({ userId });
+
+		return validateResponse(res, 200, getFriendsResponseSchema, {
+			friendships: response,
+		});
 	};
 
-	getPendingRequest = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const id = requireUserId(req);
+	getPendingRequest = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 
-			const received = await this.friendService.getIncomingRequests(id);
-			const sent = await this.friendService.getOutgoingRequests(id);
+		const received = await this.friendService.getIncomingRequests(userId);
+		const sent = await this.friendService.getOutgoingRequests(userId);
 
-			return validateResponse(res, 200, getPendingRequestsResponseSchema, {
-				sent,
-				received,
-			});
-		} catch (error) {
-			next(error);
-		}
+		return validateResponse(res, 200, getPendingRequestsResponseSchema, {
+			sent,
+			received,
+		});
 	};
 
-	removeFriend = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = requireUserId(req);
-			const { friendId } = req.valid?.params as FriendIdParamsType;
+	removeFriend = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
+		const { friendId } = req.valid?.params as FriendIdParamsType;
 
-			const response = await this.friendService.removeFriend({
-				requestId: friendId,
-				userId,
-			});
+		const response = await this.friendService.removeFriend({
+			requestId: friendId,
+			userId,
+		});
 
-			return validateResponse(res, 200, removeFriendResponseSchema, response);
-		} catch (error) {
-			next(error);
-		}
+		return validateResponse(res, 200, removeFriendResponseSchema, response);
 	};
 
-	getSuggestions = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = requireUserId(req);
+	getSuggestions = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 
-			const response = await this.friendService.getSuggestions({ userId });
+		const response = await this.friendService.getSuggestions({ userId });
 
-			return validateResponse(res, 200, getSuggestionsResponseSchema, response);
-		} catch (error) {
-			next(error);
-		}
+		return validateResponse(res, 200, getSuggestionsResponseSchema, response);
 	};
 }

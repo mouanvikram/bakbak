@@ -1,8 +1,7 @@
 import type { Response } from "express";
-import type { AuthRequest } from "../auth/controller";
+import { requireUserId, type AuthRequest } from "../auth/auth-request";
 import type { ChatService } from "./service";
 import { validateResponse } from "../middleware/validate";
-import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import {
 	addParticipantResponseSchema,
 	createChatResponseSchema,
@@ -23,19 +22,6 @@ import type {
 	UpdateChatParticipantRequestType,
 	UpdateChatRequestType,
 } from "@bakbak/contracts";
-
-/** Every chat route runs `authMiddleware`, so this is always set in practice. */
-function requireUserId(req: AuthRequest): string {
-	const userId = req.user?.userId;
-	if (!userId) {
-		throw new AppError(
-			HTTP_STATUS.UNAUTHORIZED,
-			ERROR_CODES.UNAUTHORIZED,
-			"Not authenticated",
-		);
-	}
-	return userId;
-}
 
 export class ChatController {
 	constructor(private readonly chatService: ChatService) {}
