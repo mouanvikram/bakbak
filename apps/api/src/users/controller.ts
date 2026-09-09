@@ -1,4 +1,4 @@
-import type { AuthRequest } from "../auth/controller";
+import { requireUserId, type AuthRequest } from "../auth/auth-request";
 import type { Response } from "express";
 import type { UserService } from "./service";
 import { validateResponse } from "../middleware/validate";
@@ -24,14 +24,8 @@ export class UserController {
 	constructor(private readonly userService: UserService) {}
 
 	getMe = async (req: AuthRequest, res: Response) => {
-		const userId = req.user?.userId;
-		if (!userId) {
-			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.USER_ID_NOT_VALID,
-				"Enter a valid user id",
-			);
-		}
+		const userId = requireUserId(req);
+
 		const profile = await this.userService.getMe({
 			userId,
 		});
@@ -40,17 +34,9 @@ export class UserController {
 	};
 
 	updateMe = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 		const { username, bio, firstName, lastName, displayName } = req.valid
 			?.body as UpdateProfileRequestType;
-		const userId = req.user?.userId;
-
-		if (!userId) {
-			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.USER_ID_NOT_VALID,
-				"Enter a valid user id",
-			);
-		}
 
 		const response = await this.userService.updateMe({
 			userId,
@@ -65,16 +51,9 @@ export class UserController {
 	};
 
 	updateAvatar = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 		const { avatar } = req.valid?.body as UpdateAvatarRequestType;
-		const userId = req.user?.userId;
 
-		if (!userId) {
-			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.USER_ID_NOT_VALID,
-				"Enter a valid user id",
-			);
-		}
 		const response = await this.userService.updateAvatar({
 			userId,
 			avatar,
@@ -84,16 +63,9 @@ export class UserController {
 	};
 
 	uploadAvatar = async (req: AuthRequest, res: Response) => {
-		const userId = req.user?.userId;
+		const userId = requireUserId(req);
 		const file = req.file;
 
-		if (!userId) {
-			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.USER_ID_NOT_VALID,
-				"Enter a valid user id",
-			);
-		}
 		if (!file) {
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
@@ -118,20 +90,11 @@ export class UserController {
 	};
 
 	deleteMe = async (req: AuthRequest, res: Response) => {
-		const userId = req.user?.userId;
-
-		if (!userId) {
-			throw new AppError(
-				HTTP_STATUS.BAD_REQUEST,
-				ERROR_CODES.USER_ID_NOT_VALID,
-				"Enter a valid user id",
-			);
-		}
+		const userId = requireUserId(req);
 
 		await this.userService.deleteMe({
 			userId,
 		});
-
 
 		return validateResponse(res, 200, deleteMeResponseSchema, {
 			message: "Account Deleted successfully",
@@ -140,6 +103,7 @@ export class UserController {
 
 	searchUsers = async (req: AuthRequest, res: Response) => {
 		const { query } = req.valid?.query as SearchUsersRequestType;
+
 		const response = await this.userService.searchUsers({
 			query,
 		});
@@ -148,15 +112,8 @@ export class UserController {
 	};
 
 	getProfile = async (req: AuthRequest, res: Response) => {
+		const currentUserId = requireUserId(req);
 		const { username } = req.valid?.params as GetProfileRequestType;
-		const currentUserId = req.user?.userId;
-		if (!currentUserId) {
-			throw new AppError(
-				HTTP_STATUS.UNAUTHORIZED,
-				ERROR_CODES.UNAUTHORIZED,
-				"Authentication required",
-			);
-		}
 
 		const otherUserProfile = await this.userService.getProfile({
 			username,
@@ -173,6 +130,7 @@ export class UserController {
 
 	checkUsername = async (req: AuthRequest, res: Response) => {
 		const { username } = req.valid?.query as CheckUsernameRequestType;
+
 		const response = await this.userService.checkUsername({
 			username,
 		});

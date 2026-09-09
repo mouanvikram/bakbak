@@ -1,5 +1,5 @@
-import type { NextFunction, Response } from "express";
-import type { AuthRequest } from "../auth/controller";
+import type { Response } from "express";
+import { requireUserId, type AuthRequest } from "../auth/auth-request";
 import type { SettingsService } from "./service";
 import { validateResponse } from "../middleware/validate";
 import { userSettingsResponseSchema } from "@bakbak/contracts";
@@ -7,92 +7,44 @@ import { userSettingsResponseSchema } from "@bakbak/contracts";
 export class SettingsController {
 	constructor(private readonly settingsService: SettingsService) {}
 
-	getSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
-		try {
-			const userId = req.user?.userId;
-			if (!userId) {
-				return res.status(401).json({
-					error: { code: "UNAUTHORIZED", message: "Authentication required" },
-				});
-			}
+	getSettings = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 
-			const response = await this.settingsService.getSettings(userId);
+		const response = await this.settingsService.getSettings(userId);
 
-			return validateResponse(res, 200, userSettingsResponseSchema, response);
-		} catch (error) {
-			next(error);
-		}
+		return validateResponse(res, 200, userSettingsResponseSchema, response);
 	};
 
-	updateNotifications = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = req.user?.userId;
-			if (!userId) {
-				return res.status(401).json({
-					error: { code: "UNAUTHORIZED", message: "Authentication required" },
-				});
-			}
+	updateNotifications = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 
-			const response = await this.settingsService.updateNotifications(
-				userId,
-				req.body,
-			);
+		const response = await this.settingsService.updateNotifications(
+			userId,
+			req.body,
+		);
 
-			return validateResponse(res, 200, userSettingsResponseSchema, response);
-		} catch (error) {
-			next(error);
-		}
+		return validateResponse(res, 200, userSettingsResponseSchema, response);
 	};
 
-	updateAppearance = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = req.user?.userId;
-			if (!userId) {
-				return res.status(401).json({
-					error: { code: "UNAUTHORIZED", message: "Authentication required" },
-				});
-			}
+	updateAppearance = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 
-			const response = await this.settingsService.updateAppearance(
-				userId,
-				req.body,
-			);
+		const response = await this.settingsService.updateAppearance(
+			userId,
+			req.body,
+		);
 
-			return validateResponse(res, 200, userSettingsResponseSchema, response);
-		} catch (error) {
-			next(error);
-		}
+		return validateResponse(res, 200, userSettingsResponseSchema, response);
 	};
 
-	updateChatPreferences = async (
-		req: AuthRequest,
-		res: Response,
-		next: NextFunction,
-	) => {
-		try {
-			const userId = req.user?.userId;
-			if (!userId) {
-				return res.status(401).json({
-					error: { code: "UNAUTHORIZED", message: "Authentication required" },
-				});
-			}
+	updateChatPreferences = async (req: AuthRequest, res: Response) => {
+		const userId = requireUserId(req);
 
-			const response = await this.settingsService.updateChatPreferences(
-				userId,
-				req.body,
-			);
+		const response = await this.settingsService.updateChatPreferences(
+			userId,
+			req.body,
+		);
 
-			return validateResponse(res, 200, userSettingsResponseSchema, response);
-		} catch (error) {
-			next(error);
-		}
+		return validateResponse(res, 200, userSettingsResponseSchema, response);
 	};
 }
