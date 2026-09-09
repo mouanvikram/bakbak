@@ -5,9 +5,9 @@ import { JwtService } from "@/auth/jwt.service";
 import { PasswordService } from "@/auth/password.service";
 import { RefreshTokenRepository } from "@/auth/refresh-token.repository";
 import { AuthService } from "@/auth/service";
-import { ChatController } from "@/chat/controller";
-import { ChatService } from "@/chat/service";
-import { ChatRepository } from "@/chat/repository";
+import { ChatController } from "@/chats/controller";
+import { ChatService } from "@/chats/service";
+import { ChatRepository } from "@/chats/repository";
 import { FriendController } from "@/friends/controller";
 import { FriendRepository } from "@/friends/repository";
 import { FriendService } from "@/friends/service";
@@ -27,7 +27,7 @@ import { UserService } from "@/users/service";
 import { servicesConfig } from "./config";
 
 export const userRepository = new UserRepository();
-export const pwdService = new PasswordService();
+export const passwordService = new PasswordService();
 export const jwtService = new JwtService(servicesConfig.jwtSecret, {
 	issuer: servicesConfig.jwtIssuer,
 	audience: servicesConfig.jwtAudience,
@@ -39,7 +39,7 @@ export const uploadRepository = new UploadRepository();
 export const settingsRepository = new SettingsRepository();
 export const authService = new AuthService(
 	userRepository,
-	pwdService,
+	passwordService,
 	jwtService,
 	emailService,
 	emailRepository,

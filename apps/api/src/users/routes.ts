@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { userController } from "@/services/service.container";
 import { validate } from "@/middleware/validate";
@@ -12,48 +12,46 @@ import {
 } from "@bakbak/contracts";
 import { rateLimitUsernameCheck } from "@/redis/rate-limit";
 
-const router = express.Router();
+export const userRoutes = Router();
 
-router.get(
+userRoutes.get(
 	"/check-username",
 	validate(checkUsernameRequestSchema, "query"),
 	rateLimitUsernameCheck(),
 	userController.checkUsername,
 );
 
-router.use(authMiddleware);
-router.get("/me", userController.getMe);
-router.patch(
+userRoutes.use(authMiddleware);
+userRoutes.get("/me", userController.getMe);
+userRoutes.patch(
 	"/me",
 	validate(updateProfileRequestSchema),
 	userController.updateMe,
 );
 
-router.patch(
+userRoutes.patch(
 	"/me/avatar",
 	validate(updateAvatarRequestSchema),
 	userController.updateAvatar,
 );
 
-router.post(
+userRoutes.post(
 	"/me/avatar",
 	avatarUpload.middleware,
 	avatarUpload.errorHandler,
 	userController.uploadAvatar,
 );
 
-router.delete("/me", userController.deleteMe);
+userRoutes.delete("/me", userController.deleteMe);
 
-router.get(
+userRoutes.get(
 	"/search",
 	validate(searchUsersRequestSchema, "query"),
 	userController.searchUsers,
 );
 
-router.get(
+userRoutes.get(
 	"/:username",
 	validate(getProfileRequestSchema, "params"),
 	userController.getProfile,
 );
-
-export default router;

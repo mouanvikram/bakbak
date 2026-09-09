@@ -8,14 +8,14 @@ import { errorHandler } from "@/middleware/error.middleware";
 import { requestIdMiddleware } from "@/middleware/request-id.middleware";
 import { requestLoggerMiddleware } from "@/middleware/request-logger.middleware";
 import { rateLimitGlobal } from "@/redis/rate-limit";
-import authRoutes from "@/auth/routes";
-import userRoutes from "@/users/routes";
-import chatRoutes from "@/chat/routes";
-import friendRoutes from "@/friends/routes";
+import { authRoutes } from "@/auth/routes";
+import { userRoutes } from "@/users/routes";
+import { chatRoutes } from "@/chats/routes";
+import { friendRoutes } from "@/friends/routes";
 import { messageRoutes } from "@/messages/routes";
-import settingsRoutes from "@/settings/routes";
-import uploadRoutes from "@/uploads/routes";
-import systemRoutes from "@/system/routes";
+import { settingsRoutes } from "@/settings/routes";
+import { uploadRoutes } from "@/uploads/routes";
+import { systemRoutes } from "@/system/routes";
 
 const app: Express = express();
 

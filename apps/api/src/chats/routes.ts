@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { chatController } from "@/services/service.container";
 import { validate } from "@/middleware/validate";
@@ -14,65 +14,63 @@ import {
 } from "@bakbak/contracts";
 import { rateLimitAuthorized } from "@/redis/rate-limit";
 
-const router = express.Router();
-router.use(authMiddleware);
+export const chatRoutes = Router();
+chatRoutes.use(authMiddleware);
 
-router.post(
+chatRoutes.post(
 	"/",
 	validate(createChatRequestSchema),
 	rateLimitAuthorized("chat"),
 	chatController.createChat,
 );
-router.get(
+chatRoutes.get(
 	"/",
 	validate(listChatsQuerySchema, "query"),
 	chatController.listChats,
 );
-router.get(
+chatRoutes.get(
 	"/:chatId",
 	validate(chatIdParamsSchema, "params"),
 	chatController.getChat,
 );
-router.patch(
+chatRoutes.patch(
 	"/:chatId",
 	validate(chatIdParamsSchema, "params"),
 	validate(updateChatRequestSchema),
 	chatController.updateChat,
 );
-router.delete(
+chatRoutes.delete(
 	"/:chatId",
 	validate(chatIdParamsSchema, "params"),
 	chatController.deleteChat,
 );
 
 // "Delete for me" — leave the chat without destroying it for others.
-router.post(
+chatRoutes.post(
 	"/:chatId/leave",
 	validate(chatIdParamsSchema, "params"),
 	chatController.leaveChat,
 );
 
-router.use("/:chatId/messages", chatMessageRoutes);
+chatRoutes.use("/:chatId/messages", chatMessageRoutes);
 
 // Caller's own membership preferences (mute / pin / archive)
-router.patch(
+chatRoutes.patch(
 	"/:chatId/participant",
 	validate(chatIdParamsSchema, "params"),
 	validate(updateChatParticipantRequestSchema),
 	chatController.updateParticipantSettings,
 );
 
-router.post(
+chatRoutes.post(
 	"/:chatId/members",
 	validate(chatIdParamsSchema, "params"),
 	validate(addParticipantRequestSchema),
 	rateLimitAuthorized("chat"),
 	chatController.addParticipant,
 );
-router.delete(
+chatRoutes.delete(
 	"/:chatId/members/:userId",
 	validate(chatMemberParamsSchema, "params"),
 	chatController.removeParticipant,
 );
-
-export default router;

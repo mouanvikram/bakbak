@@ -5,10 +5,10 @@ import { validateResponse } from "@/middleware/validate";
 import { systemConfig } from "./config";
 import { HTTP_STATUS } from "@/errors/app-error";
 
-const router = Router();
+export const systemRoutes = Router();
 
 // Public. Lets the client detect a stale bundle.
-router.get("/", (_req: Request, res: Response) => {
+systemRoutes.get("/", (_req: Request, res: Response) => {
 	res.setHeader("Cache-Control", "public, max-age=60");
 	return validateResponse(res, HTTP_STATUS.OK, versionResponseSchema, {
 		version: systemConfig.appVersion,
@@ -16,5 +16,3 @@ router.get("/", (_req: Request, res: Response) => {
 		buildTime: systemConfig.buildTime,
 	});
 });
-
-export default router;

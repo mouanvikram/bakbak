@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { friendController } from "@/services/service.container";
 import { validate } from "@/middleware/validate";
@@ -9,41 +9,39 @@ import {
 } from "@bakbak/contracts";
 import { rateLimitAuthorized } from "@/redis/rate-limit";
 
-const router = express.Router();
+export const friendRoutes = Router();
 
-router.use(authMiddleware);
-router.post(
+friendRoutes.use(authMiddleware);
+friendRoutes.post(
 	"/requests/:receiverId",
 	validate(sendFriendRequestRequestSchema, "params"),
 	rateLimitAuthorized("friendRequest"),
 	friendController.sendRequest,
 );
-router.post(
+friendRoutes.post(
 	"/requests/:requestId/accept",
 	validate(friendRequestIdParamsSchema, "params"),
 	friendController.acceptRequest,
 );
 
-router.post(
+friendRoutes.post(
 	"/requests/:requestId/reject",
 	validate(friendRequestIdParamsSchema, "params"),
 	friendController.rejectRequest,
 );
 
-router.delete(
+friendRoutes.delete(
 	"/requests/:requestId",
 	validate(friendRequestIdParamsSchema, "params"),
 	friendController.cancelRequest,
 );
 
-router.get("/", friendController.getFriends);
-router.get("/requests", friendController.getPendingRequest);
-router.get("/suggestions", friendController.getSuggestions);
+friendRoutes.get("/", friendController.getFriends);
+friendRoutes.get("/requests", friendController.getPendingRequest);
+friendRoutes.get("/suggestions", friendController.getSuggestions);
 
-router.delete(
+friendRoutes.delete(
 	"/:friendId",
 	validate(friendIdParamsSchema, "params"),
 	friendController.removeFriend,
 );
-
-export default router;

@@ -28,12 +28,12 @@ import {
 } from "@/redis/rate-limit";
 
 
-const router = Router();
+export const authRoutes = Router();
 
 // The avatar (optional) is sent as multipart alongside the signup fields, so
 // multer has to parse the body before validation sees it. A plain JSON signup
 // passes straight through.
-router.post(
+authRoutes.post(
 	"/signup",
 	rateLimitEmails(),
 	avatarUpload.middleware,
@@ -41,81 +41,81 @@ router.post(
 	validate(signUpRequestSchema),
 	authController.signUp,
 );
-router.post(
+authRoutes.post(
 	"/login",
 	validate(loginRequestSchema),
 	rateLimitIp("login"),
 	authController.login,
 );
-router.post(
+authRoutes.post(
 	"/login/verify-2fa",
 	validate(verifyTwoFactorLoginRequestSchema),
 	rateLimitIp("login"),
 	authController.verifyTwoFactorLogin,
 );
-router.post(
+authRoutes.post(
 	"/login/resend-2fa",
 	validate(resendTwoFactorLoginRequestSchema),
 	rateLimitEmails(),
 	authController.resendTwoFactorLogin,
 );
-router.post(
+authRoutes.post(
 	"/verify-email",
 	validate(verifyEmailRequestSchema),
 	authController.verifyEmail,
 );
-router.post(
+authRoutes.post(
 	"/resend-verification",
 	validate(resendVerificationRequestSchema),
 	rateLimitEmails(),
 	authController.resendVerification,
 );
-router.post(
+authRoutes.post(
 	"/change-password",
 	authMiddleware,
 	validate(changePasswordRequestSchema),
 	authController.changePassword,
 );
 
-router.post(
+authRoutes.post(
 	"/forgot-password",
 	validate(forgotPasswordRequestSchema),
 	rateLimitEmails(),
 	authController.forgotPassword,
 );
 
-router.post(
+authRoutes.post(
 	"/reset-password",
 	validate(resetPasswordRequestSchema),
 	authController.resetPassword,
 );
 
-router.post(
+authRoutes.post(
 	"/logout",
 	authMiddleware,
 	validate(logoutRequestSchema),
 	authController.logout,
 );
-router.post(
+authRoutes.post(
 	"/refresh-token",
 	validate(refreshTokenRequestSchema),
 	authController.refreshToken,
 );
 
 // Two-factor management (all require a live session).
-router.post(
+authRoutes.post(
 	"/2fa/setup",
 	authMiddleware,
 	rateLimitAuthorized("email"),
 	authController.setupTwoFactor,
 );
-router.post(
+authRoutes.post(
 	"/2fa/enable",
 	authMiddleware,
 	validate(enableTwoFactorRequestSchema),
 	authController.enableTwoFactor,
 );
-router.post(
+authRoutes.post(
 	"/2fa/disable",
 	authMiddleware,
 	validate(disableTwoFactorRequestSchema),
@@ -123,29 +123,27 @@ router.post(
 );
 
 // Active sessions / devices (all require a live session).
-router.post(
+authRoutes.post(
 	"/sessions",
 	authMiddleware,
 	validate(listSessionsRequestSchema),
 	authController.listSessions,
 );
-router.post(
+authRoutes.post(
 	"/sessions/revoke",
 	authMiddleware,
 	validate(revokeSessionRequestSchema),
 	authController.revokeSession,
 );
-router.post(
+authRoutes.post(
 	"/sessions/revoke-others",
 	authMiddleware,
 	validate(revokeOtherSessionsRequestSchema),
 	authController.revokeOtherSessions,
 );
-router.post(
+authRoutes.post(
 	"/sessions/revoke-all",
 	authMiddleware,
 	validate(revokeOtherSessionsRequestSchema),
 	authController.revokeAllSessions,
 );
-
-export default router;

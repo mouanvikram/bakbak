@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 import { authMiddleware } from "@/middleware/auth.middleware";
 import { settingsController } from "@/services/service.container";
 import { validate } from "@/middleware/validate";
@@ -8,22 +8,22 @@ import {
 	updateNotificationSettingsRequestSchema,
 } from "@bakbak/contracts";
 
-const router = express.Router();
+export const settingsRoutes = Router();
 
-router.use(authMiddleware);
+settingsRoutes.use(authMiddleware);
 
-router.get("/", settingsController.getSettings);
-router.patch(
+settingsRoutes.get("/", settingsController.getSettings);
+settingsRoutes.patch(
 	"/notifications",
 	validate(updateNotificationSettingsRequestSchema),
 	settingsController.updateNotifications,
 );
-router.patch(
+settingsRoutes.patch(
 	"/appearance",
 	validate(updateAppearanceSettingsRequestSchema),
 	settingsController.updateAppearance,
 );
-router.patch(
+settingsRoutes.patch(
 	"/chat",
 	validate(updateChatPreferencesRequestSchema),
 	settingsController.updateChatPreferences,
@@ -31,5 +31,3 @@ router.patch(
 
 // 2FA (the only "privacy" setting) is managed through /auth/2fa/* so the
 // change can be verified with an emailed code — see auth routes.
-
-export default router;
