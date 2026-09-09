@@ -1,10 +1,10 @@
-// System module config — build/version info served at GET /api/v1/version
-// so the client can spot a stale bundle. Stamped by CI; dev defaults below.
+import { str } from "@/config/parse";
+
 export const systemConfig = {
-	appVersion: process.env.APP_VERSION?.trim() || "dev",
-	gitCommit:
-		process.env.GIT_COMMIT?.trim() ||
-		process.env.VERCEL_GIT_COMMIT_SHA?.trim() ||
-		"unknown",
-	buildTime: process.env.BUILD_TIME?.trim() || new Date().toISOString(),
+	appVersion: str(process.env.APP_VERSION, "dev"),
+	gitCommit: str(
+		process.env.GIT_COMMIT,
+		str(process.env.VERCEL_GIT_COMMIT_SHA, "unknown"),
+	),
+	buildTime: str(process.env.BUILD_TIME, new Date().toISOString()),
 };

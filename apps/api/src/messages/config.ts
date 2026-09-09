@@ -1,5 +1,5 @@
-// Messages module config — signed-URL lifetime for attachment URLs
-// embedded in message payloads.
+import { uploadsConfig } from "../uploads/config";
+
 export const messagesConfig = {
-	attachmentUrlTtlSeconds: 3600,
+	attachmentUrlTtlSeconds: uploadsConfig.signedUrlTtlSeconds,
 };

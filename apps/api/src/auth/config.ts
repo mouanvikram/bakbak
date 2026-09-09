@@ -1,8 +1,12 @@
+import { str } from "@/config/parse";
+
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
 export const authConfig = {
-	frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
+	frontendUrl: str(process.env.FRONTEND_URL, "http://localhost:5173"),
 	refreshTokenExpiryDays: 7,
-	verificationTokenTtlMs: 1000 * 60 * 60,
-	passwordResetTokenTtlMs: 60 * 60 * 1000,
+	verificationTokenTtlMs: ONE_HOUR_MS,
+	passwordResetTokenTtlMs: ONE_HOUR_MS,
 	dummyPasswordHash:
 		"$argon2id$v=19$m=65536,t=3,p=1$O33CfCzMnDsgKMk96pdnpiDwdAHBcp0kBtscfTiFe5E$RGazuyPBViMxQ/tuHPhhiz3lPxuoIf8FnCMGZDaDLlM",
 	passwordHashing: {

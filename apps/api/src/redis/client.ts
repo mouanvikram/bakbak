@@ -2,16 +2,12 @@ import Redis from "ioredis";
 import logger from "@/lib/logger";
 import { redisConfig } from "./config";
 
-// Token-bucket Lua: atomic read/refill/deduct per key. Registered once via
-// defineCommand so ioredis runs it as EVALSHA (script is cached on the
-// server after the first call) instead of shipping the body on every request.
+// Token-bucket Lua: atomic read/refill/deduct per key. 
 const TOKEN_BUCKET_SCRIPT = `
 local capacity = tonumber(ARGV[1])
 local refill_rate = tonumber(ARGV[2])
 local requested = tonumber(ARGV[3])
 
--- Single authoritative clock: the Redis server's TIME, so refill math stays
--- consistent across multiple API replicas sharing one keyspace.
 local time = redis.call("TIME")
 local now = tonumber(time[1]) * 1000 + math.floor(tonumber(time[2]) / 1000)
 
@@ -52,9 +48,6 @@ redis.call(
     "timestamp", now
 )
 
--- Only keys that can refill should be allowed to expire away; a non-positive
--- refill rate would otherwise reject every request AND leave a permanent
--- hash behind (the ttl <= 0 guard skips EXPIRE entirely).
 local ttl = 0
 if refill_rate > 0 then
     ttl = math.ceil(capacity / refill_rate)
@@ -73,9 +66,7 @@ return {
 
 let redis: Redis | null = null;
 
-// Gate for the cache: true only while a connection is actually usable. This
-// keeps cache reads/writes from hammering Redis during the connect window or
-// a reconnect — the cache simply bypasses itself until the client is ready.
+// Gate for the cache: true only while a connection is actually usable. 
 export function isRedisReady(): boolean {
 	return redis?.status === "ready";
 }
@@ -87,7 +78,7 @@ export function getRedisClient(): Redis {
 
 	redis = new Redis({
 		host: redisConfig.host,
-		port: Number(redisConfig.port),
+		port: redisConfig.port,
 		maxRetriesPerRequest: 1,
 		enableOfflineQueue: false,
 	});

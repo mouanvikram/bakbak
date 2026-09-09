@@ -1,11 +1,9 @@
-function positiveNum(value: string | undefined, fallback: number): number {
-	const n = Number(value);
-	return Number.isFinite(n) && n > 0 ? n : fallback;
-}
+// Connection plus the token-bucket rate-limit and cache policies. Every bucket is capacity (burst) + refillRate (per second).
+import { positiveNum } from "@/config/parse";
 
 export const redisConfig = {
 	host: process.env.REDIS_HOST ?? "localhost",
-	port: process.env.REDIS_PORT ?? "6379",
+	port: positiveNum(process.env.REDIS_PORT, 6379),
 	rateLimit: {
 		global: {
 			capacity: positiveNum(process.env.RATE_LIMIT_GLOBAL_CAPACITY, 200),

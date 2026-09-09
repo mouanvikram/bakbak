@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import dotenv from "dotenv";
+import { nonNegativeInt, positiveNum } from "./parse";
 
 dotenv.config({ path: resolve(import.meta.dir, "../../../../.env"), quiet: true });
 
@@ -24,9 +25,9 @@ function parseOrigins(raw?: string): string[] {
 
 export const env = {
 	NODE_ENV: process.env.NODE_ENV ?? "development",
-	PORT: Number(process.env.PORT) || 3000,
+	PORT: positiveNum(process.env.PORT, 3000),
 	CORS_ORIGINS: parseOrigins(process.env.CORS_ORIGINS),
 	// Reverse-proxy hops in front of the API (0 = none — X-Forwarded-For
 	// ignored, req.ip is the socket peer).
-	TRUST_PROXY: Number(process.env.TRUST_PROXY) || false,
+	TRUST_PROXY: nonNegativeInt(process.env.TRUST_PROXY, 0),
 };
