@@ -1,7 +1,7 @@
 import type Redis from "ioredis";
 import { getRedisClient, isRedisReady } from "./client";
 import type { NextFunction, Request, Response } from "express";
-import type { AuthRequest } from "@/auth/controller";
+import type { AuthRequest } from "@/auth/auth-request";
 import { redisConfig } from "./config";
 import type { RateLimitBucketName } from "./config";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";

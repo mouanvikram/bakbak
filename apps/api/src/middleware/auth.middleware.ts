@@ -1,4 +1,4 @@
-import type { AuthRequest } from "../auth/controller";
+import type { AuthRequest } from "../auth/auth-request";
 import type { NextFunction, Response } from "express";
 import {
 	jwtService,
@@ -39,6 +39,17 @@ export const authMiddleware = async (
 		// Reject any other JWT signed with this secret (e.g. a 2FA login
 		// challenge) — only a real access token authenticates a request.
 		if (payload.typ !== "access" || !payload.sid) {
+			throw new AppError(
+				HTTP_STATUS.UNAUTHORIZED,
+				ERROR_CODES.UNAUTHORIZED,
+				"Invalid or expired token",
+			);
+		}
+
+		// `sub` reaches Postgres as a uuid column: assert the shape here so a
+		// malformed id fails locally instead of costing a round-trip that
+		// comes back as Prisma P2023. Same uniform 401 as every other reason.
+		if (!userIdSchema.safeParse({ userId: payload.sub }).success) {
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
 				ERROR_CODES.UNAUTHORIZED,
