@@ -10,7 +10,7 @@ import {
   expect,
 } from "bun:test";
 import { createServer } from "node:http";
-import app from "../src/app";
+import app from "@/app";
 import {
   cleanupDatabase,
   createTestUser,

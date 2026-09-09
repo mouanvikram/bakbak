@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { prisma, ParticipantRole, MessageType } from "@bakbak/db";
 import type { User } from "@bakbak/db";
-import { type AccessTokenPayload, JwtService } from "../src/auth/jwt.service";
-import { storageProvider } from "../src/uploads/storage";
-import { servicesConfig } from "../src/services/config";
+import { type AccessTokenPayload, JwtService } from "@/auth/jwt.service";
+import { storageProvider } from "@/uploads/storage";
+import { servicesConfig } from "@/services/config";
 
 export async function authHeader(userId: string, username: string) {
   // The access token must reference a real, live Session: the H2 middleware

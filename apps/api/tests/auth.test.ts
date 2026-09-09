@@ -14,8 +14,8 @@ import {
 } from "bun:test";
 import { createServer } from "node:http";
 import crypto from "node:crypto";
-import app from "../src/app";
-import { emailService } from "../src/services/service.container";
+import app from "@/app";
+import { emailService } from "@/services/service.container";
 import { prisma } from "@bakbak/db";
 import {
   cleanupDatabase,
@@ -23,8 +23,8 @@ import {
   authHeader,
   isDatabaseAvailable,
 } from "./helpers";
-import { type AccessTokenPayload, JwtService } from "../src/auth/jwt.service";
-import { servicesConfig } from "../src/services/config";
+import { type AccessTokenPayload, JwtService } from "@/auth/jwt.service";
+import { servicesConfig } from "@/services/config";
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 

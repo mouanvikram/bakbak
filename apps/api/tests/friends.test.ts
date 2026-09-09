@@ -11,7 +11,7 @@ import {
 } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
-import app from "../src/app";
+import app from "@/app";
 import { prisma } from "@bakbak/db";
 import {
   cleanupDatabase,
