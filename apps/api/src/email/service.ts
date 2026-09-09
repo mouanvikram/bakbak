@@ -39,11 +39,11 @@ export class EmailService {
 			});
 
 			if (error) {
-				logger.error({ error }, "Failed to send email");
+				logger.error({ err: error }, "Failed to send email");
 				throw new Error(error.message);
 			}
 		} catch (error) {
-			logger.error({ error }, "Failed to send email");
+			logger.error({ err: error }, "Failed to send email");
 			throw error;
 		}
 	}

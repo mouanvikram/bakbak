@@ -90,6 +90,23 @@ async function shutdown(signal: string) {
 	}
 }
 
+// A crash must leave a structured line behind: without these, Node dumps an
+// unformatted stack to stderr and the log pipeline never sees it. Both are
+// unrecoverable by definition — log, flush, let the orchestrator restart us.
+process.on("uncaughtException", (err) => {
+	logger.fatal({ err }, "Uncaught exception");
+	logger.flush?.();
+	process.exit(1);
+});
+
+// Node terminates on an unhandled rejection anyway (>= v15); this only makes
+// the reason legible on the way out.
+process.on("unhandledRejection", (reason) => {
+	logger.fatal({ err: reason }, "Unhandled promise rejection");
+	logger.flush?.();
+	process.exit(1);
+});
+
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
 	process.on(signal, () => void shutdown(signal));
 }
