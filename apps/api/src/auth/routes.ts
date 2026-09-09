@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authController } from "../services/service.container";
-import { validate, validateUserId } from "../middleware/validate";
+import { validate } from "../middleware/validate";
 import {
 	changePasswordRequestSchema,
 	disableTwoFactorRequestSchema,
@@ -20,10 +20,7 @@ import {
 	verifyTwoFactorLoginRequestSchema,
 } from "@bakbak/contracts";
 import { authMiddleware } from "../middleware/auth.middleware";
-import {
-	avatarMulterErrorHandler,
-	avatarUploadMiddleware,
-} from "../middleware/avatar.middleware";
+import { avatarUpload } from "../middleware/file-upload";
 import {
 	rateLimitAuthorized,
 	rateLimitEmails,
@@ -39,8 +36,8 @@ const router = Router();
 router.post(
 	"/signup",
 	rateLimitEmails(),
-	avatarUploadMiddleware,
-	avatarMulterErrorHandler,
+	avatarUpload.middleware,
+	avatarUpload.errorHandler,
 	validate(signUpRequestSchema),
 	authController.signUp,
 );
@@ -76,7 +73,6 @@ router.post(
 router.post(
 	"/change-password",
 	authMiddleware,
-	validateUserId(),
 	validate(changePasswordRequestSchema),
 	authController.changePassword,
 );
@@ -97,7 +93,6 @@ router.post(
 router.post(
 	"/logout",
 	authMiddleware,
-	validateUserId(),
 	validate(logoutRequestSchema),
 	authController.logout,
 );
@@ -111,21 +106,18 @@ router.post(
 router.post(
 	"/2fa/setup",
 	authMiddleware,
-	validateUserId(),
 	rateLimitAuthorized("email"),
 	authController.setupTwoFactor,
 );
 router.post(
 	"/2fa/enable",
 	authMiddleware,
-	validateUserId(),
 	validate(enableTwoFactorRequestSchema),
 	authController.enableTwoFactor,
 );
 router.post(
 	"/2fa/disable",
 	authMiddleware,
-	validateUserId(),
 	validate(disableTwoFactorRequestSchema),
 	authController.disableTwoFactor,
 );
@@ -134,28 +126,24 @@ router.post(
 router.post(
 	"/sessions",
 	authMiddleware,
-	validateUserId(),
 	validate(listSessionsRequestSchema),
 	authController.listSessions,
 );
 router.post(
 	"/sessions/revoke",
 	authMiddleware,
-	validateUserId(),
 	validate(revokeSessionRequestSchema),
 	authController.revokeSession,
 );
 router.post(
 	"/sessions/revoke-others",
 	authMiddleware,
-	validateUserId(),
 	validate(revokeOtherSessionsRequestSchema),
 	authController.revokeOtherSessions,
 );
 router.post(
 	"/sessions/revoke-all",
 	authMiddleware,
-	validateUserId(),
 	validate(revokeOtherSessionsRequestSchema),
 	authController.revokeAllSessions,
 );
