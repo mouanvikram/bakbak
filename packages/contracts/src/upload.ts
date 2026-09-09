@@ -71,3 +71,9 @@ export interface UploadDto {
 	userId: string;
 	file: UploadFile;
 }
+
+/** Read or delete one attachment on behalf of a caller. */
+export interface AttachmentAccessDto {
+	attachmentId: string;
+	userId: string;
+}

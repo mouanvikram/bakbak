@@ -40,25 +40,32 @@ import type {
 	ListSessionsResponseType,
 	RevokeSessionResponseType,
 } from "@bakbak/contracts";
-import type { StorageProvider } from "../uploads/storage.provider";
-import type { UploadRepository } from "../uploads/repository";
+import type { StorageProvider } from "@/uploads/storage.provider";
+import type { UploadRepository } from "@/uploads/repository";
 import type { UploadFile } from "@bakbak/contracts";
-import { titleCaseName } from "../lib/name-case";
+import { titleCaseName } from "@/lib/name-case";
 import {
 	extensionFrom,
 	kindFromExtension,
 	kindFromMime,
-} from "../uploads/file-type";
+} from "@/uploads/file-type";
 
 interface TwoFactorChallengePayload {
 	sub: string;
 	purpose: "login_2fa";
 }
 
+// The fields every outgoing account email needs: address, greeting, log id. 
+interface EmailRecipient {
+	id: string;
+	email: string;
+	username: string;
+}
+
 export class AuthService {
 	constructor(
 		private readonly userRepository: UserRepository,
-		private readonly pwdService: PasswordService,
+		private readonly passwordService: PasswordService,
 		private readonly jwtService: JwtService,
 		private readonly emailService: EmailService,
 		private readonly emailRepository: EmailRepository,
@@ -128,7 +135,7 @@ export class AuthService {
 			);
 		}
 
-		const hashedPassword = await this.pwdService.hash(dto.password);
+		const hashedPassword = await this.passwordService.hash(dto.password);
 
 		const avatarUrl =
 			(await this.resolveAvatar(avatarFile)) ?? dto.avatarUrl ?? null;
@@ -175,7 +182,7 @@ export class AuthService {
 		});
 
 		if (!user) {
-			await this.pwdService.verify(dto.password, authConfig.dummyPasswordHash);
+			await this.passwordService.verify(dto.password, authConfig.dummyPasswordHash);
 
 			throw new AppError(
 				HTTP_STATUS.UNAUTHORIZED,
@@ -185,7 +192,7 @@ export class AuthService {
 		}
 
 		if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
-			await this.pwdService.verify(dto.password, user.passwordHash);
+			await this.passwordService.verify(dto.password, user.passwordHash);
 			const minutesLeft = Math.ceil(
 				(user.lockedUntil.getTime() - Date.now()) / 60_000,
 			);
@@ -204,7 +211,7 @@ export class AuthService {
 			user.lockedUntil = fresh.lockedUntil;
 		}
 
-		const matches = await this.pwdService.verify(
+		const matches = await this.passwordService.verify(
 			dto.password,
 			user.passwordHash,
 		);
@@ -363,11 +370,7 @@ export class AuthService {
 	}
 
 	// change password email
-	private async sendPasswordChangedAlert(user: {
-		id: string;
-		email: string;
-		username: string;
-	}) {
+	private async sendPasswordChangedAlert(user: EmailRecipient) {
 		try {
 			await this.emailService.sendPasswordChangedEmail({
 				email: user.email,
@@ -382,7 +385,7 @@ export class AuthService {
 	}
 	// new device login email.
 	private async sendNewDeviceLoginAlert(
-		user: { id: string; email: string; username: string },
+		user: EmailRecipient,
 		userAgent?: string | null,
 	) {
 		try {
@@ -400,7 +403,7 @@ export class AuthService {
 	}
 
 	private async sendVerificationEmail(
-		user: { id: string; email: string; username: string },
+		user: EmailRecipient,
 		token: string,
 	) {
 		try {
@@ -602,7 +605,7 @@ export class AuthService {
 			);
 		}
 
-		const matches = await this.pwdService.verify(
+		const matches = await this.passwordService.verify(
 			dto.password,
 			user.passwordHash,
 		);
@@ -723,7 +726,7 @@ export class AuthService {
 			);
 		}
 
-		const matches = await this.pwdService.verify(
+		const matches = await this.passwordService.verify(
 			dto.currentPassword,
 			user.passwordHash,
 		);
@@ -736,7 +739,7 @@ export class AuthService {
 			);
 		}
 
-		const newHash = await this.pwdService.hash(dto.newPassword);
+		const newHash = await this.passwordService.hash(dto.newPassword);
 		await this.userRepository.updateBy(
 			{
 				id: user.id,
@@ -925,7 +928,7 @@ export class AuthService {
 			);
 		}
 
-		const passwordHash = await this.pwdService.hash(dto.newPassword);
+		const passwordHash = await this.passwordService.hash(dto.newPassword);
 
 		await this.emailRepository.resetPasswordAndClearToken(
 			token.userId,
