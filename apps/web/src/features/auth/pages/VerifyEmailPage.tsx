@@ -22,12 +22,10 @@ export function VerifyEmailPage() {
 
     const verify = async () => {
       try {
-        const response = await verifyEmail(token);
+        await verifyEmail(token);
 
-        console.log(response);
         setStatus("success");
-      } catch (error) {
-        console.log(error);
+      } catch {
         setStatus("error");
       }
     };

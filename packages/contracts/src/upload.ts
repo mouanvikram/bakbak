@@ -43,6 +43,15 @@ export type GetAttachmentResponseType = z.infer<
 	typeof getAttachmentResponseSchema
 >;
 
+
+export const deleteAttachmentResponseSchema = z.object({
+	id: z.uuid(),
+});
+
+export type DeleteAttachmentResponseType = z.infer<
+	typeof deleteAttachmentResponseSchema
+>;
+
 export const attachmentIdParamsSchema = z.object({
 	attachmentId: z.uuid(),
 });

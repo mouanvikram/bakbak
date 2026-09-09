@@ -2,6 +2,7 @@ import { io, Socket } from "socket.io-client";
 import { getAccessToken, dedupeRefresh } from "./api/tokens";
 
 export function log(scope: string, msg: string, payload?: unknown) {
+  if (!import.meta.env.DEV) return;
   // eslint-disable-next-line no-console
   console.log(`[socket:${scope}]`, msg, payload ?? "");
 }
