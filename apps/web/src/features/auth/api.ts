@@ -15,6 +15,9 @@ import type {
   ResendVerificationResponseType,
   ForgotPasswordRequestType,
   ForgotPasswordResponseType,
+  RecoverAccountRequestType,
+  RecoverAccountResponseType,
+  VerifyRecoveryResponseType,
   ChangePasswordRequestType,
   ChangePasswordResponseType,
   RefreshTokenRequestType,
@@ -171,6 +174,24 @@ export function resetPassword(
   return apiClient("/api/v1/auth/reset-password", {
     method: "POST",
     body: JSON.stringify({ ...data, token }),
+  });
+}
+
+export function recoverAccount(
+  data: RecoverAccountRequestType,
+): Promise<RecoverAccountResponseType> {
+  return apiClient("/api/v1/auth/recover-account", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function verifyRecovery(
+  token: string,
+): Promise<VerifyRecoveryResponseType> {
+  return apiClient("/api/v1/auth/recover-account/verify", {
+    method: "POST",
+    body: JSON.stringify({ token }),
   });
 }
 

@@ -82,8 +82,23 @@ export async function uploadAvatar(
   return res.json();
 }
 
-export function deleteMe(): Promise<{ message: string }> {
-  return apiClient("/api/v1/users/me", { method: "DELETE" });
+export function requestAccountDeletionChallenge(
+  password: string,
+): Promise<{ twoFactorRequired: boolean; message: string }> {
+  return apiClient("/api/v1/users/me/delete-challenge", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function deleteMe(
+  password: string,
+  twoFactorCode?: string,
+): Promise<{ message: string }> {
+  return apiClient("/api/v1/users/me", {
+    method: "DELETE",
+    body: JSON.stringify({ password, twoFactorCode }),
+  });
 }
 
 export function checkUsername(

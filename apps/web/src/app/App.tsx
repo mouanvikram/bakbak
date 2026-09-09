@@ -6,10 +6,12 @@ import { MessageToastBridge } from "@/features/chat/MessageToastBridge";
 import {
   ForgotPasswordPage,
   LoginPage,
+  RecoverAccountPage,
   ResendVerificationPage,
   ResetPasswordPage,
   SignupPage,
   VerifyEmailPage,
+  VerifyRecoveryPage,
 } from "@/features/auth/pages";
 import {
   AboutBakbakPage,
@@ -110,6 +112,8 @@ function App() {
         />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/recover-account" element={<RecoverAccountPage />} />
+        <Route path="/verify-recovery" element={<VerifyRecoveryPage />} />
 
         {/* Protected application routes */}
         <Route

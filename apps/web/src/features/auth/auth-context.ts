@@ -25,7 +25,7 @@ export interface AuthContextValue {
   ) => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
   logout: () => Promise<void>;
-  deleteAccount: () => Promise<void>;
+  deleteAccount: (password: string, twoFactorCode?: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 

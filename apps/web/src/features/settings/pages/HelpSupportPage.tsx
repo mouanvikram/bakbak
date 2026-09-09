@@ -27,7 +27,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "What happens when I delete my account?",
-    a: "Everything goes — profile, messages, chats, friends and uploads — and it can't be undone. You'll be asked to type delete:<your username> to confirm.",
+    a: "Everything goes — profile, messages, chats, friends and uploads — and it can't be undone. You'll need to type delete:<your username>, confirm your password (twice: once to send a code, once to delete), and re-enter any emailed verification code if you have two-factor authentication on. You can still undo the delete within 30 days via the email we send you.",
   },
   {
     q: "Why aren't I getting notifications?",

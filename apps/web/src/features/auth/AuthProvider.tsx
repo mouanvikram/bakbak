@@ -128,12 +128,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const deleteAccount = useCallback(async () => {
-    await deleteMe();
-    clearStoredTokens();
-    setUser(null);
-    setProfile(null);
-  }, []);
+  const deleteAccount = useCallback(
+    async (password: string, twoFactorCode?: string) => {
+      await deleteMe(password, twoFactorCode);
+      clearStoredTokens();
+      setUser(null);
+      setProfile(null);
+    },
+    [],
+  );
 
   return (
     <AuthContext.Provider

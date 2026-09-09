@@ -4,3 +4,5 @@ export { VerifyEmailPage } from "./VerifyEmailPage";
 export { ResendVerificationPage } from "./ResendVerificationPage";
 export { ForgotPasswordPage } from "./ForgotPasswordPage";
 export { ResetPasswordPage } from "./ResetPasswordPage";
+export { RecoverAccountPage } from "./RecoverAccountPage";
+export { VerifyRecoveryPage } from "./VerifyRecoveryPage";
