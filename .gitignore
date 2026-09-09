@@ -50,3 +50,6 @@ reports/
 # deployment files
 infra/Dockerfile.prod
 infra/AWS_DEPLOYMENT.md
+
+# Local working notes, not part of the repo.
+remaining.md

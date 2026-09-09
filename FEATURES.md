@@ -11,8 +11,9 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 - [x] **Enumeration-resistant login** — username-or-email with normalization, dummy-hash timing parity for unknown accounts, per-account brute-force lockout (5 tries / 15 min, enforced atomically) with a uniform `429` for right and wrong passwords; no complexity rules on the login password; `EMAIL_NOT_VERIFIED` surfaces only after a correct password.
 - [x] **Hardened password recovery** — forgot/reset via single-use tokens; unverified or soft-deleted accounts get the same generic responses as non-existent ones (no token minted, no email, no oracle).
 - [x] **Password change & reset revoke every session** — change requires the current password + a verified email; all sessions revoked, sockets force-disconnected; stale access and refresh tokens stop working (tested for change, reset, and account deletion).
-- [x] **Re-auth by construction** — 2FA disable re-proves the account password; delete requires a verified email + live session. Email is read-only in this API version (change deferred to a future version).
+- [x] **Re-auth by construction** — 2FA disable re-proves the account password; **account deletion re-proves the current password and, when 2FA is on, a freshly-emailed 2FA code** (`POST /users/me/delete-challenge` pre-checks the password and mints the code; the code is single-use). Email is read-only in this API version (change deferred to a future version).
 - [x] **Security alert emails** — owner notified on password change/reset and on every brand-new device login; token rotation deliberately silent; best-effort, never blocks the action.
+- [x] **30-day account recovery** — deleting the account emails a deletion notice + a recovery link (single-use, hashed, expiry anchored to `deletedAt + 30 days`; resends never extend the window); `POST /auth/recover-account` resends, `POST /auth/recover-account/verify` restores the account; generic responses keep live and deleted accounts indistinguishable.
 
 ## 🔁 Sessions & Refresh Tokens
 
@@ -29,9 +30,9 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 👥 Users
 
-- [x] **Profiles** — read/update your own profile, editable username with live availability check + race handling, normalized bios, title-cased names.
+- [x] **Profiles** — read/update your own profile, editable username with live availability check + race handling and a 6-month change cooldown, normalized bios, title-cased names.
 - [x] **Avatars** — upload (incl. at signup) and URL-set; one at a time; previous object removed; signed URLs served on every read.
-- [x] **Account deletion** — soft-delete (row retained, identifying fields intact), requires a verified email, revokes all sessions + sockets.
+- [x] **Account deletion & recovery** — soft-delete (row retained, identifying fields intact), requires a verified email + the current password (plus a fresh 2FA code when enabled), revokes all sessions + sockets, then emails a 30-day recovery link; resend and verify endpoints restore the account before the window lapses.
 - [x] **Search & public profiles** — capped username/first/last-name search; public profile reports the caller's live relationship status; soft-deleted accounts are treated as non-existent everywhere.
 
 ## 🤝 Friends
@@ -67,7 +68,7 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## ✉️ Email
 
-- [x] **Transactional sends via Resend** — verification, password reset, 2FA code, password-changed, and new-device alerts through one `sendEmail` choke point.
+- [x] **Transactional sends via Resend** — verification, password reset, 2FA code, account deletion/recovery, password-changed, and new-device alerts through one `sendEmail` choke point.
 - [x] **Test & non-prod safety** — real sends are impossible in tests (triple isolation) and all non-production mail is redirected to a hardcoded inbox.
 - [x] **Atomic token flows** — `markVerifiedAndClearTokens` / `resetPasswordAndClearToken` change state and delete the token in one transaction; at most one live token per (user, type); tokens hashed by the caller.
 
@@ -87,4 +88,4 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🧪 Testing
 
-- [x] **269-test HTTP integration suite** — `bun:test` against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends, chats, messages, uploads, and settings — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, and verification gates.
+- [x] **287-test HTTP integration suite** — `bun:test` against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends, chats, messages, uploads, and settings — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion.
