@@ -34,7 +34,7 @@ mock.module("resend", () => ({
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 
-describe("Messages Endpoints", () => {
+describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
   let server: ReturnType<typeof createServer>;
   let port: number;
   let userA: Awaited<ReturnType<typeof createTestUser>>;
@@ -43,10 +43,6 @@ describe("Messages Endpoints", () => {
   let chat: Awaited<ReturnType<typeof createTestGroupChat>>;
 
   beforeAll(async () => {
-    if (!DB_AVAILABLE) {
-      console.warn("Skipping messages tests - database not available");
-      return;
-    }
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const address = server.address();

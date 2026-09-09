@@ -204,11 +204,24 @@ export async function cleanupDatabase() {
   await prisma.user.deleteMany({});
 }
 
+let warnedNoDatabase = false;
+
+/**
+ * Gates the suites that need Postgres. Each test file passes the result to
+ * `describe.skipIf`, so a missing database skips those suites outright rather
+ * than failing every test inside them in the hooks.
+ */
 export async function isDatabaseAvailable(): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return true;
   } catch {
+    if (!warnedNoDatabase) {
+      warnedNoDatabase = true;
+      console.warn(
+        "Database not reachable - skipping every suite that needs it. Run `bun run infra:up` first.",
+      );
+    }
     return false;
   }
 }

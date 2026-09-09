@@ -6,9 +6,19 @@ process.env.JWT_ISSUER ??= "bakbak-api";
 process.env.JWT_AUDIENCE ??= "bakbak-web";
 process.env.FRONTEND_URL ??= "http://localhost:5173";
 
-// Never let a test reach the real mail provider — force a dummy key and
-// replace EmailService wholesale (see ./mocks/email-service). Overwrites any
-// real key from a local .env.
+// Rate limits, raised for the test/dev suite.
+for (const bucket of [
+  "LOGIN",
+  "EMAIL",
+  "UPLOADS",
+  "MESSAGE_SEND",
+  "USERNAME_CHECK",
+  "FRIEND_REQUEST",
+  "CHAT",
+]) {
+  process.env[`RATE_LIMIT_${bucket}_CAPACITY`] ??= "80";
+}
+
 process.env.RESEND_API_KEY = "re_test_fake";
 
 import "./mocks/email-service";

@@ -13,12 +13,11 @@ mock.module("resend", () => ({
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 
-describe("System", () => {
+describe.skipIf(!DB_AVAILABLE)("System", () => {
   let server: ReturnType<typeof createServer>;
   let port: number;
 
   beforeAll(async () => {
-    if (!DB_AVAILABLE) return;
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const address = server.address();

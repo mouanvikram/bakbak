@@ -48,17 +48,13 @@ function form(fileName: string, buffer: Buffer, mime: string): FormData {
   return f;
 }
 
-describe("Uploads Endpoints", () => {
+describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
   let server: ReturnType<typeof createServer>;
   let port: number;
   let userA: Awaited<ReturnType<typeof createTestUser>>;
   let userB: Awaited<ReturnType<typeof createTestUser>>;
 
   beforeAll(async () => {
-    if (!DB_AVAILABLE) {
-      console.warn("Skipping uploads tests - database not available");
-      return;
-    }
     if (!STORAGE_AVAILABLE) {
       console.warn(
         "Object storage not reachable - upload round-trip tests will be skipped (run via `test:docker`)",

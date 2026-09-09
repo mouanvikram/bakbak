@@ -53,15 +53,11 @@ function lastTwoFactorCode(): string {
   return args.code;
 }
 
-describe("Auth Endpoints", () => {
+describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   let server: ReturnType<typeof createServer>;
   let port: number;
 
   beforeAll(async () => {
-    if (!DB_AVAILABLE) {
-      console.warn("Skipping auth tests - database not available");
-      return;
-    }
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const address = server.address();

@@ -32,16 +32,12 @@ mock.module("resend", () => ({
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 
-describe("Users Endpoints", () => {
+describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
   let server: ReturnType<typeof createServer>;
   let port: number;
   let testUser: Awaited<ReturnType<typeof createTestUser>>;
 
   beforeAll(async () => {
-    if (!DB_AVAILABLE) {
-      console.warn("Skipping users tests - database not available");
-      return;
-    }
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const address = server.address();
