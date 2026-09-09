@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { middlewareConfig } from "./config";
 import logger from "@/lib/logger";
+import { ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
 interface ClientWindow {
 	timestamps: number[];
@@ -53,9 +54,9 @@ export const rateLimiterMiddleware = (
 		if (window.blockedUntil > now) {
 			const retryAfter = Math.ceil((window.blockedUntil - now) / 1000);
 			res.setHeader("Retry-After", String(retryAfter));
-			return res.status(429).json({
+			return res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
 				error: {
-					code: "RATE_LIMIT_EXCEEDED",
+					code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
 					message: "Too many requests. Please try again later.",
 				},
 			});
@@ -84,9 +85,9 @@ export const rateLimiterMiddleware = (
 			"Rate limit exceeded",
 		);
 
-		return res.status(429).json({
+		return res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
 			error: {
-				code: "RATE_LIMIT_EXCEEDED",
+				code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
 				message: "Too many requests. Please try again later.",
 			},
 		});

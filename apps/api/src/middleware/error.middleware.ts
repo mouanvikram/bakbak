@@ -5,9 +5,9 @@ import logger from "@/lib/logger";
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
 	if (err?.type === "entity.too.large") {
-		return res.status(413).json({
+		return res.status(HTTP_STATUS.PAYLOAD_TOO_LARGE).json({
 			error: {
-				code: "PAYLOAD_TOO_LARGE",
+				code: ERROR_CODES.PAYLOAD_TOO_LARGE,
 				message: "Request payload is too large.",
 			},
 		});
