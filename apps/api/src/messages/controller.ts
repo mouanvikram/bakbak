@@ -13,6 +13,7 @@ import {
 	sendMessageResponseSchema,
 	getUnreadCountResponseSchema,
 } from "@bakbak/contracts";
+import { HTTP_STATUS } from "@/errors/app-error";
 import type {
 	ChatIdParamsType,
 	EditMessageRequestType,
@@ -40,7 +41,7 @@ export class MessageController {
 			clientId: body.clientId,
 		});
 
-		return validateResponse(res, 201, sendMessageResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.CREATED, sendMessageResponseSchema, response);
 	};
 
 	listMessages = async (req: AuthRequest, res: Response) => {
@@ -55,7 +56,7 @@ export class MessageController {
 			cursor,
 		});
 
-		return validateResponse(res, 200, listMessagesResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.OK, listMessagesResponseSchema, {
 			messages: response,
 		});
 	};
@@ -69,7 +70,7 @@ export class MessageController {
 			messageId,
 		});
 
-		return validateResponse(res, 200, getMessageResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.OK, getMessageResponseSchema, {
 			message: response,
 		});
 	};
@@ -85,7 +86,7 @@ export class MessageController {
 			text,
 		});
 
-		return validateResponse(res, 200, editMessageResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, editMessageResponseSchema, response);
 	};
 
 	deleteMessage = async (req: AuthRequest, res: Response) => {
@@ -97,7 +98,7 @@ export class MessageController {
 			messageId,
 		});
 
-		return validateResponse(res, 200, deleteMessageResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, deleteMessageResponseSchema, response);
 	};
 
 	markChatRead = async (req: AuthRequest, res: Response) => {
@@ -111,7 +112,7 @@ export class MessageController {
 			messageId,
 		});
 
-		return validateResponse(res, 200, markChatReadResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, markChatReadResponseSchema, response);
 	};
 
 	searchMessages = async (req: AuthRequest, res: Response) => {
@@ -127,7 +128,7 @@ export class MessageController {
 			cursor,
 		});
 
-		return validateResponse(res, 200, searchMessagesResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.OK, searchMessagesResponseSchema, {
 			messages: response,
 		});
 	};
@@ -141,7 +142,7 @@ export class MessageController {
 			chatId,
 		});
 
-		return validateResponse(res, 200, getUnreadCountResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.OK, getUnreadCountResponseSchema, {
 			count,
 		});
 	};

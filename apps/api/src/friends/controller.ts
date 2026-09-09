@@ -12,6 +12,7 @@ import {
 	removeFriendResponseSchema,
 	sendFriendRequestResponseSchema,
 } from "@bakbak/contracts";
+import { HTTP_STATUS } from "@/errors/app-error";
 import type {
 	FriendIdParamsType,
 	FriendRequestIdParamsType,
@@ -30,7 +31,7 @@ export class FriendController {
 			receiverId,
 		});
 
-		return validateResponse(res, 200, sendFriendRequestResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, sendFriendRequestResponseSchema, response);
 	};
 
 	cancelRequest = async (req: AuthRequest, res: Response) => {
@@ -44,7 +45,7 @@ export class FriendController {
 
 		return validateResponse(
 			res,
-			200,
+			HTTP_STATUS.OK,
 			cancelFriendRequestResponseSchema,
 			response,
 		);
@@ -61,7 +62,7 @@ export class FriendController {
 
 		return validateResponse(
 			res,
-			200,
+			HTTP_STATUS.OK,
 			acceptFriendRequestResponseSchema,
 			response,
 		);
@@ -78,7 +79,7 @@ export class FriendController {
 
 		return validateResponse(
 			res,
-			200,
+			HTTP_STATUS.OK,
 			rejectFriendRequestResponseSchema,
 			response,
 		);
@@ -89,7 +90,7 @@ export class FriendController {
 
 		const response = await this.friendService.getFriends({ userId });
 
-		return validateResponse(res, 200, getFriendsResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.OK, getFriendsResponseSchema, {
 			friendships: response,
 		});
 	};
@@ -100,7 +101,7 @@ export class FriendController {
 		const received = await this.friendService.getIncomingRequests(userId);
 		const sent = await this.friendService.getOutgoingRequests(userId);
 
-		return validateResponse(res, 200, getPendingRequestsResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.OK, getPendingRequestsResponseSchema, {
 			sent,
 			received,
 		});
@@ -115,7 +116,7 @@ export class FriendController {
 			userId,
 		});
 
-		return validateResponse(res, 200, removeFriendResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, removeFriendResponseSchema, response);
 	};
 
 	getSuggestions = async (req: AuthRequest, res: Response) => {
@@ -123,6 +124,6 @@ export class FriendController {
 
 		const response = await this.friendService.getSuggestions({ userId });
 
-		return validateResponse(res, 200, getSuggestionsResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, getSuggestionsResponseSchema, response);
 	};
 }

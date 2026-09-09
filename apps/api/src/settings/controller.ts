@@ -3,6 +3,7 @@ import { requireUserId, type AuthRequest } from "../auth/auth-request";
 import type { SettingsService } from "./service";
 import { validateResponse } from "../middleware/validate";
 import { userSettingsResponseSchema } from "@bakbak/contracts";
+import { HTTP_STATUS } from "@/errors/app-error";
 
 export class SettingsController {
 	constructor(private readonly settingsService: SettingsService) {}
@@ -12,7 +13,7 @@ export class SettingsController {
 
 		const response = await this.settingsService.getSettings(userId);
 
-		return validateResponse(res, 200, userSettingsResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, userSettingsResponseSchema, response);
 	};
 
 	updateNotifications = async (req: AuthRequest, res: Response) => {
@@ -23,7 +24,7 @@ export class SettingsController {
 			req.body,
 		);
 
-		return validateResponse(res, 200, userSettingsResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, userSettingsResponseSchema, response);
 	};
 
 	updateAppearance = async (req: AuthRequest, res: Response) => {
@@ -34,7 +35,7 @@ export class SettingsController {
 			req.body,
 		);
 
-		return validateResponse(res, 200, userSettingsResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, userSettingsResponseSchema, response);
 	};
 
 	updateChatPreferences = async (req: AuthRequest, res: Response) => {
@@ -45,6 +46,6 @@ export class SettingsController {
 			req.body,
 		);
 
-		return validateResponse(res, 200, userSettingsResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, userSettingsResponseSchema, response);
 	};
 }

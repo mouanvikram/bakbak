@@ -30,7 +30,7 @@ export class UserController {
 			userId,
 		});
 
-		return validateResponse(res, 200, getMeResponseSchema, profile);
+		return validateResponse(res, HTTP_STATUS.OK, getMeResponseSchema, profile);
 	};
 
 	updateMe = async (req: AuthRequest, res: Response) => {
@@ -47,7 +47,7 @@ export class UserController {
 			displayName,
 		});
 
-		return validateResponse(res, 200, updateProfileResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, updateProfileResponseSchema, response);
 	};
 
 	updateAvatar = async (req: AuthRequest, res: Response) => {
@@ -59,7 +59,7 @@ export class UserController {
 			avatar,
 		});
 
-		return validateResponse(res, 200, updateAvatarResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, updateAvatarResponseSchema, response);
 	};
 
 	uploadAvatar = async (req: AuthRequest, res: Response) => {
@@ -86,7 +86,7 @@ export class UserController {
 			},
 		});
 
-		return validateResponse(res, 200, updateAvatarResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, updateAvatarResponseSchema, response);
 	};
 
 	deleteMe = async (req: AuthRequest, res: Response) => {
@@ -96,7 +96,7 @@ export class UserController {
 			userId,
 		});
 
-		return validateResponse(res, 200, deleteMeResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.OK, deleteMeResponseSchema, {
 			message: "Account Deleted successfully",
 		});
 	};
@@ -108,7 +108,7 @@ export class UserController {
 			query,
 		});
 
-		return validateResponse(res, 200, searchUsersResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, searchUsersResponseSchema, response);
 	};
 
 	getProfile = async (req: AuthRequest, res: Response) => {
@@ -122,7 +122,7 @@ export class UserController {
 
 		return validateResponse(
 			res,
-			200,
+			HTTP_STATUS.OK,
 			getProfileResponseSchema,
 			otherUserProfile,
 		);
@@ -135,6 +135,6 @@ export class UserController {
 			username,
 		});
 
-		return validateResponse(res, 200, checkUsernameResponseSchema, response);
+		return validateResponse(res, HTTP_STATUS.OK, checkUsernameResponseSchema, response);
 	};
 }

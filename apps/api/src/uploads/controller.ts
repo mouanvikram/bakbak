@@ -3,6 +3,7 @@ import { requireUserId, type AuthRequest } from "../auth/auth-request";
 import type { UploadService } from "./service";
 import { validateResponse } from "../middleware/validate";
 import {
+	deleteAttachmentResponseSchema,
 	getAttachmentResponseSchema,
 	uploadResponseSchema,
 } from "@bakbak/contracts";
@@ -36,7 +37,7 @@ export class UploadController {
 			},
 		});
 
-		return validateResponse(res, 201, uploadResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.CREATED, uploadResponseSchema, {
 			attachment: response,
 		});
 	};
@@ -50,7 +51,7 @@ export class UploadController {
 			userId,
 		);
 
-		return validateResponse(res, 200, getAttachmentResponseSchema, {
+		return validateResponse(res, HTTP_STATUS.OK, getAttachmentResponseSchema, {
 			attachment: response,
 		});
 	};
@@ -61,6 +62,8 @@ export class UploadController {
 
 		await this.uploadService.delete(attachmentId, userId);
 
-		return res.status(200).json({ id: attachmentId });
+		return validateResponse(res, HTTP_STATUS.OK, deleteAttachmentResponseSchema, {
+			id: attachmentId,
+		});
 	};
 }
