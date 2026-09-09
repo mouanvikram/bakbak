@@ -210,7 +210,7 @@ export class ChatService {
 		return participant;
 	}
 
-	createDirectChat = async (dto: CreateDirectChatDto) => {
+	async createDirectChat(dto: CreateDirectChatDto) {
 		if (dto.currentUserId === dto.participantId) {
 			throw new AppError(
 				HTTP_STATUS.BAD_REQUEST,
@@ -272,9 +272,9 @@ export class ChatService {
 		});
 
 		return await this.serializeChat(chat);
-	};
+	}
 
-	createGroupChat = async (dto: CreateGroupChatDto) => {
+	async createGroupChat(dto: CreateGroupChatDto) {
 		const name = dto.name.trim();
 		if (!name) {
 			throw new AppError(
@@ -325,9 +325,9 @@ export class ChatService {
 		});
 
 		return await this.serializeChat(chat);
-	};
+	}
 
-	listChats = async (dto: ListChatsDto) => {
+	async listChats(dto: ListChatsDto) {
 		const chats = await this.chatRepository.findMany({
 			where: {
 				participants: {
@@ -352,9 +352,9 @@ export class ChatService {
 		});
 
 		return Promise.all(chats.map((chat) => this.serializeChat(chat)));
-	};
+	}
 
-	getChat = async (dto: ChatIdDto) => {
+	async getChat(dto: ChatIdDto) {
 		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
 		const chat = await this.chatRepository.findUnique({
@@ -373,9 +373,9 @@ export class ChatService {
 		}
 
 		return await this.serializeChat(chat);
-	};
+	}
 
-	updateChat = async (dto: UpdateChatDto) => {
+	async updateChat(dto: UpdateChatDto) {
 		const chat = await this.chatRepository.findUnique({
 			where: {
 				id: dto.chatId,
@@ -443,9 +443,9 @@ export class ChatService {
 
 		broadcastChatUpdated(dto.chatId, updated);
 		return updated;
-	};
+	}
 
-	/** Re-read + broadcast the chat after a membership change. */
+	// Re-read + broadcast the chat after a membership change.
 	private async broadcastChatState(chatId: string) {
 		const chat = await this.chatRepository.findUnique({
 			where: { id: chatId },
@@ -456,7 +456,7 @@ export class ChatService {
 		}
 	}
 
-	addParticipant = async (dto: ParticipantDto) => {
+	async addParticipant(dto: ParticipantDto) {
 		const chat = await this.chatRepository.findUnique({
 			where: {
 				id: dto.chatId,
@@ -517,9 +517,9 @@ export class ChatService {
 		await this.broadcastChatState(dto.chatId);
 
 		return await this.serializeParticipant(participant);
-	};
+	}
 
-	removeParticipant = async (dto: ParticipantDto) => {
+	async removeParticipant(dto: ParticipantDto) {
 		const chat = await this.chatRepository.findUnique({
 			where: {
 				id: dto.chatId,
@@ -563,15 +563,13 @@ export class ChatService {
 			},
 			include: participantInclude,
 		});
-
-		// The removed member's socket is still in the room, so they get this
-		// too and can tell (from the participants list) that they're out.
+		
 		await this.broadcastChatState(dto.chatId);
 
 		return await this.serializeParticipant(participant);
-	};
+	}
 
-	updateParticipantSettings = async (dto: UpdateChatParticipantDto) => {
+	async updateParticipantSettings(dto: UpdateChatParticipantDto) {
 		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
 		const data: Prisma.ChatParticipantUpdateInput = {};
@@ -593,15 +591,13 @@ export class ChatService {
 		});
 
 		return await this.serializeParticipant(participant);
-	};
+	}
 
-	/**
-	 * "Delete for me": drop the caller from the chat by stamping their
-	 * participant row's `leftAt`. The conversation disappears from their list
-	 * (see `listChats`' `leftAt: null` filter) while everyone else keeps it.
-	 * Re-opening a direct chat with the same person clears `leftAt` again.
-	 */
-	leaveChat = async (dto: ChatIdDto) => {
+	// "Delete for me": drop the caller from the chat by stamping their
+	// participant row's `leftAt`. The conversation disappears from their list
+	// (see `listChats`' `leftAt: null` filter) while everyone else keeps it.
+	// Re-opening a direct chat with the same person clears `leftAt` again.
+	async leaveChat(dto: ChatIdDto) {
 		await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
 		await this.chatRepository.updateParticipant({
@@ -628,9 +624,9 @@ export class ChatService {
 		}
 
 		return { message: "Chat removed" };
-	};
+	}
 
-	deleteChat = async (dto: ChatIdDto) => {
+	async deleteChat(dto: ChatIdDto) {
 		const participant = await this.requireActiveParticipant(
 			dto.chatId,
 			dto.currentUserId,
@@ -680,5 +676,5 @@ export class ChatService {
 		});
 
 		return await this.serializeChat(chatDeleted);
-	};
+	}
 }

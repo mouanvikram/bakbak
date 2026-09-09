@@ -1,8 +1,9 @@
 import type { UserSettings } from "@bakbak/db";
 import type {
-	AppearanceSettingsType,
-	ChatPreferencesType,
-	NotificationSettingsType,
+	UpdateAppearanceDto,
+	UpdateChatPreferencesDto,
+	UpdateNotificationsDto,
+	UserIdType,
 	UserSettingsResponseType,
 } from "@bakbak/contracts";
 import type { SettingsRepository } from "./repository";
@@ -22,41 +23,38 @@ type SettingsPatch = Partial<{
 export class SettingsService {
 	constructor(private readonly settingsRepository: SettingsRepository) {}
 
-	async getSettings(userId: string): Promise<UserSettingsResponseType> {
-		const settings = await this.settingsRepository.upsert(userId, {});
+	async getSettings(dto: UserIdType): Promise<UserSettingsResponseType> {
+		const settings = await this.settingsRepository.upsert(dto.userId, {});
 
 		return this.toResponse(settings);
 	}
 
 	async updateNotifications(
-		userId: string,
-		dto: NotificationSettingsType,
+		dto: UpdateNotificationsDto,
 	): Promise<UserSettingsResponseType> {
-		return this.update(userId, {
-			notifyMessages: dto.messages,
-			notifySounds: dto.sounds,
-			notifyAlerts: dto.alerts,
-			emailDigest: dto.emailDigest,
+		return this.update(dto.userId, {
+			notifyMessages: dto.settings.messages,
+			notifySounds: dto.settings.sounds,
+			notifyAlerts: dto.settings.alerts,
+			emailDigest: dto.settings.emailDigest,
 		});
 	}
 
 	async updateAppearance(
-		userId: string,
-		dto: AppearanceSettingsType,
+		dto: UpdateAppearanceDto,
 	): Promise<UserSettingsResponseType> {
-		return this.update(userId, {
-			theme: dto.theme,
-			fontSize: dto.fontSize,
+		return this.update(dto.userId, {
+			theme: dto.settings.theme,
+			fontSize: dto.settings.fontSize,
 		});
 	}
 
 	async updateChatPreferences(
-		userId: string,
-		dto: ChatPreferencesType,
+		dto: UpdateChatPreferencesDto,
 	): Promise<UserSettingsResponseType> {
-		return this.update(userId, {
-			enterToSend: dto.enterToSend,
-			mediaPreview: dto.mediaPreview,
+		return this.update(dto.userId, {
+			enterToSend: dto.settings.enterToSend,
+			mediaPreview: dto.settings.mediaPreview,
 		});
 	}
 

@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { UploadDto } from "@bakbak/contracts";
+
+interface AttachmentAccessDto {
+	attachmentId: string;
+	userId: string;
+}
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "./storage.provider";
 import type { UploadRepository } from "./repository";
@@ -40,7 +45,9 @@ export class UploadService {
 
 	// Fresh signed URL, if the requester is an active member of the attachment's
 	// chat or owns a not-yet-sent upload. Otherwise 403/404.
-	async getAttachment(attachmentId: string, userId: string) {
+	async getAttachment(dto: AttachmentAccessDto) {
+		const { attachmentId, userId } = dto;
+
 		const attachment =
 			await this.uploadRepository.findByIdWithChat(attachmentId);
 		if (!attachment) {
@@ -83,7 +90,9 @@ export class UploadService {
 		return this.toResponse(attachment, url);
 	}
 
-	async delete(attachmentId: string, userId: string) {
+	async delete(dto: AttachmentAccessDto) {
+		const { attachmentId, userId } = dto;
+
 		const attachment = await this.uploadRepository.findById(attachmentId);
 		if (!attachment) {
 			throw new AppError(

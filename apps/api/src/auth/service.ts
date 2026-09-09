@@ -68,12 +68,8 @@ export class AuthService {
 		private readonly settingsRepository: SettingsRepository,
 	) {}
 
-	/**
-	 * Writes the avatar uploaded alongside signup to object storage + the
-	 * database, returning its storage key. Called from register once the
-	 * signup is known to be valid, so an abandoned or rejected signup never
-	 * persists anything.
-	 */
+		// Writes the avatar uploaded alongside signup to object storage + the
+		// database, returning its storage key. 	
 	private async resolveAvatar(
 		file: UploadFile | undefined,
 	): Promise<string | null> {
@@ -93,11 +89,8 @@ export class AuthService {
 				fileSize: file.size,
 			});
 
-			// Persist the durable storage key; it is resolved to a fetchable
-			// signed URL when the profile is served (see UserService).
 			return key;
 		} catch (error) {
-			// A failed avatar write must not block account creation.
 			logger.error(
 				{ err: error, fileName: file.originalname },
 				"Failed to persist avatar on signup",
@@ -137,9 +130,6 @@ export class AuthService {
 
 		const hashedPassword = await this.pwdService.hash(dto.password);
 
-		// The avatar rides along with the signup request, so it is only written
-		// once we know the signup is valid — nothing is retained for abandoned
-		// signups.
 		const avatarUrl =
 			(await this.resolveAvatar(avatarFile)) ?? dto.avatarUrl ?? null;
 
@@ -168,23 +158,7 @@ export class AuthService {
 			},
 		});
 
-		const url = `${authConfig.frontendUrl}/verify-email?token=${token}`;
-
-		// Best-effort: the user and token are already persisted, so a delivery
-		// failure must not fail the request — the client can use
-		// resend-verification instead of hitting a 500 with a zombie account.
-		try {
-			await this.emailService.sendVerificationEmail({
-				email: user.email,
-				username: user.username,
-				url,
-			});
-		} catch (error) {
-			logger.error(
-				{ err: error, userId: user.id },
-				"Failed to send verification email",
-			);
-		}
+		await this.sendVerificationEmail(user, token);
 
 		return {
 			message: "Verification email sent successfully",
@@ -201,8 +175,6 @@ export class AuthService {
 		});
 
 		if (!user) {
-			// Burn the same time a real password check would, so the response
-			// time can't be used to enumerate which identifiers exist.
 			await this.pwdService.verify(dto.password, authConfig.dummyPasswordHash);
 
 			throw new AppError(
@@ -212,11 +184,6 @@ export class AuthService {
 			);
 		}
 
-		// A live lockout refuses every login with the same response, correct
-		// password or not — branching on the password here would turn the
-		// lock into a password oracle (429 = "that guess was right").
-		// The hash is still verified and discarded so timing matches a
-		// normal wrong-password attempt.
 		if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
 			await this.pwdService.verify(dto.password, user.passwordHash);
 			const minutesLeft = Math.ceil(
@@ -230,9 +197,6 @@ export class AuthService {
 				}.`,
 			);
 		}
-
-		// An expired lockout is stale state — clear it so this attempt starts
-		// with a fresh window.
 
 		if (user.lockedUntil) {
 			const fresh = await this.userRepository.resetLoginFailures(user.id);
@@ -435,6 +399,24 @@ export class AuthService {
 		}
 	}
 
+	private async sendVerificationEmail(
+		user: { id: string; email: string; username: string },
+		token: string,
+	) {
+		try {
+			await this.emailService.sendVerificationEmail({
+				email: user.email,
+				username: user.username,
+				url: `${authConfig.frontendUrl}/verify-email?token=${token}`,
+			});
+		} catch (error) {
+			logger.error(
+				{ err: error, userId: user.id },
+				"Failed to send verification email",
+			);
+		}
+	}
+
 	// send 2FA code.
 	private async sendTwoFactorCode(
 		userId: string,
@@ -576,7 +558,7 @@ export class AuthService {
 		return { message: "A new code is on its way." };
 	}
 
-	/** Step 1 of turning 2FA on: email the user a code to confirm ownership. */
+
 	async requestTwoFactorSetup(
 		userId: string,
 	): Promise<SetupTwoFactorResponseType> {
@@ -594,7 +576,6 @@ export class AuthService {
 		return { message: "We emailed you a 6-digit verification code." };
 	}
 
-	/** Step 2: confirm the code and flip the flag on. */
 	async enableTwoFactor(
 		userId: string,
 		dto: EnableTwoFactorRequestType,
@@ -679,8 +660,6 @@ export class AuthService {
 	): Promise<ResendVerificationResponseType> {
 		const email = dto.email;
 
-		// Soft-deleted accounts are treated as non-existent: no verification
-		// link, no token minted, no email.
 		const user = await this.userRepository.findActiveByEmail(email);
 
 		const genericResponse: ResendVerificationResponseType = {
@@ -715,20 +694,7 @@ export class AuthService {
 			},
 		});
 
-		const url = `${authConfig.frontendUrl}/verify-email?token=${token}`;
-
-		try {
-			await this.emailService.sendVerificationEmail({
-				username: user.username,
-				email,
-				url,
-			});
-		} catch (error) {
-			logger.error(
-				{ err: error, userId: user.id },
-				"Failed to send verification email",
-			);
-		}
+		await this.sendVerificationEmail(user, token);
 
 		return genericResponse;
 	}
@@ -782,7 +748,6 @@ export class AuthService {
 
 		this.sendPasswordChangedAlert(user);
 
-		// revoke every session on password change.
 		await this.refreshTokenRepository.revokeAllSessionsForUser(user.id);
 		await disconnectSockets({ userId });
 
@@ -846,9 +811,6 @@ export class AuthService {
 			);
 		}
 
-		// The session itself must still be live — the token row alone isn't
-		// enough (logout/revoke-all stamp both, but only the session is the
-		// authority the middleware also enforces). Uniform error either way.
 		const session = stored.sessionId
 			? await this.refreshTokenRepository.findSessionById(stored.sessionId)
 			: null;
@@ -860,7 +822,6 @@ export class AuthService {
 			);
 		}
 
-		// Soft-deleted accounts must not mint fresh tokens.
 		const user = await this.userRepository.findActiveById(stored.userId);
 		if (!user) {
 			throw new AppError(
@@ -870,7 +831,6 @@ export class AuthService {
 			);
 		}
 
-		// Revoke the old token (rotation)
 		await this.refreshTokenRepository.revoke(stored.id);
 
 		const { accessToken, refreshToken } = await this.issueTokens(
@@ -886,8 +846,6 @@ export class AuthService {
 	async forgotPassword(
 		dto: ForgotPasswordRequestType,
 	): Promise<ForgotPasswordResponseType> {
-		// Soft-deleted accounts are treated as non-existent: no reset link,
-		// no token minted, no email.
 		const user = await this.userRepository.findActiveByEmail(dto.email);
 		const genericResponse: ForgotPasswordResponseType = {
 			message: "If an account exists, reset link is sent to the email.",
@@ -896,11 +854,6 @@ export class AuthService {
 			return genericResponse;
 		}
 
-		// An account that never proved it owns its email can't use the reset
-		// path — otherwise anyone who merely controls the inbox could change
-		// credentials on an account whose address was never confirmed at
-		// signup. Same generic response, no token minted, no email, so
-		// "unverified" stays indistinguishable from "non-existent".
 		if (!user.isEmailVerified) {
 			return genericResponse;
 		}
@@ -963,10 +916,6 @@ export class AuthService {
 			);
 		}
 
-		// A soft-deleted account must not be recoverable via its email token —
-		// treat it like an invalid token so the reset link can't revive it. An
-		// unverified account is treated the same way: verification first is
-		// the only way in for an account that never proved it owns its email.
 		const user = await this.userRepository.findActiveById(token.userId);
 		if (!user || !user.isEmailVerified) {
 			throw new AppError(
@@ -984,8 +933,6 @@ export class AuthService {
 			token.id,
 		);
 
-		// Account-recovery path: kill every existing session so a compromised
-		// login can't outlive the password it was signed in with.
 		await this.refreshTokenRepository.revokeAllSessionsForUser(token.userId);
 		await disconnectSockets({ userId: token.userId });
 

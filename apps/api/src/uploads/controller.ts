@@ -46,10 +46,10 @@ export class UploadController {
 		const userId = requireUserId(req);
 		const { attachmentId } = req.valid?.params as AttachmentIdParamsType;
 
-		const response = await this.uploadService.getAttachment(
+		const response = await this.uploadService.getAttachment({
 			attachmentId,
 			userId,
-		);
+		});
 
 		return validateResponse(res, HTTP_STATUS.OK, getAttachmentResponseSchema, {
 			attachment: response,
@@ -60,7 +60,7 @@ export class UploadController {
 		const userId = requireUserId(req);
 		const { attachmentId } = req.valid?.params as AttachmentIdParamsType;
 
-		await this.uploadService.delete(attachmentId, userId);
+		await this.uploadService.delete({ attachmentId, userId });
 
 		return validateResponse(res, HTTP_STATUS.OK, deleteAttachmentResponseSchema, {
 			id: attachmentId,

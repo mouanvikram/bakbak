@@ -3,6 +3,11 @@ import { requireUserId, type AuthRequest } from "../auth/auth-request";
 import type { SettingsService } from "./service";
 import { validateResponse } from "../middleware/validate";
 import { userSettingsResponseSchema } from "@bakbak/contracts";
+import type {
+	AppearanceSettingsType,
+	ChatPreferencesType,
+	NotificationSettingsType,
+} from "@bakbak/contracts";
 import { HTTP_STATUS } from "@/errors/app-error";
 
 export class SettingsController {
@@ -11,7 +16,7 @@ export class SettingsController {
 	getSettings = async (req: AuthRequest, res: Response) => {
 		const userId = requireUserId(req);
 
-		const response = await this.settingsService.getSettings(userId);
+		const response = await this.settingsService.getSettings({ userId });
 
 		return validateResponse(res, HTTP_STATUS.OK, userSettingsResponseSchema, response);
 	};
@@ -19,10 +24,10 @@ export class SettingsController {
 	updateNotifications = async (req: AuthRequest, res: Response) => {
 		const userId = requireUserId(req);
 
-		const response = await this.settingsService.updateNotifications(
+		const response = await this.settingsService.updateNotifications({
 			userId,
-			req.body,
-		);
+			settings: req.valid?.body as NotificationSettingsType,
+		});
 
 		return validateResponse(res, HTTP_STATUS.OK, userSettingsResponseSchema, response);
 	};
@@ -30,10 +35,10 @@ export class SettingsController {
 	updateAppearance = async (req: AuthRequest, res: Response) => {
 		const userId = requireUserId(req);
 
-		const response = await this.settingsService.updateAppearance(
+		const response = await this.settingsService.updateAppearance({
 			userId,
-			req.body,
-		);
+			settings: req.valid?.body as AppearanceSettingsType,
+		});
 
 		return validateResponse(res, HTTP_STATUS.OK, userSettingsResponseSchema, response);
 	};
@@ -41,10 +46,10 @@ export class SettingsController {
 	updateChatPreferences = async (req: AuthRequest, res: Response) => {
 		const userId = requireUserId(req);
 
-		const response = await this.settingsService.updateChatPreferences(
+		const response = await this.settingsService.updateChatPreferences({
 			userId,
-			req.body,
-		);
+			settings: req.valid?.body as ChatPreferencesType,
+		});
 
 		return validateResponse(res, HTTP_STATUS.OK, userSettingsResponseSchema, response);
 	};

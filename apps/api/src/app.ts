@@ -16,7 +16,6 @@ import { messageRoutes } from "./messages/routes";
 import settingsRoutes from "./settings/routes";
 import uploadRoutes from "./uploads/routes";
 import systemRoutes from "./system/routes";
-import { rateLimiterMiddleware } from "./middleware/rate-limiter.middleware";
 
 const app: Express = express();
 
@@ -45,7 +44,6 @@ app.use(express.json({ limit: "32kb" }));
 
 // 7. Global rate limiting
 app.use(rateLimitGlobal());
-// app.use(rateLimiterMiddleware)
 
 // 8. Response compression
 app.use(compression());

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { UserIdType } from "./shared";
 
 export const notificationSettingsSchema = z.object({
 	messages: z.boolean(),
@@ -44,3 +45,17 @@ export type PrivacySettingsType = z.infer<typeof privacySettingsSchema>;
 export type UserSettingsResponseType = z.infer<
 	typeof userSettingsResponseSchema
 >;
+
+// Service inputs. The caller's id is resolved from the access token, never
+// from the request body, so it is joined to the validated patch here.
+export interface UpdateNotificationsDto extends UserIdType {
+	settings: NotificationSettingsType;
+}
+
+export interface UpdateAppearanceDto extends UserIdType {
+	settings: AppearanceSettingsType;
+}
+
+export interface UpdateChatPreferencesDto extends UserIdType {
+	settings: ChatPreferencesType;
+}

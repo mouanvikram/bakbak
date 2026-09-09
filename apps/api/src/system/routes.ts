@@ -7,7 +7,7 @@ import { HTTP_STATUS } from "@/errors/app-error";
 
 const router = Router();
 
-// Public. Lets the client detect a stale bundle (see apps/web/src/lib/version.ts).
+// Public. Lets the client detect a stale bundle.
 router.get("/", (_req: Request, res: Response) => {
 	res.setHeader("Cache-Control", "public, max-age=60");
 	return validateResponse(res, HTTP_STATUS.OK, versionResponseSchema, {
