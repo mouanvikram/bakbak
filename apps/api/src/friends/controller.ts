@@ -1,5 +1,5 @@
-import type { Response } from "express";
-import { requireUserId, type AuthRequest } from "@/auth/auth-request";
+import type { Request, Response } from "express";
+import { requireUserId } from "@/auth/auth-request";
 import type { FriendService } from "./service";
 import { validateResponse } from "@/middleware/validate";
 import {
@@ -22,7 +22,7 @@ import type {
 export class FriendController {
   constructor(private readonly friendService: FriendService) {}
 
-  sendRequest = async (req: AuthRequest, res: Response) => {
+  sendRequest = async (req: Request, res: Response) => {
     const senderId = requireUserId(req);
     const { receiverId } = req.valid?.params as SendFriendRequestRequestType;
 
@@ -39,7 +39,7 @@ export class FriendController {
     );
   };
 
-  cancelRequest = async (req: AuthRequest, res: Response) => {
+  cancelRequest = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 
@@ -56,7 +56,7 @@ export class FriendController {
     );
   };
 
-  acceptRequest = async (req: AuthRequest, res: Response) => {
+  acceptRequest = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 
@@ -73,7 +73,7 @@ export class FriendController {
     );
   };
 
-  rejectRequest = async (req: AuthRequest, res: Response) => {
+  rejectRequest = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { requestId } = req.valid?.params as FriendRequestIdParamsType;
 
@@ -90,7 +90,7 @@ export class FriendController {
     );
   };
 
-  getFriends = async (req: AuthRequest, res: Response) => {
+  getFriends = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.friendService.getFriends({ userId });
@@ -100,7 +100,7 @@ export class FriendController {
     });
   };
 
-  getPendingRequest = async (req: AuthRequest, res: Response) => {
+  getPendingRequest = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const received = await this.friendService.getIncomingRequests(userId);
@@ -117,7 +117,7 @@ export class FriendController {
     );
   };
 
-  removeFriend = async (req: AuthRequest, res: Response) => {
+  removeFriend = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { friendId } = req.valid?.params as FriendIdParamsType;
 
@@ -134,7 +134,7 @@ export class FriendController {
     );
   };
 
-  getSuggestions = async (req: AuthRequest, res: Response) => {
+  getSuggestions = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.friendService.getSuggestions({ userId });

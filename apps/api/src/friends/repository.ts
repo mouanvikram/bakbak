@@ -185,6 +185,7 @@ export class FriendRepository {
 
     return await prisma.user.findMany({
       where: {
+        deletedAt: null,
         id: { notIn: Array.from(excludeIds) },
       },
       select: friendUserSelect,

@@ -25,7 +25,7 @@ ${body}
 <hr style="margin:35px 0;border:none;border-top:1px solid #e5e7eb;">
 
 <p style="font-size:13px;color:#9ca3af;margin-top:30px;">
-© 2026 Your Company
+© 2026 BakBak
 </p>
 
 </td>

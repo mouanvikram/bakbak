@@ -1,5 +1,4 @@
 import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
-import { randomUUID } from "node:crypto";
 
 export interface AccessTokenPayload extends JwtPayload {
   sub: string;
@@ -28,7 +27,6 @@ export class JwtService {
       algorithm: "HS256",
       issuer: this.issuer,
       audience: this.audience,
-      jwtid: randomUUID(),
       noTimestamp: false,
     });
   }

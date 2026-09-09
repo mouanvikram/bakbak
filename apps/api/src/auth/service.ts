@@ -22,6 +22,10 @@ import type {
   ResendVerificationResponseType,
   ResetPasswordRequestType,
   ResetPasswordResponseType,
+  RecoverAccountRequestType,
+  RecoverAccountResponseType,
+  VerifyRecoveryRequestType,
+  VerifyRecoveryResponseType,
   SignUpRequestType,
   SignUpResponseType,
   VerifyEmailRequestType,
@@ -421,7 +425,7 @@ export class AuthService {
   }
 
   // send 2FA code.
-  private async sendTwoFactorCode(
+  async sendTwoFactorCode(
     userId: string,
     username: string,
     email: string,
@@ -455,7 +459,7 @@ export class AuthService {
   }
 
   // verify 2FA code.
-  private async consumeTwoFactorCode(
+  async consumeTwoFactorCode(
     userId: string,
     code: string,
   ): Promise<void> {
@@ -943,5 +947,102 @@ export class AuthService {
     return {
       message: "Password reset successful",
     };
+  }
+
+  // ─── Account recovery (soft-delete undo window) ──────────────────
+
+  /** Creates a fresh recovery token + email for a soft-deleted user, guarded
+   * to the 30-day window anchored on `deletedAt` (resending never extends it).
+   * Used by `deleteMe` and by `POST /recover-account`. */
+  async requestAccountRecovery(userId: string): Promise<void> {
+    const user = await this.userRepository.findBy({ id: userId });
+    if (!user?.deletedAt) return;
+
+    const windowEnd =
+      user.deletedAt.getTime() + authConfig.accountRecoveryWindowMs;
+    if (Date.now() > windowEnd) return;
+
+    await this.emailRepository.deleteAll({
+      userId: user.id,
+      type: VerificationTokenType.ACCOUNT_RECOVERY,
+    });
+
+    const token = this.generateToken();
+    await this.emailRepository.create({
+      tokenHash: this.hashToken(token),
+      type: VerificationTokenType.ACCOUNT_RECOVERY,
+      expiresAt: new Date(windowEnd),
+      user: { connect: { id: user.id } },
+    });
+
+    const url = `${authConfig.frontendUrl}/verify-recovery?token=${token}`;
+    try {
+      await this.emailService.sendAccountRecoveryEmail({
+        email: user.email,
+        username: user.username,
+        url,
+      });
+    } catch (error) {
+      logger.error(
+        { err: error, userId: user.id },
+        "Failed to send account recovery email",
+      );
+    }
+  }
+
+  async recoverAccount(
+    dto: RecoverAccountRequestType,
+  ): Promise<RecoverAccountResponseType> {
+    const genericResponse: RecoverAccountResponseType = {
+      message:
+        "If your account is within its recovery window, a recovery link has been sent to your email.",
+    };
+
+    // Look the user up by email even when deleted — unlike reset/verify paths,
+    // this is the one flow that's *meant* to reach soft-deleted rows.
+    const user = await this.userRepository.findBy({ email: dto.email });
+    if (!user?.deletedAt) return genericResponse;
+
+    const windowEnd =
+      user.deletedAt.getTime() + authConfig.accountRecoveryWindowMs;
+    if (Date.now() > windowEnd) return genericResponse;
+
+    await this.requestAccountRecovery(user.id);
+    return genericResponse;
+  }
+
+  async verifyRecovery(
+    dto: VerifyRecoveryRequestType,
+  ): Promise<VerifyRecoveryResponseType> {
+    const token = await this.emailRepository.findBy({
+      tokenHash: this.hashToken(dto.token),
+      type: VerificationTokenType.ACCOUNT_RECOVERY,
+      expiresAt: { gt: new Date() },
+    });
+
+    if (!token) {
+      throw new AppError(
+        HTTP_STATUS.BAD_REQUEST,
+        ERROR_CODES.INVALID_OR_EXPIRED_RECOVERY_TOKEN,
+        "This recovery link is invalid or has expired",
+      );
+    }
+
+    const user = await this.userRepository.findBy({ id: token.userId });
+    if (!user?.deletedAt) {
+      throw new AppError(
+        HTTP_STATUS.BAD_REQUEST,
+        ERROR_CODES.INVALID_OR_EXPIRED_RECOVERY_TOKEN,
+        "This recovery link is invalid or has expired",
+      );
+    }
+
+    await this.userRepository.restoreDeleted(token.userId);
+    await this.emailRepository.deleteAll({
+      userId: token.userId,
+      type: VerificationTokenType.ACCOUNT_RECOVERY,
+    });
+
+    return { message: "Your account has been restored" };
   }
 }

@@ -23,6 +23,8 @@ model User {
   updatedAt DateTime? @updatedAt
   deletedAt DateTime?
 
+  usernameChangedAt DateTime?
+
   profile  UserProfile?
   settings UserSettings?
 

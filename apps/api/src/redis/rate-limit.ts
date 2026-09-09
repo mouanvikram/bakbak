@@ -1,7 +1,6 @@
 import type Redis from "ioredis";
 import { getRedisClient, isRedisReady } from "./client";
 import type { NextFunction, Request, Response } from "express";
-import type { AuthRequest } from "@/auth/auth-request";
 import { redisConfig } from "./config";
 import type { RateLimitBucketName } from "./config";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
@@ -108,7 +107,7 @@ export function rateLimitGlobal() {
 // it will rate-limit authorized endpoints
 // like uploads, chat creation, message sending etc.
 export function rateLimitAuthorized(bucket: RateLimitBucketName) {
-  return checkAndApplyLimit((req: AuthRequest) => ({
+  return checkAndApplyLimit((req: Request) => ({
     key: `rl:${bucket}:${req.user?.userId ?? req.ip ?? "unknown"}`,
     ...redisConfig.rateLimit[bucket],
   }));

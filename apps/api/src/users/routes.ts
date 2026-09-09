@@ -5,12 +5,14 @@ import { validate } from "@/middleware/validate";
 import { avatarUpload } from "@/middleware/file-upload";
 import {
   checkUsernameRequestSchema,
+  deleteMeChallengeRequestSchema,
+  deleteMeRequestSchema,
   getProfileRequestSchema,
   searchUsersRequestSchema,
   updateAvatarRequestSchema,
   updateProfileRequestSchema,
 } from "@bakbak/contracts";
-import { rateLimitUsernameCheck } from "@/redis/rate-limit";
+import { rateLimitEmails, rateLimitUsernameCheck } from "@/redis/rate-limit";
 
 export const userRoutes = Router();
 
@@ -42,7 +44,14 @@ userRoutes.post(
   userController.uploadAvatar,
 );
 
-userRoutes.delete("/me", userController.deleteMe);
+userRoutes.post(
+  "/me/delete-challenge",
+  validate(deleteMeChallengeRequestSchema),
+  rateLimitEmails(),
+  userController.requestDeletionChallenge,
+);
+
+userRoutes.delete("/me", validate(deleteMeRequestSchema), userController.deleteMe);
 
 userRoutes.get(
   "/search",

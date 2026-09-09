@@ -35,6 +35,18 @@ export class MockEmailService {
     resetPasswordUrl: string;
   }): Promise<void> {}
 
+  async sendAccountRecoveryEmail(_dto: {
+    email: string;
+    username: string;
+    url: string;
+  }): Promise<void> {}
+
+  async sendAccountDeletionEmail(_dto: {
+    email: string;
+    username: string;
+    deletionTime: string;
+  }): Promise<void> {}
+
   async sendTwoFactorCode(_dto: {
     email: string;
     username: string;

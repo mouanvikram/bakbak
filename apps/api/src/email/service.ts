@@ -2,6 +2,8 @@ import { verificationEmail } from "@/email/templates/verify-email";
 import { Resend } from "resend";
 import logger from "@/lib/logger";
 import { resetPasswordEmail } from "@/email/templates/reset-password";
+import { recoverAccountEmail } from "@/email/templates/recover-account";
+import { accountDeletionEmail } from "@/email/templates/delete-account";
 import { twoFactorCodeEmail } from "@/email/templates/two-factor-code";
 import {
   newDeviceLoginEmail,
@@ -97,6 +99,30 @@ export class EmailService {
         dto.code,
         dto.expiresInMinutes,
       ),
+    });
+  }
+
+  async sendAccountRecoveryEmail(dto: {
+    email: string;
+    username: string;
+    url: string;
+  }) {
+    return this.sendEmail({
+      to: dto.email,
+      subject: "Recover Your BakBak Account",
+      html: recoverAccountEmail(dto.username, dto.url),
+    });
+  }
+
+  async sendAccountDeletionEmail(dto: {
+    email: string;
+    username: string;
+    deletionTime: string;
+  }) {
+    return this.sendEmail({
+      to: dto.email,
+      subject: "Account Deletion Scheduled",
+      html: accountDeletionEmail(dto.username, dto.deletionTime),
     });
   }
 

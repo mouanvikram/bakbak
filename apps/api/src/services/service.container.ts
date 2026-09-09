@@ -62,6 +62,9 @@ export const userService = new UserService(
   storageProvider,
   friendRepository,
   refreshTokenRepository,
+  authService,
+  emailService,
+  passwordService,
 );
 export const userController = new UserController(userService);
 

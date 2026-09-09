@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { otpCodeSchema } from "./auth";
 import {
   BIO_MAX_LENGTH,
   BIO_MIN_LENGTH,
   bioSchema,
   emailSchema,
   okResponseSchema,
+  passwordSchema,
   profileSnippetSchema,
   safeString,
   userSummarySchema,
@@ -76,6 +78,36 @@ export type UpdateAvatarResponseType = z.infer<
   typeof updateAvatarResponseSchema
 >;
 
+/**
+ * Re-proves the owner before destruction. `password` is always required; the
+ * service demands `twoFactorCode` too when the account has 2FA enabled (the
+ * code is emailed by `POST /users/me/delete-challenge`).
+ */
+export const deleteMeRequestSchema = z.object({
+  password: passwordSchema,
+  twoFactorCode: otpCodeSchema.optional(),
+});
+
+export type DeleteMeRequestType = UserIdType &
+  z.infer<typeof deleteMeRequestSchema>;
+
+/** Proves the password first, so the server will only ever email the 2FA code to the owner. */
+export const deleteMeChallengeRequestSchema = z.object({
+  password: passwordSchema,
+});
+
+export type DeleteMeChallengeRequestType = UserIdType &
+  z.infer<typeof deleteMeChallengeRequestSchema>;
+
+export const deleteMeChallengeResponseSchema = z.object({
+  twoFactorRequired: z.boolean(),
+  message: z.string(),
+});
+
+export type DeleteMeChallengeResponseType = z.infer<
+  typeof deleteMeChallengeResponseSchema
+>;
+
 export const deleteMeResponseSchema = okResponseSchema;
 
 export type DeleteMeResponseType = z.infer<typeof deleteMeResponseSchema>;
@@ -100,7 +132,7 @@ export const searchUserSchema = userSummarySchema.extend({
 });
 
 export const searchUsersRequestSchema = z.object({
-  query: safeString(100),
+  query: safeString(100, 4),
 });
 
 export const searchUsersResponseSchema = z.object({

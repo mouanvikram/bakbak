@@ -9,6 +9,7 @@ import {
   listSessionsRequestSchema,
   loginRequestSchema,
   logoutRequestSchema,
+  recoverAccountRequestSchema,
   refreshTokenRequestSchema,
   resendTwoFactorLoginRequestSchema,
   resendVerificationRequestSchema,
@@ -17,6 +18,7 @@ import {
   revokeSessionRequestSchema,
   signUpRequestSchema,
   verifyEmailRequestSchema,
+  verifyRecoveryRequestSchema,
   verifyTwoFactorLoginRequestSchema,
 } from "@bakbak/contracts";
 import { authMiddleware } from "@/middleware/auth.middleware";
@@ -99,6 +101,19 @@ authRoutes.post(
   "/refresh-token",
   validate(refreshTokenRequestSchema),
   authController.refreshToken,
+);
+// Recover account
+authRoutes.post(
+  "/recover-account",
+  validate(recoverAccountRequestSchema),
+  rateLimitEmails(),
+  authController.recoverAccount,
+);
+// Delete account
+authRoutes.post(
+  "/recover-account/verify",
+  validate(verifyRecoveryRequestSchema),
+  authController.verifyRecovery,
 );
 
 // Two-factor management (all require a live session).

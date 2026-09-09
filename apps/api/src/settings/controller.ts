@@ -1,5 +1,5 @@
-import type { Response } from "express";
-import { requireUserId, type AuthRequest } from "@/auth/auth-request";
+import type { Request, Response } from "express";
+import { requireUserId } from "@/auth/auth-request";
 import type { SettingsService } from "./service";
 import { validateResponse } from "@/middleware/validate";
 import { userSettingsResponseSchema } from "@bakbak/contracts";
@@ -13,7 +13,7 @@ import { HTTP_STATUS } from "@/errors/app-error";
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
-  getSettings = async (req: AuthRequest, res: Response) => {
+  getSettings = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.settingsService.getSettings({ userId });
@@ -26,7 +26,7 @@ export class SettingsController {
     );
   };
 
-  updateNotifications = async (req: AuthRequest, res: Response) => {
+  updateNotifications = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.settingsService.updateNotifications({
@@ -42,7 +42,7 @@ export class SettingsController {
     );
   };
 
-  updateAppearance = async (req: AuthRequest, res: Response) => {
+  updateAppearance = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.settingsService.updateAppearance({
@@ -58,7 +58,7 @@ export class SettingsController {
     );
   };
 
-  updateChatPreferences = async (req: AuthRequest, res: Response) => {
+  updateChatPreferences = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.settingsService.updateChatPreferences({

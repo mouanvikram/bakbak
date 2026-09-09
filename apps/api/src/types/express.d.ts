@@ -4,10 +4,14 @@ declare global {
   namespace Express {
     interface Request {
       requestId: string;
-      /**
-       * Data that passed a `validate()` middleware, keyed by request source.
-       * Populated per-source; a handler reads only the sources it validated.
-       */
+      //The authenticated caller, set by `authMiddleware`. 
+      user?: {
+        userId: string;
+        username?: string;
+        role?: string;
+        sessionId?: string;
+      };
+      // required after data passes through validate() middleware
       valid?: {
         body?: unknown;
         params?: unknown;

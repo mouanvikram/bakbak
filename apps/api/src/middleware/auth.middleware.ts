@@ -1,5 +1,4 @@
-import type { AuthRequest } from "@/auth/auth-request";
-import type { NextFunction, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import {
   jwtService,
   refreshTokenRepository,
@@ -11,7 +10,7 @@ import { userIdSchema } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 
 export const authMiddleware = async (
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {

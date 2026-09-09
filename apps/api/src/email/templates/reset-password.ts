@@ -81,7 +81,7 @@ ${resetLink}
 </p>
 
 <p style="margin-top:40px;color:#9ca3af;font-size:13px;">
-© 2026 SealChat
+© 2026 BakBak
 </p>
 
 </td>

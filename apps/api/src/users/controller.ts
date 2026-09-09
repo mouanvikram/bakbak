@@ -1,9 +1,10 @@
-import { requireUserId, type AuthRequest } from "@/auth/auth-request";
-import type { Response } from "express";
+import { requireUserId } from "@/auth/auth-request";
+import type { Request, Response } from "express";
 import type { UserService } from "./service";
 import { validateResponse } from "@/middleware/validate";
 import {
   checkUsernameResponseSchema,
+  deleteMeChallengeResponseSchema,
   deleteMeResponseSchema,
   getMeResponseSchema,
   getProfileResponseSchema,
@@ -13,6 +14,8 @@ import {
 } from "@bakbak/contracts";
 import type {
   CheckUsernameRequestType,
+  DeleteMeChallengeRequestType,
+  DeleteMeRequestType,
   GetProfileRequestType,
   SearchUsersRequestType,
   UpdateAvatarRequestType,
@@ -23,7 +26,7 @@ import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  getMe = async (req: AuthRequest, res: Response) => {
+  getMe = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const profile = await this.userService.getMe({
@@ -33,7 +36,7 @@ export class UserController {
     return validateResponse(res, HTTP_STATUS.OK, getMeResponseSchema, profile);
   };
 
-  updateMe = async (req: AuthRequest, res: Response) => {
+  updateMe = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { username, bio, firstName, lastName, displayName } = req.valid
       ?.body as UpdateProfileRequestType;
@@ -55,7 +58,7 @@ export class UserController {
     );
   };
 
-  updateAvatar = async (req: AuthRequest, res: Response) => {
+  updateAvatar = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { avatar } = req.valid?.body as UpdateAvatarRequestType;
 
@@ -72,7 +75,7 @@ export class UserController {
     );
   };
 
-  uploadAvatar = async (req: AuthRequest, res: Response) => {
+  uploadAvatar = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const file = req.file;
 
@@ -104,11 +107,31 @@ export class UserController {
     );
   };
 
-  deleteMe = async (req: AuthRequest, res: Response) => {
+  requestDeletionChallenge = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
+    const { password } = req.valid?.body as DeleteMeChallengeRequestType;
+
+    const response = await this.userService.requestDeletionChallenge({
+      userId,
+      password,
+    });
+
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      deleteMeChallengeResponseSchema,
+      response,
+    );
+  };
+
+  deleteMe = async (req: Request, res: Response) => {
+    const userId = requireUserId(req);
+    const { password, twoFactorCode } = req.valid?.body as DeleteMeRequestType;
 
     await this.userService.deleteMe({
       userId,
+      password,
+      twoFactorCode,
     });
 
     return validateResponse(res, HTTP_STATUS.OK, deleteMeResponseSchema, {
@@ -116,7 +139,7 @@ export class UserController {
     });
   };
 
-  searchUsers = async (req: AuthRequest, res: Response) => {
+  searchUsers = async (req: Request, res: Response) => {
     const { query } = req.valid?.query as SearchUsersRequestType;
 
     const response = await this.userService.searchUsers({
@@ -131,7 +154,7 @@ export class UserController {
     );
   };
 
-  getProfile = async (req: AuthRequest, res: Response) => {
+  getProfile = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { username } = req.valid?.params as GetProfileRequestType;
 
@@ -148,7 +171,7 @@ export class UserController {
     );
   };
 
-  checkUsername = async (req: AuthRequest, res: Response) => {
+  checkUsername = async (req: Request, res: Response) => {
     const { username } = req.valid?.query as CheckUsernameRequestType;
 
     const response = await this.userService.checkUsername({

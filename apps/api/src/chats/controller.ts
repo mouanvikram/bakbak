@@ -1,5 +1,5 @@
-import type { Response } from "express";
-import { requireUserId, type AuthRequest } from "@/auth/auth-request";
+import type { Request, Response } from "express";
+import { requireUserId } from "@/auth/auth-request";
 import type { ChatService } from "./service";
 import { validateResponse } from "@/middleware/validate";
 import {
@@ -27,7 +27,7 @@ import type {
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
-  createChat = async (req: AuthRequest, res: Response) => {
+  createChat = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const body = req.valid?.body as CreateChatRequestType;
 
@@ -53,7 +53,7 @@ export class ChatController {
     );
   };
 
-  getChat = async (req: AuthRequest, res: Response) => {
+  getChat = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
 
@@ -67,7 +67,7 @@ export class ChatController {
     );
   };
 
-  listChats = async (req: AuthRequest, res: Response) => {
+  listChats = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { limit, cursor } = req.valid?.query as ListChatsQueryType;
 
@@ -82,7 +82,7 @@ export class ChatController {
     });
   };
 
-  updateChat = async (req: AuthRequest, res: Response) => {
+  updateChat = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
     const body = req.valid?.body as UpdateChatRequestType;
@@ -103,7 +103,7 @@ export class ChatController {
     );
   };
 
-  deleteChat = async (req: AuthRequest, res: Response) => {
+  deleteChat = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
 
@@ -120,7 +120,7 @@ export class ChatController {
     );
   };
 
-  leaveChat = async (req: AuthRequest, res: Response) => {
+  leaveChat = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
 
@@ -137,7 +137,7 @@ export class ChatController {
     );
   };
 
-  addParticipant = async (req: AuthRequest, res: Response) => {
+  addParticipant = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
     const { participantId } = req.valid?.body as AddParticipantRequestType;
@@ -156,7 +156,7 @@ export class ChatController {
     );
   };
 
-  updateParticipantSettings = async (req: AuthRequest, res: Response) => {
+  updateParticipantSettings = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
     const body = req.valid?.body as UpdateChatParticipantRequestType;
@@ -177,7 +177,7 @@ export class ChatController {
     );
   };
 
-  removeParticipant = async (req: AuthRequest, res: Response) => {
+  removeParticipant = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId, userId } = req.valid?.params as ChatMemberParamsType;
 

@@ -7,6 +7,7 @@ export const authConfig = {
   refreshTokenExpiryDays: 7,
   verificationTokenTtlMs: ONE_HOUR_MS,
   passwordResetTokenTtlMs: ONE_HOUR_MS,
+  accountRecoveryWindowMs: 30 * 24 * 60 * 60 * 1000,
   dummyPasswordHash:
     "$argon2id$v=19$m=65536,t=3,p=1$O33CfCzMnDsgKMk96pdnpiDwdAHBcp0kBtscfTiFe5E$RGazuyPBViMxQ/tuHPhhiz3lPxuoIf8FnCMGZDaDLlM",
   passwordHashing: {

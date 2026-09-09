@@ -53,34 +53,37 @@ export class UserRepository {
 
   async getUsers(query: string) {
     return prisma.user.findMany({
-      where: query
-        ? {
-            OR: [
-              {
-                username: {
-                  contains: query,
-                  mode: "insensitive",
-                },
-              },
-              {
-                profile: {
-                  firstName: {
+      where: {
+        deletedAt: null,
+        ...(query
+          ? {
+              OR: [
+                {
+                  username: {
                     contains: query,
                     mode: "insensitive",
                   },
                 },
-              },
-              {
-                profile: {
-                  lastName: {
-                    contains: query,
-                    mode: "insensitive",
+                {
+                  profile: {
+                    firstName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
                   },
                 },
-              },
-            ],
-          }
-        : undefined,
+                {
+                  profile: {
+                    lastName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
       select: {
         id: true,
         username: true,
@@ -200,6 +203,15 @@ export class UserRepository {
     return prisma.user.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  /** Clears the soft-delete flag, bringing the account back within the
+   * recovery window. The row was never removed, so everything is intact. */
+  async restoreDeleted(id: string) {
+    return prisma.user.update({
+      where: { id },
+      data: { deletedAt: null },
     });
   }
 }

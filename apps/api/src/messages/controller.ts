@@ -1,6 +1,6 @@
 import { MessageType } from "@bakbak/contracts";
-import type { Response } from "express";
-import { requireUserId, type AuthRequest } from "@/auth/auth-request";
+import type { Request, Response } from "express";
+import { requireUserId } from "@/auth/auth-request";
 import type { MessageService } from "./service";
 import { validateResponse } from "@/middleware/validate";
 import {
@@ -27,7 +27,7 @@ import type {
 export class MessageController {
   constructor(private readonly messageService: MessageService) {}
 
-  sendMessage = async (req: AuthRequest, res: Response) => {
+  sendMessage = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
     const body = req.valid?.body as SendMessageRequestType;
@@ -49,7 +49,7 @@ export class MessageController {
     );
   };
 
-  listMessages = async (req: AuthRequest, res: Response) => {
+  listMessages = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
     const { limit, cursor } = req.valid?.query as ListMessagesQueryType;
@@ -66,7 +66,7 @@ export class MessageController {
     });
   };
 
-  getMessage = async (req: AuthRequest, res: Response) => {
+  getMessage = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { messageId } = req.valid?.params as GetMessageRequestType;
 
@@ -80,7 +80,7 @@ export class MessageController {
     });
   };
 
-  editMessage = async (req: AuthRequest, res: Response) => {
+  editMessage = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { messageId } = req.valid?.params as GetMessageRequestType;
     const { text } = req.valid?.body as EditMessageRequestType;
@@ -99,7 +99,7 @@ export class MessageController {
     );
   };
 
-  deleteMessage = async (req: AuthRequest, res: Response) => {
+  deleteMessage = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { messageId } = req.valid?.params as GetMessageRequestType;
 
@@ -116,7 +116,7 @@ export class MessageController {
     );
   };
 
-  markChatRead = async (req: AuthRequest, res: Response) => {
+  markChatRead = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
     const { messageId } = req.valid?.body as MarkChatReadRequestType;
@@ -135,7 +135,7 @@ export class MessageController {
     );
   };
 
-  searchMessages = async (req: AuthRequest, res: Response) => {
+  searchMessages = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
     const { q, limit, cursor } = req.valid?.query as SearchMessagesQueryType;
@@ -153,7 +153,7 @@ export class MessageController {
     });
   };
 
-  getUnreadCount = async (req: AuthRequest, res: Response) => {
+  getUnreadCount = async (req: Request, res: Response) => {
     const currentUserId = requireUserId(req);
     const { chatId } = req.valid?.params as ChatIdParamsType;
 

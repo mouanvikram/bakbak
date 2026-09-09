@@ -1,5 +1,5 @@
-import type { Response } from "express";
-import { requireUserId, type AuthRequest } from "@/auth/auth-request";
+import type { Request, Response } from "express";
+import { requireUserId } from "@/auth/auth-request";
 import type { UploadService } from "./service";
 import { validateResponse } from "@/middleware/validate";
 import {
@@ -13,7 +13,7 @@ import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
-  upload = async (req: AuthRequest, res: Response) => {
+  upload = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const file = req.file;
 
@@ -42,7 +42,7 @@ export class UploadController {
     });
   };
 
-  getAttachment = async (req: AuthRequest, res: Response) => {
+  getAttachment = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { attachmentId } = req.valid?.params as AttachmentIdParamsType;
 
@@ -56,7 +56,7 @@ export class UploadController {
     });
   };
 
-  deleteAttachment = async (req: AuthRequest, res: Response) => {
+  deleteAttachment = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { attachmentId } = req.valid?.params as AttachmentIdParamsType;
 

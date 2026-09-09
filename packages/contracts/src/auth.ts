@@ -181,6 +181,7 @@ export type ChangePasswordResponseType = z.infer<
   typeof changePasswordResponseSchema
 >;
 
+// Forgot password
 export const forgotPasswordRequestSchema = z.object({
   email: emailSchema,
 });
@@ -195,6 +196,7 @@ export type ForgotPasswordResponseType = z.infer<
   typeof forgotPasswordResponseSchema
 >;
 
+// Reset password
 export const resetPasswordBodySchema = z.object({
   newPassword: passwordSchema,
 });
@@ -218,6 +220,36 @@ export type ResetPasswordRequestType = z.infer<
 
 export type ResetPasswordResponseType = z.infer<
   typeof resetPasswordResponseSchema
+>;
+
+// Recover account
+export const recoverAccountRequestSchema = z.object({
+  email: emailSchema,
+});
+
+export const recoverAccountResponseSchema = okResponseSchema;
+
+export type RecoverAccountRequestType = z.infer<
+  typeof recoverAccountRequestSchema
+>;
+
+export type RecoverAccountResponseType = z.infer<
+  typeof recoverAccountResponseSchema
+>;
+
+// Verify recovery
+export const verifyRecoveryRequestSchema = z.object({
+  token: tokenSchema("Recovery token"),
+});
+
+export const verifyRecoveryResponseSchema = okResponseSchema;
+
+export type VerifyRecoveryRequestType = z.infer<
+  typeof verifyRecoveryRequestSchema
+>;
+
+export type VerifyRecoveryResponseType = z.infer<
+  typeof verifyRecoveryResponseSchema
 >;
 
 // ─── Token operations ──────────────────────────────────────────────

@@ -9,6 +9,8 @@ import {
   changePasswordResponseSchema,
   forgotPasswordResponseSchema,
   resetPasswordResponseSchema,
+  recoverAccountResponseSchema,
+  verifyRecoveryResponseSchema,
   logoutResponseSchema,
   refreshTokenResponseSchema,
   verifyTwoFactorLoginResponseSchema,
@@ -32,13 +34,11 @@ import type {
   EnableTwoFactorRequestType,
   DisableTwoFactorRequestType,
   RevokeSessionRequestType,
+  RecoverAccountRequestType,
+  VerifyRecoveryRequestType,
 } from "@bakbak/contracts";
 import { validateResponse } from "@/middleware/validate";
-import {
-  requireSessionId,
-  requireUserId,
-  type AuthRequest,
-} from "./auth-request";
+import { requireSessionId, requireUserId } from "./auth-request";
 import { HTTP_STATUS } from "@/errors/app-error";
 
 export class AuthController {
@@ -106,7 +106,7 @@ export class AuthController {
     );
   };
 
-  setupTwoFactor = async (req: AuthRequest, res: Response) => {
+  setupTwoFactor = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.authService.requestTwoFactorSetup(userId);
@@ -119,7 +119,7 @@ export class AuthController {
     );
   };
 
-  enableTwoFactor = async (req: AuthRequest, res: Response) => {
+  enableTwoFactor = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.authService.enableTwoFactor(
@@ -135,7 +135,7 @@ export class AuthController {
     );
   };
 
-  disableTwoFactor = async (req: AuthRequest, res: Response) => {
+  disableTwoFactor = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.authService.disableTwoFactor(
@@ -177,7 +177,7 @@ export class AuthController {
     );
   };
 
-  changePassword = async (req: AuthRequest, res: Response) => {
+  changePassword = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const response = await this.authService.changePassword(
@@ -222,7 +222,33 @@ export class AuthController {
     );
   };
 
-  logout = async (req: AuthRequest, res: Response) => {
+  recoverAccount = async (req: Request, res: Response) => {
+    const response = await this.authService.recoverAccount(
+      req.valid?.body as RecoverAccountRequestType,
+    );
+
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      recoverAccountResponseSchema,
+      response,
+    );
+  };
+
+  verifyRecovery = async (req: Request, res: Response) => {
+    const response = await this.authService.verifyRecovery(
+      req.valid?.body as VerifyRecoveryRequestType,
+    );
+
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      verifyRecoveryResponseSchema,
+      response,
+    );
+  };
+
+  logout = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const result = await this.authService.logout(userId, requireSessionId(req));
@@ -243,7 +269,7 @@ export class AuthController {
     );
   };
 
-  listSessions = async (req: AuthRequest, res: Response) => {
+  listSessions = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const result = await this.authService.listSessions(
@@ -259,7 +285,7 @@ export class AuthController {
     );
   };
 
-  revokeSession = async (req: AuthRequest, res: Response) => {
+  revokeSession = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
     const { sessionId } = req.valid?.body as RevokeSessionRequestType;
 
@@ -273,7 +299,7 @@ export class AuthController {
     );
   };
 
-  revokeOtherSessions = async (req: AuthRequest, res: Response) => {
+  revokeOtherSessions = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const result = await this.authService.revokeOtherSessions(
@@ -289,7 +315,7 @@ export class AuthController {
     );
   };
 
-  revokeAllSessions = async (req: AuthRequest, res: Response) => {
+  revokeAllSessions = async (req: Request, res: Response) => {
     const userId = requireUserId(req);
 
     const result = await this.authService.revokeAllSessions(userId);

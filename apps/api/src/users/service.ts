@@ -2,12 +2,20 @@ import crypto from "node:crypto";
 import { Prisma } from "@bakbak/db";
 import type { UserRepository } from "./repository";
 import type { FriendRepository } from "@/friends/repository";
+import type { PasswordService } from "@/auth/password.service";
 import type { RefreshTokenRepository } from "@/auth/refresh-token.repository";
+import type { AuthService } from "@/auth/service";
+import type { EmailService } from "@/email/service";
+import { authConfig } from "@/auth/config";
 import { disconnectSockets } from "@/websocket/emitter";
+import logger from "@/lib/logger";
 import type { StorageProvider } from "@/uploads/storage.provider";
 import type {
   CheckUsernameRequestType,
   CheckUsernameResponseType,
+  DeleteMeChallengeRequestType,
+  DeleteMeChallengeResponseType,
+  DeleteMeRequestType,
   DeleteMeResponseType,
   FriendshipStatusType,
   GetMeResponseType,
@@ -27,6 +35,7 @@ import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import { uploadsConfig } from "@/uploads/config";
 import { titleCaseName } from "@/lib/name-case";
+import { usersConfig } from "./config";
 
 /**
  * Present a stored bio to clients as the contract expects: `null`, or a real
@@ -44,6 +53,9 @@ export class UserService {
     private readonly storageProvider: StorageProvider,
     private readonly friendRepository: FriendRepository,
     private readonly refreshTokenRepository: RefreshTokenRepository,
+    private readonly authService: AuthService,
+    private readonly emailService: EmailService,
+    private readonly passwordService: PasswordService,
   ) {}
 
   async getMe(dto: UserIdType): Promise<GetMeResponseType> {
@@ -126,6 +138,23 @@ export class UserService {
       // Only touch it when it actually changes — otherwise the caller's
       // own username would read as "taken".
       if (username !== current.username) {
+        if (
+          current.usernameChangedAt &&
+          Date.now() - current.usernameChangedAt.getTime() <
+            usersConfig.usernameChangeCooldownMs
+        ) {
+          const daysLeft = Math.ceil(
+            (current.usernameChangedAt.getTime() +
+              usersConfig.usernameChangeCooldownMs -
+              Date.now()) /
+              86_400_000,
+          );
+          throw new AppError(
+            HTTP_STATUS.TOO_MANY_REQUESTS,
+            ERROR_CODES.USERNAME_CHANGE_COOLDOWN,
+            `You can change your username again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+          );
+        }
         const taken = await this.userRepository.findBy({ username });
         if (taken) {
           throw new AppError(
@@ -135,6 +164,7 @@ export class UserService {
           );
         }
         userData.username = username;
+        userData.usernameChangedAt = new Date();
       }
     }
 
@@ -258,10 +288,22 @@ export class UserService {
     };
   }
 
-  async deleteMe(dto: UserIdType): Promise<DeleteMeResponseType> {
+  /**
+   * Fetch a live, verified account row carrying the fields needed to re-prove
+   * the owner (password hash + 2FA state). Deletion is destructive, so both
+   * the challenge step and the delete itself re-check these.
+   */
+  private async findVerifiedOwner(userId: string) {
     const user = await this.userRepository.getProfile({
-      where: { id: dto.userId },
-      select: { id: true, isEmailVerified: true },
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        isEmailVerified: true,
+        passwordHash: true,
+        settings: { select: { twoFactorEnabled: true } },
+      },
     });
     if (!user) {
       throw new AppError(
@@ -272,8 +314,9 @@ export class UserService {
     }
 
     // An unverified account owns no space (no one can find or message it),
-    // so its owner must prove the email before destruction — a stray signup
-    // shouldn't be able to delete a real account created with their address.
+    // so its owner must prove the email before any destructive step — a
+    // stray signup shouldn't be able to delete a real account created with
+    // their address.
     if (!user.isEmailVerified) {
       throw new AppError(
         HTTP_STATUS.FORBIDDEN,
@@ -282,9 +325,94 @@ export class UserService {
       );
     }
 
+    return user;
+  }
+
+  private async provePassword(
+    password: string,
+    passwordHash: string,
+  ): Promise<void> {
+    const matches = await this.passwordService.verify(password, passwordHash);
+    if (!matches) {
+      throw new AppError(
+        HTTP_STATUS.FORBIDDEN,
+        ERROR_CODES.INVALID_CREDENTIALS,
+        "Credentials do not match",
+      );
+    }
+  }
+
+  /**
+   * Step 1 of deleting the account: proves the password (so a code is only
+   * ever emailed to the owner) and, when 2FA is on, emails a fresh code the
+   * delete step will demand. Called by `POST /users/me/delete-challenge`.
+   */
+  async requestDeletionChallenge(
+    dto: DeleteMeChallengeRequestType,
+  ): Promise<DeleteMeChallengeResponseType> {
+    const user = await this.findVerifiedOwner(dto.userId);
+    await this.provePassword(dto.password, user.passwordHash);
+
+    const twoFactorEnabled = user.settings?.twoFactorEnabled ?? false;
+    if (twoFactorEnabled) {
+      // Single-use, hashed, 10-minute TTL; a repeat request replaces it.
+      await this.authService.sendTwoFactorCode(
+        user.id,
+        user.username,
+        user.email,
+      );
+    }
+
+    return {
+      twoFactorRequired: twoFactorEnabled,
+      message: twoFactorEnabled
+        ? "Check your inbox for a verification code."
+        : "Password confirmed.",
+    };
+  }
+
+  async deleteMe(dto: DeleteMeRequestType): Promise<DeleteMeResponseType> {
+    const user = await this.findVerifiedOwner(dto.userId);
+    await this.provePassword(dto.password, user.passwordHash);
+
+    // The account has 2FA on: a holder of the session alone must not be able
+    // to destroy it — the freshly-emailed (single-use) code is required too.
+    if (user.settings?.twoFactorEnabled) {
+      if (!dto.twoFactorCode) {
+        throw new AppError(
+          HTTP_STATUS.FORBIDDEN,
+          ERROR_CODES.TWO_FACTOR_CODE_REQUIRED,
+          "Two-factor code required",
+        );
+      }
+      await this.authService.consumeTwoFactorCode(user.id, dto.twoFactorCode);
+    }
+
     // Soft delete only: nothing is removed, and messages they sent are left
 
     await this.userRepository.markDeleted(dto.userId);
+
+    // Tell the owner the account is scheduled for permanent deletion, and
+    // send the recovery link they can use to undo it within the window.
+    try {
+      await this.emailService.sendAccountDeletionEmail({
+        email: user.email,
+        username: user.username,
+        deletionTime: new Date(
+          Date.now() + authConfig.accountRecoveryWindowMs,
+        ).toLocaleString(),
+      });
+    } catch (error) {
+      logger.error(
+        { err: error, userId: user.id },
+        "Failed to send account deletion email",
+      );
+    }
+
+    // A recovery token is minted *after* the mark so the link is only usable
+    // while the account is actually deleted (this is the one auth email that
+    // targets a soft-deleted row).
+    await this.authService.requestAccountRecovery(dto.userId);
 
     // A deleted account must not keep calling the API: revoke every
     // session (and its refresh tokens)
@@ -348,7 +476,7 @@ export class UserService {
     dto: GetProfileRequestType & { currentUserId: string },
   ): Promise<GetProfileResponseType> {
     const otherUser = await this.userRepository.getProfile({
-      where: { username: dto.username },
+      where: { username: dto.username, deletedAt: null },
       select: {
         id: true,
         username: true,
