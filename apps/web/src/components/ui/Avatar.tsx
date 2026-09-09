@@ -12,10 +12,7 @@ interface AvatarProps {
 export function Avatar({ name, src, alt, className, online }: AvatarProps) {
   return (
     <div
-      className={cn(
-        "relative size-10 shrink-0 text-sm font-medium",
-        className,
-      )}
+      className={cn("relative size-10 shrink-0 text-sm font-medium", className)}
     >
       <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-violet-100 text-violet-600">
         {src ? (

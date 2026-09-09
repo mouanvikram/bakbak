@@ -9,18 +9,18 @@
  *   3. No database migration required — keys are provider-agnostic.
  */
 export interface StorageProvider {
-	/** Upload a buffer to the given key and return nothing on success. */
-	upload(key: string, buffer: Buffer, contentType: string): Promise<void>;
+  /** Upload a buffer to the given key and return nothing on success. */
+  upload(key: string, buffer: Buffer, contentType: string): Promise<void>;
 
-	/**
-	 * Produce a short-lived signed URL that grants temporary read access to
-	 * the object at `key`. Falls back to a public URL when available.
-	 */
-	getSignedUrl(key: string, expiresInSeconds?: number): Promise<string>;
+  /**
+   * Produce a short-lived signed URL that grants temporary read access to
+   * the object at `key`. Falls back to a public URL when available.
+   */
+  getSignedUrl(key: string, expiresInSeconds?: number): Promise<string>;
 
-	/** Permanently remove the object at `key`. No-op if it does not exist. */
-	delete(key: string): Promise<void>;
+  /** Permanently remove the object at `key`. No-op if it does not exist. */
+  delete(key: string): Promise<void>;
 
-	/** Return true when an object exists at `key`. */
-	exists(key: string): Promise<boolean>;
+  /** Return true when an object exists at `key`. */
+  exists(key: string): Promise<boolean>;
 }

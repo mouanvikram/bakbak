@@ -62,9 +62,7 @@ export function updateChat(
   });
 }
 
-export function deleteChat(
-  chatId: string,
-): Promise<DeleteChatResponseType> {
+export function deleteChat(chatId: string): Promise<DeleteChatResponseType> {
   return apiClient(`/api/v1/chats/${chatId}`, {
     method: "DELETE",
   });
@@ -72,9 +70,7 @@ export function deleteChat(
 
 /** "Delete for me" — removes the chat from the caller's list without
  * destroying it for the other participants. */
-export function leaveChat(
-  chatId: string,
-): Promise<LeaveChatResponseType> {
+export function leaveChat(chatId: string): Promise<LeaveChatResponseType> {
   return apiClient(`/api/v1/chats/${chatId}/leave`, {
     method: "POST",
   });

@@ -23,7 +23,9 @@ function formatTime(iso: string) {
 /** A message counts as edited once its updatedAt is meaningfully after its
  * createdAt (create-time jitter between the two columns is sub-second). */
 function wasEdited(m: MessageResponseType) {
-  return new Date(m.updatedAt).getTime() - new Date(m.createdAt).getTime() > 2000;
+  return (
+    new Date(m.updatedAt).getTime() - new Date(m.createdAt).getTime() > 2000
+  );
 }
 
 function StatusTick({ status }: { status: DeliveryStatus }) {
@@ -90,8 +92,7 @@ export function MessageBubble({
   mediaPreview?: boolean;
   onContextMenu: (e: MouseEvent) => void;
 }) {
-  const senderName =
-    m.sender.profile?.displayName ?? m.sender.username ?? "";
+  const senderName = m.sender.profile?.displayName ?? m.sender.username ?? "";
 
   const media =
     mediaPreview &&
@@ -124,7 +125,7 @@ export function MessageBubble({
           mine
             ? "msg-bubble-out rounded-br-md text-white"
             : "rounded-bl-md bg-white text-gray-900",
-          isEditing && "ring-2 ring-brand-500/60",
+          isEditing && "ring-brand-500/60 ring-2",
           media ? "w-72 max-w-[78%]" : "px-3.5 py-2",
         )}
       >

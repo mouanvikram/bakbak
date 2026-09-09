@@ -1,3 +1,3 @@
 export const middlewareConfig = {
-	sensitiveQueryParams: ["token", "code"],
+  sensitiveQueryParams: ["token", "code"],
 };

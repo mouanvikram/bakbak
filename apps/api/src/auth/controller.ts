@@ -1,302 +1,304 @@
 import { type Request, type Response } from "express";
 import type { AuthService } from "./service";
 import {
-	verifyEmailResponseSchema,
-	loginResponseSchema,
-	loginChallengeResponseSchema,
-	signUpResponseSchema,
-	resendVerificationResponseSchema,
-	changePasswordResponseSchema,
-	forgotPasswordResponseSchema,
-	resetPasswordResponseSchema,
-	logoutResponseSchema,
-	refreshTokenResponseSchema,
-	verifyTwoFactorLoginResponseSchema,
-	resendTwoFactorLoginResponseSchema,
-	setupTwoFactorResponseSchema,
-	twoFactorStatusResponseSchema,
-	listSessionsResponseSchema,
-	revokeSessionResponseSchema,
+  verifyEmailResponseSchema,
+  loginResponseSchema,
+  loginChallengeResponseSchema,
+  signUpResponseSchema,
+  resendVerificationResponseSchema,
+  changePasswordResponseSchema,
+  forgotPasswordResponseSchema,
+  resetPasswordResponseSchema,
+  logoutResponseSchema,
+  refreshTokenResponseSchema,
+  verifyTwoFactorLoginResponseSchema,
+  resendTwoFactorLoginResponseSchema,
+  setupTwoFactorResponseSchema,
+  twoFactorStatusResponseSchema,
+  listSessionsResponseSchema,
+  revokeSessionResponseSchema,
 } from "@bakbak/contracts";
 import type {
-	ChangePasswordRequestType,
-	ForgotPasswordRequestType,
-	LoginRequestType,
-	RefreshTokenRequestType,
-	ResendVerificationRequestType,
-	ResetPasswordRequestType,
-	SignUpRequestType,
-	VerifyEmailRequestType,
-	VerifyTwoFactorLoginRequestType,
-	ResendTwoFactorLoginRequestType,
-	EnableTwoFactorRequestType,
-	DisableTwoFactorRequestType,
-	RevokeSessionRequestType,
+  ChangePasswordRequestType,
+  ForgotPasswordRequestType,
+  LoginRequestType,
+  RefreshTokenRequestType,
+  ResendVerificationRequestType,
+  ResetPasswordRequestType,
+  SignUpRequestType,
+  VerifyEmailRequestType,
+  VerifyTwoFactorLoginRequestType,
+  ResendTwoFactorLoginRequestType,
+  EnableTwoFactorRequestType,
+  DisableTwoFactorRequestType,
+  RevokeSessionRequestType,
 } from "@bakbak/contracts";
 import { validateResponse } from "@/middleware/validate";
 import {
-	requireSessionId,
-	requireUserId,
-	type AuthRequest,
+  requireSessionId,
+  requireUserId,
+  type AuthRequest,
 } from "./auth-request";
 import { HTTP_STATUS } from "@/errors/app-error";
 
 export class AuthController {
-	constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
-	signUp = async (req: Request, res: Response) => {
-		//bio if left blank will be null. matches db schema.
-		// An avatar, when sent, arrives as multipart alongside the fields.
-		const response = await this.authService.register(
-			req.valid?.body as SignUpRequestType,
-			req.file,
-		);
+  signUp = async (req: Request, res: Response) => {
+    //bio if left blank will be null. matches db schema.
+    // An avatar, when sent, arrives as multipart alongside the fields.
+    const response = await this.authService.register(
+      req.valid?.body as SignUpRequestType,
+      req.file,
+    );
 
-		return validateResponse(res, HTTP_STATUS.OK, signUpResponseSchema, response);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      signUpResponseSchema,
+      response,
+    );
+  };
 
-	login = async (req: Request, res: Response) => {
-		const response = await this.authService.login(
-			req.valid?.body as LoginRequestType,
-			req.headers["user-agent"],
-		);
+  login = async (req: Request, res: Response) => {
+    const response = await this.authService.login(
+      req.valid?.body as LoginRequestType,
+      req.headers["user-agent"],
+    );
 
-		// 2FA on → a challenge instead of tokens (still a 200).
-		if ("twoFactorRequired" in response) {
-			return validateResponse(
-				res,
-				HTTP_STATUS.OK,
-				loginChallengeResponseSchema,
-				response,
-			);
-		}
+    // 2FA on → a challenge instead of tokens (still a 200).
+    if ("twoFactorRequired" in response) {
+      return validateResponse(
+        res,
+        HTTP_STATUS.OK,
+        loginChallengeResponseSchema,
+        response,
+      );
+    }
 
-		return validateResponse(res, HTTP_STATUS.OK, loginResponseSchema, response);
-	};
+    return validateResponse(res, HTTP_STATUS.OK, loginResponseSchema, response);
+  };
 
-	verifyTwoFactorLogin = async (req: Request, res: Response) => {
-		const response = await this.authService.verifyLoginTwoFactor(
-			req.valid?.body as VerifyTwoFactorLoginRequestType,
-			req.headers["user-agent"],
-		);
+  verifyTwoFactorLogin = async (req: Request, res: Response) => {
+    const response = await this.authService.verifyLoginTwoFactor(
+      req.valid?.body as VerifyTwoFactorLoginRequestType,
+      req.headers["user-agent"],
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			verifyTwoFactorLoginResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      verifyTwoFactorLoginResponseSchema,
+      response,
+    );
+  };
 
-	resendTwoFactorLogin = async (req: Request, res: Response) => {
-		const response = await this.authService.resendLoginTwoFactor(
-			req.valid?.body as ResendTwoFactorLoginRequestType,
-		);
+  resendTwoFactorLogin = async (req: Request, res: Response) => {
+    const response = await this.authService.resendLoginTwoFactor(
+      req.valid?.body as ResendTwoFactorLoginRequestType,
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			resendTwoFactorLoginResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      resendTwoFactorLoginResponseSchema,
+      response,
+    );
+  };
 
-	setupTwoFactor = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
+  setupTwoFactor = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
 
-		const response = await this.authService.requestTwoFactorSetup(userId);
+    const response = await this.authService.requestTwoFactorSetup(userId);
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			setupTwoFactorResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      setupTwoFactorResponseSchema,
+      response,
+    );
+  };
 
-	enableTwoFactor = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
+  enableTwoFactor = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
 
-		const response = await this.authService.enableTwoFactor(
-			userId,
-			req.valid?.body as EnableTwoFactorRequestType,
-		);
+    const response = await this.authService.enableTwoFactor(
+      userId,
+      req.valid?.body as EnableTwoFactorRequestType,
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			twoFactorStatusResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      twoFactorStatusResponseSchema,
+      response,
+    );
+  };
 
-	disableTwoFactor = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
+  disableTwoFactor = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
 
-		const response = await this.authService.disableTwoFactor(
-			userId,
-			req.valid?.body as DisableTwoFactorRequestType,
-		);
+    const response = await this.authService.disableTwoFactor(
+      userId,
+      req.valid?.body as DisableTwoFactorRequestType,
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			twoFactorStatusResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      twoFactorStatusResponseSchema,
+      response,
+    );
+  };
 
-	verifyEmail = async (req: Request, res: Response) => {
-		const { token } = req.valid?.body as VerifyEmailRequestType;
+  verifyEmail = async (req: Request, res: Response) => {
+    const { token } = req.valid?.body as VerifyEmailRequestType;
 
-		const result = await this.authService.verifyEmail({ token });
+    const result = await this.authService.verifyEmail({ token });
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			verifyEmailResponseSchema,
-			result,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      verifyEmailResponseSchema,
+      result,
+    );
+  };
 
-	resendVerification = async (req: Request, res: Response) => {
-		const response = await this.authService.resendVerificationEmail(
-			req.valid?.body as ResendVerificationRequestType,
-		);
+  resendVerification = async (req: Request, res: Response) => {
+    const response = await this.authService.resendVerificationEmail(
+      req.valid?.body as ResendVerificationRequestType,
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			resendVerificationResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      resendVerificationResponseSchema,
+      response,
+    );
+  };
 
-	changePassword = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
+  changePassword = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
 
-		const response = await this.authService.changePassword(
-			userId,
-			req.valid?.body as ChangePasswordRequestType,
-		);
+    const response = await this.authService.changePassword(
+      userId,
+      req.valid?.body as ChangePasswordRequestType,
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			changePasswordResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      changePasswordResponseSchema,
+      response,
+    );
+  };
 
-	forgotPassword = async (req: Request, res: Response) => {
-		const response = await this.authService.forgotPassword(
-			req.valid?.body as ForgotPasswordRequestType,
-		);
+  forgotPassword = async (req: Request, res: Response) => {
+    const response = await this.authService.forgotPassword(
+      req.valid?.body as ForgotPasswordRequestType,
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			forgotPasswordResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      forgotPasswordResponseSchema,
+      response,
+    );
+  };
 
-	resetPassword = async (req: Request, res: Response) => {
-		const { token, newPassword } = req.valid?.body as ResetPasswordRequestType;
+  resetPassword = async (req: Request, res: Response) => {
+    const { token, newPassword } = req.valid?.body as ResetPasswordRequestType;
 
-		const response = await this.authService.resetPassword({
-			token,
-			newPassword,
-		});
+    const response = await this.authService.resetPassword({
+      token,
+      newPassword,
+    });
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			resetPasswordResponseSchema,
-			response,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      resetPasswordResponseSchema,
+      response,
+    );
+  };
 
-	logout = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
+  logout = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
 
-		const result = await this.authService.logout(
-			userId,
-			requireSessionId(req),
-		);
+    const result = await this.authService.logout(userId, requireSessionId(req));
 
-		return validateResponse(res, HTTP_STATUS.OK, logoutResponseSchema, result);
-	};
+    return validateResponse(res, HTTP_STATUS.OK, logoutResponseSchema, result);
+  };
 
-	refreshToken = async (req: Request, res: Response) => {
-		const result = await this.authService.refreshAccessToken(
-			req.valid?.body as RefreshTokenRequestType,
-		);
+  refreshToken = async (req: Request, res: Response) => {
+    const result = await this.authService.refreshAccessToken(
+      req.valid?.body as RefreshTokenRequestType,
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			refreshTokenResponseSchema,
-			result,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      refreshTokenResponseSchema,
+      result,
+    );
+  };
 
-	listSessions = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
+  listSessions = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
 
-		const result = await this.authService.listSessions(
-			userId,
-			req.user?.sessionId,
-		);
+    const result = await this.authService.listSessions(
+      userId,
+      req.user?.sessionId,
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			listSessionsResponseSchema,
-			result,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      listSessionsResponseSchema,
+      result,
+    );
+  };
 
-	revokeSession = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
-		const { sessionId } = req.valid?.body as RevokeSessionRequestType;
+  revokeSession = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
+    const { sessionId } = req.valid?.body as RevokeSessionRequestType;
 
-		const result = await this.authService.revokeSession(userId, sessionId);
+    const result = await this.authService.revokeSession(userId, sessionId);
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			revokeSessionResponseSchema,
-			result,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      revokeSessionResponseSchema,
+      result,
+    );
+  };
 
-	revokeOtherSessions = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
+  revokeOtherSessions = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
 
-		const result = await this.authService.revokeOtherSessions(
-			userId,
-			requireSessionId(req),
-		);
+    const result = await this.authService.revokeOtherSessions(
+      userId,
+      requireSessionId(req),
+    );
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			revokeSessionResponseSchema,
-			result,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      revokeSessionResponseSchema,
+      result,
+    );
+  };
 
-	revokeAllSessions = async (req: AuthRequest, res: Response) => {
-		const userId = requireUserId(req);
+  revokeAllSessions = async (req: AuthRequest, res: Response) => {
+    const userId = requireUserId(req);
 
-		const result = await this.authService.revokeAllSessions(userId);
+    const result = await this.authService.revokeAllSessions(userId);
 
-		return validateResponse(
-			res,
-			HTTP_STATUS.OK,
-			revokeSessionResponseSchema,
-			result,
-		);
-	};
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      revokeSessionResponseSchema,
+      result,
+    );
+  };
 }

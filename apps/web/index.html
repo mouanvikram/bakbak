@@ -10,7 +10,9 @@
       (function () {
         try {
           var stored = localStorage.getItem("bakbak.theme") || "light";
-          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var prefersDark = window.matchMedia(
+            "(prefers-color-scheme: dark)",
+          ).matches;
           var dark = stored === "dark" || (stored === "system" && prefersDark);
           document.documentElement.classList.toggle("dark", dark);
           var size = localStorage.getItem("bakbak.fontSize") || "small";

@@ -4,8 +4,8 @@ import logger from "@/lib/logger";
 import { resetPasswordEmail } from "@/email/templates/reset-password";
 import { twoFactorCodeEmail } from "@/email/templates/two-factor-code";
 import {
-	newDeviceLoginEmail,
-	passwordChangedEmail,
+  newDeviceLoginEmail,
+  passwordChangedEmail,
 } from "@/email/templates/security-alert";
 import { env } from "@/config";
 import { emailConfig } from "./config";
@@ -15,117 +15,111 @@ const resend = new Resend(emailConfig.resendApiKey);
 const DEV_EMAIL = emailConfig.devInbox;
 
 export class EmailService {
-	async sendEmail(dto: {
-		to: string | null;
-		subject: string;
-		html: string;
-	}): Promise<void> {
-		// Hard stop: tests must never reach the real provider (it bills, and
-		// non-prod mail is redirected to a personal inbox). Tests also replace
-		// this class wholesale via tests/mocks/email-service — this is a backstop.
-		if (env.NODE_ENV === "test") {
-			logger.warn({ subject: dto.subject }, "sendEmail skipped (test env)");
-			return;
-		}
+  async sendEmail(dto: {
+    to: string | null;
+    subject: string;
+    html: string;
+  }): Promise<void> {
+    // Hard stop: tests must never reach the real provider (it bills, and
+    // non-prod mail is redirected to a personal inbox). Tests also replace
+    // this class wholesale via tests/mocks/email-service — this is a backstop.
+    if (env.NODE_ENV === "test") {
+      logger.warn({ subject: dto.subject }, "sendEmail skipped (test env)");
+      return;
+    }
 
-		const recipient =
-			env.NODE_ENV === "production" ? (dto.to ?? DEV_EMAIL) : DEV_EMAIL;
+    const recipient =
+      env.NODE_ENV === "production" ? (dto.to ?? DEV_EMAIL) : DEV_EMAIL;
 
-		// Outside production every mail is redirected to DEV_INBOX. With none
-		// configured there is nowhere safe to send it — drop it loudly rather
-		// than hand the provider an empty recipient.
-		if (!recipient) {
-			logger.warn(
-				{ subject: dto.subject },
-				"sendEmail skipped (no recipient — set DEV_INBOX)",
-			);
-			return;
-		}
+    // Outside production every mail is redirected to DEV_INBOX. With none
+    // configured there is nowhere safe to send it — drop it loudly rather
+    // than hand the provider an empty recipient.
+    if (!recipient) {
+      logger.warn(
+        { subject: dto.subject },
+        "sendEmail skipped (no recipient — set DEV_INBOX)",
+      );
+      return;
+    }
 
-		try {
-			const { data, error } = await resend.emails.send({
-				from: "onboarding@resend.dev",
-				to: recipient,
-				subject: dto.subject,
-				html: dto.html,
-			});
+    try {
+      const { data, error } = await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: recipient,
+        subject: dto.subject,
+        html: dto.html,
+      });
 
-			if (error) {
-				logger.error({ err: error }, "Failed to send email");
-				throw new Error(error.message);
-			}
-		} catch (error) {
-			logger.error({ err: error }, "Failed to send email");
-			throw error;
-		}
-	}
-	async sendVerificationEmail(dto: {
-		username: string;
-		email: string;
-		url: string;
-	}) {
-		return this.sendEmail({
-			to: dto.email,
-			subject: "Verify Your Email",
-			html: verificationEmail(dto.username ?? dto.email, dto.url),
-		});
-	}
+      if (error) {
+        logger.error({ err: error }, "Failed to send email");
+        throw new Error(error.message);
+      }
+    } catch (error) {
+      logger.error({ err: error }, "Failed to send email");
+      throw error;
+    }
+  }
+  async sendVerificationEmail(dto: {
+    username: string;
+    email: string;
+    url: string;
+  }) {
+    return this.sendEmail({
+      to: dto.email,
+      subject: "Verify Your Email",
+      html: verificationEmail(dto.username ?? dto.email, dto.url),
+    });
+  }
 
-	async sendPasswordResetEmail(dto: {
-		email: string;
-		subject: string;
-		resetPasswordUrl: string;
-	}) {
-		return this.sendEmail({
-			to: dto.email,
-			subject: dto.subject,
-			html: resetPasswordEmail(dto.email, dto.resetPasswordUrl),
-		});
-	}
+  async sendPasswordResetEmail(dto: {
+    email: string;
+    subject: string;
+    resetPasswordUrl: string;
+  }) {
+    return this.sendEmail({
+      to: dto.email,
+      subject: dto.subject,
+      html: resetPasswordEmail(dto.email, dto.resetPasswordUrl),
+    });
+  }
 
-	async sendTwoFactorCode(dto: {
-		email: string;
-		username: string;
-		code: string;
-		expiresInMinutes: number;
-	}) {
-		return this.sendEmail({
-			to: dto.email,
-			subject: `${dto.code} is your verification code`,
-			html: twoFactorCodeEmail(
-				dto.username ?? dto.email,
-				dto.code,
-				dto.expiresInMinutes,
-			),
-		});
-	}
+  async sendTwoFactorCode(dto: {
+    email: string;
+    username: string;
+    code: string;
+    expiresInMinutes: number;
+  }) {
+    return this.sendEmail({
+      to: dto.email,
+      subject: `${dto.code} is your verification code`,
+      html: twoFactorCodeEmail(
+        dto.username ?? dto.email,
+        dto.code,
+        dto.expiresInMinutes,
+      ),
+    });
+  }
 
-	async sendPasswordChangedEmail(dto: {
-		email: string;
-		username: string;
-	}) {
-		return this.sendEmail({
-			to: dto.email,
-			subject: "Your password was changed",
-			html: passwordChangedEmail(
-				dto.username,
-				new Date().toLocaleString(),
-			),
-		});
-	}
+  async sendPasswordChangedEmail(dto: { email: string; username: string }) {
+    return this.sendEmail({
+      to: dto.email,
+      subject: "Your password was changed",
+      html: passwordChangedEmail(dto.username, new Date().toLocaleString()),
+    });
+  }
 
-	async sendNewDeviceLoginEmail(dto: {
-		email: string;
-		username: string;
-		userAgent?: string | null;
-	}) {
-		return this.sendEmail({
-			to: dto.email,
-			subject: "New sign-in to your account",
-			html: newDeviceLoginEmail(
-				dto.username,
-				dto.userAgent ?? "Unknown browser",
-			),
-		});
-	}
+  async sendNewDeviceLoginEmail(dto: {
+    email: string;
+    username: string;
+    userAgent?: string | null;
+  }) {
+    return this.sendEmail({
+      to: dto.email,
+      subject: "New sign-in to your account",
+      html: newDeviceLoginEmail(
+        dto.username,
+        dto.userAgent ?? "Unknown browser",
+      ),
+    });
+  }
 }

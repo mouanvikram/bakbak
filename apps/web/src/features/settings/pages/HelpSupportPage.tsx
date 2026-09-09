@@ -11,7 +11,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Enter sends my message before I'm done — can I change that?",
-    a: "Yes. In Settings → Chat Settings turn off \"Enter to send\". Enter then adds a new line and you send with Ctrl+Enter (⌘+Enter on Mac) or the send button.",
+    a: 'Yes. In Settings → Chat Settings turn off "Enter to send". Enter then adds a new line and you send with Ctrl+Enter (⌘+Enter on Mac) or the send button.',
   },
   {
     q: "What does two-factor authentication do?",
@@ -19,7 +19,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "I'm signed in on a device I don't recognise.",
-    a: "Go to Settings → Devices to see every active session. Use \"Log out\" on the one you don't recognise, or \"Log out other sessions\" to end everything except the device you're on, then change your password.",
+    a: 'Go to Settings → Devices to see every active session. Use "Log out" on the one you don\'t recognise, or "Log out other sessions" to end everything except the device you\'re on, then change your password.',
   },
   {
     q: "Can I edit or delete a message I sent?",

@@ -7,8 +7,8 @@ import { resolveDatabaseUrl } from "./resolve-db-url";
 
 // Single source of truth: the repo-root .env file.
 config({
-	path: resolve(dirname(fileURLToPath(import.meta.url)), "../../../.env"),
-	quiet: true,
+  path: resolve(dirname(fileURLToPath(import.meta.url)), "../../../.env"),
+  quiet: true,
 });
 
 const connectionString = resolveDatabaseUrl();

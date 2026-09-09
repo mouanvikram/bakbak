@@ -62,9 +62,7 @@ export function MessageToastBridge() {
 
       const title = isGroup && info?.name ? info.name : senderName;
       const description = isGroup ? `${senderName}: ${preview}` : preview;
-      const avatarSrc = isGroup
-        ? info?.avatar
-        : msg.sender?.profile?.avatar;
+      const avatarSrc = isGroup ? info?.avatar : msg.sender?.profile?.avatar;
 
       toast({
         title,

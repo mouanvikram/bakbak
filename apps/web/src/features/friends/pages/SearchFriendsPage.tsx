@@ -67,7 +67,7 @@ export function SearchFriendsPage() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Name or username"
           aria-label="Search people"
-          className="h-12 flex-1 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+          className="focus:border-brand-500 focus:ring-brand-500/15 h-12 flex-1 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
         />
         <Button
           value="Search"
@@ -91,7 +91,9 @@ export function SearchFriendsPage() {
               user={u}
               actions={
                 pendingIds.has(u.id) ? (
-                  <span className="text-xs font-semibold text-gray-400">Pending</span>
+                  <span className="text-xs font-semibold text-gray-400">
+                    Pending
+                  </span>
                 ) : (
                   <Button
                     value="Add friend"

@@ -70,7 +70,11 @@ export function ImageCropModal({
     if (!croppedAreaPixels) return;
     setProcessing(true);
     try {
-      const blob = await getCroppedImg(imageSrc, croppedAreaPixels, "image/webp");
+      const blob = await getCroppedImg(
+        imageSrc,
+        croppedAreaPixels,
+        "image/webp",
+      );
       await onConfirm(blob);
     } finally {
       setProcessing(false);
@@ -118,7 +122,12 @@ export function ImageCropModal({
             Cancel
           </button>
           <div className="flex-1">
-            <Button value="Crop & Upload" onClick={handleConfirm} loading={processing} loadingText="Uploading..." />
+            <Button
+              value="Crop & Upload"
+              onClick={handleConfirm}
+              loading={processing}
+              loadingText="Uploading..."
+            />
           </div>
         </div>
       </div>

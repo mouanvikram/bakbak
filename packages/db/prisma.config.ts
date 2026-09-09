@@ -7,7 +7,9 @@ import { defineConfig } from "prisma/config";
 import { resolveDatabaseUrl } from "./src/resolve-db-url";
 
 // Single source of truth: the repo-root .env file.
-config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../../.env") });
+config({
+  path: resolve(dirname(fileURLToPath(import.meta.url)), "../../.env"),
+});
 
 // `prisma generate` doesn't need a database; only migrate/studio/db push do.
 // Don't make the config throw when no URL is configured yet.

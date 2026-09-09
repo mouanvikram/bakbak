@@ -10,10 +10,13 @@ import { uploadsConfig } from "./config";
  * URL; otherwise it returns a signed URL with the given TTL.
  */
 export async function resolveAvatarUrl(
-	avatar: string | null | undefined,
-	storageProvider: StorageProvider,
+  avatar: string | null | undefined,
+  storageProvider: StorageProvider,
 ): Promise<string | null> {
-	if (!avatar) return null;
-	if (/^https?:\/\//.test(avatar)) return avatar;
-	return storageProvider.getSignedUrl(avatar, uploadsConfig.avatarUrlTtlSeconds);
+  if (!avatar) return null;
+  if (/^https?:\/\//.test(avatar)) return avatar;
+  return storageProvider.getSignedUrl(
+    avatar,
+    uploadsConfig.avatarUrlTtlSeconds,
+  );
 }

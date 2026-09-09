@@ -8,8 +8,9 @@ type UserLike = Pick<SearchUserType, "username"> & {
 
 function getDisplayName(user: UserLike): string {
   const name =
-    [user.profile?.firstName, user.profile?.lastName].filter(Boolean).join(" ") ||
-    user.profile?.displayName;
+    [user.profile?.firstName, user.profile?.lastName]
+      .filter(Boolean)
+      .join(" ") || user.profile?.displayName;
   return name || user.username;
 }
 
@@ -23,7 +24,10 @@ export function UserCard({
   return (
     <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-4 py-3">
       <div className="flex items-center gap-3">
-        <Avatar name={getDisplayName(user)} src={user.profile?.avatar ?? undefined} />
+        <Avatar
+          name={getDisplayName(user)}
+          src={user.profile?.avatar ?? undefined}
+        />
         <div>
           <div className="text-sm font-medium text-gray-900">
             {getDisplayName(user)}

@@ -248,8 +248,8 @@ export function SignupPage() {
           <div className="flex items-center justify-center gap-2">
             {step === 4 && (
               <div className="flex w-full flex-col items-center justify-center gap-4 py-6 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-500/10">
-                  <Mail className="h-8 w-8 text-brand-600" />
+                <div className="bg-brand-500/10 flex h-16 w-16 items-center justify-center rounded-full">
+                  <Mail className="text-brand-600 h-8 w-8" />
                 </div>
                 <div className="flex flex-col gap-2">
                   <h2 className="text-xl font-semibold text-gray-900">
@@ -269,7 +269,7 @@ export function SignupPage() {
                   Didn't receive the email?{" "}
                   <Link
                     to="/resend-verification"
-                    className="font-medium text-brand-600 hover:underline"
+                    className="text-brand-600 font-medium hover:underline"
                   >
                     Resend verification email
                   </Link>
@@ -456,7 +456,7 @@ export function SignupPage() {
                   <>
                     <label
                       htmlFor="avatar"
-                      className={`flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 transition hover:border-brand-500 hover:text-brand-500 ${loading ? "cursor-not-allowed opacity-50 hover:border-gray-300 hover:text-gray-400" : "cursor-pointer"}`}
+                      className={`hover:border-brand-500 hover:text-brand-500 flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 transition ${loading ? "cursor-not-allowed opacity-50 hover:border-gray-300 hover:text-gray-400" : "cursor-pointer"}`}
                     >
                       Avatar
                     </label>
@@ -489,7 +489,7 @@ export function SignupPage() {
                   rows={3}
                   maxLength={500}
                   placeholder="Tell us a little about yourself..."
-                  className="w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="focus:border-brand-500 focus:ring-brand-500/15 w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                   value={user.bio}
                   onChange={handleChange}
                   disabled={loading}

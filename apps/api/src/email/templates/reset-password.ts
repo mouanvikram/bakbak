@@ -1,7 +1,4 @@
-export const resetPasswordEmail = (
-  userName: string,
-  resetLink: string,
-) => `
+export const resetPasswordEmail = (userName: string, resetLink: string) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>

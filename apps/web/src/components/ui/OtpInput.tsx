@@ -61,7 +61,10 @@ export function OtpInput({
 
   function handlePaste(e: ClipboardEvent<HTMLInputElement>) {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, LENGTH);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, LENGTH);
     if (!pasted) return;
     set(pasted);
     refs.current[Math.min(pasted.length, LENGTH - 1)]?.focus();
@@ -88,8 +91,8 @@ export function OtpInput({
           onPaste={handlePaste}
           onFocus={(e) => e.target.select()}
           className={cn(
-            "h-14 w-full min-w-0 rounded-lg border border-gray-200 bg-white text-center text-xl font-semibold text-gray-900 outline-none transition",
-            "focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15",
+            "h-14 w-full min-w-0 rounded-lg border border-gray-200 bg-white text-center text-xl font-semibold text-gray-900 transition outline-none",
+            "focus:border-brand-500 focus:ring-brand-500/15 focus:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-50",
           )}
         />

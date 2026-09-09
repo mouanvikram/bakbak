@@ -29,8 +29,8 @@ import { servicesConfig } from "./config";
 export const userRepository = new UserRepository();
 export const passwordService = new PasswordService();
 export const jwtService = new JwtService(servicesConfig.jwtSecret, {
-	issuer: servicesConfig.jwtIssuer,
-	audience: servicesConfig.jwtAudience,
+  issuer: servicesConfig.jwtIssuer,
+  audience: servicesConfig.jwtAudience,
 });
 export const emailService = new EmailService();
 export const emailRepository = new EmailRepository();
@@ -38,27 +38,30 @@ export const refreshTokenRepository = new RefreshTokenRepository();
 export const uploadRepository = new UploadRepository();
 export const settingsRepository = new SettingsRepository();
 export const authService = new AuthService(
-	userRepository,
-	passwordService,
-	jwtService,
-	emailService,
-	emailRepository,
-	refreshTokenRepository,
-	storageProvider,
-	uploadRepository,
-	settingsRepository,
+  userRepository,
+  passwordService,
+  jwtService,
+  emailService,
+  emailRepository,
+  refreshTokenRepository,
+  storageProvider,
+  uploadRepository,
+  settingsRepository,
 );
 export const authController = new AuthController(authService);
 
 export const friendRepository = new FriendRepository();
-export const friendService = new FriendService(friendRepository, storageProvider);
+export const friendService = new FriendService(
+  friendRepository,
+  storageProvider,
+);
 export const friendController = new FriendController(friendService);
 
 export const userService = new UserService(
-	userRepository,
-	storageProvider,
-	friendRepository,
-	refreshTokenRepository,
+  userRepository,
+  storageProvider,
+  friendRepository,
+  refreshTokenRepository,
 );
 export const userController = new UserController(userService);
 
@@ -68,13 +71,16 @@ export const chatController = new ChatController(chatService);
 
 export const messageRepository = new MessageRepository();
 export const messageService = new MessageService(
-	messageRepository,
-	storageProvider,
-	uploadRepository,
+  messageRepository,
+  storageProvider,
+  uploadRepository,
 );
 export const messageController = new MessageController(messageService);
 export const settingsService = new SettingsService(settingsRepository);
 export const settingsController = new SettingsController(settingsService);
 
-export const uploadService = new UploadService(uploadRepository, storageProvider);
+export const uploadService = new UploadService(
+  uploadRepository,
+  storageProvider,
+);
 export const uploadController = new UploadController(uploadService);

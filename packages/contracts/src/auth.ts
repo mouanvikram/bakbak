@@ -1,34 +1,34 @@
 import { z } from "zod";
 import {
-	bioSchema,
-	emailSchema,
-	okResponseSchema,
-	passwordSchema,
-	refreshTokenSchema,
-	safeString,
-	tokenSchema,
-	usernameSchema,
+  bioSchema,
+  emailSchema,
+  okResponseSchema,
+  passwordSchema,
+  refreshTokenSchema,
+  safeString,
+  tokenSchema,
+  usernameSchema,
 } from "./shared";
 
 // ─── Login ─────────────────────────────────────────────────────────
 
 export const loginRequestSchema = z.object({
-	// identifier is either a username or an email — both are stored lowercase
-	// (citext-backed), so normalize here too rather than relying on citext alone.
-	identifier: safeString(100, 4).trim().toLowerCase(),
-	// Login validates an existing credential, so apply no complexity rules
-	// here — they'd turn vary the error path (enumeration) and reject a
-	// legitimately-stored simple password. min(1)/max(128) guards the no-op.
-	password: safeString(128, 1),
+  // identifier is either a username or an email — both are stored lowercase
+  // (citext-backed), so normalize here too rather than relying on citext alone.
+  identifier: safeString(100, 4).trim().toLowerCase(),
+  // Login validates an existing credential, so apply no complexity rules
+  // here — they'd turn vary the error path (enumeration) and reject a
+  // legitimately-stored simple password. min(1)/max(128) guards the no-op.
+  password: safeString(128, 1),
 });
 
 export const loginResponseSchema = z.object({
-	accessToken: z.string(),
-	refreshToken: z.string(),
-	user: z.object({
-		id: z.uuid(),
-		identifier: z.string().min(1),
-	}),
+  accessToken: z.string(),
+  refreshToken: z.string(),
+  user: z.object({
+    id: z.uuid(),
+    identifier: z.string().min(1),
+  }),
 });
 
 export type LoginRequestType = z.infer<typeof loginRequestSchema>;
@@ -38,9 +38,9 @@ export type LoginResponseType = z.infer<typeof loginResponseSchema>;
 
 /** A 6-digit one-time code, as typed by the user. */
 export const otpCodeSchema = z
-	.string()
-	.trim()
-	.regex(/^\d{6}$/, "Enter the 6-digit code");
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, "Enter the 6-digit code");
 
 /**
  * When the account has 2FA on, `POST /auth/login` returns this instead of
@@ -48,66 +48,66 @@ export const otpCodeSchema = z
  * `POST /auth/login/verify-2fa` alongside the code.
  */
 export const loginChallengeResponseSchema = z.object({
-	twoFactorRequired: z.literal(true),
-	challengeId: z.string().min(1),
-	message: z.string(),
+  twoFactorRequired: z.literal(true),
+  challengeId: z.string().min(1),
+  message: z.string(),
 });
 
 export type LoginChallengeResponseType = z.infer<
-	typeof loginChallengeResponseSchema
+  typeof loginChallengeResponseSchema
 >;
 
 /** `POST /auth/login` may resolve to either tokens or a 2FA challenge. */
 export type LoginOutcomeType = LoginResponseType | LoginChallengeResponseType;
 
 export const verifyTwoFactorLoginRequestSchema = z.object({
-	challengeId: z.string().min(1),
-	code: otpCodeSchema,
+  challengeId: z.string().min(1),
+  code: otpCodeSchema,
 });
 
 export type VerifyTwoFactorLoginRequestType = z.infer<
-	typeof verifyTwoFactorLoginRequestSchema
+  typeof verifyTwoFactorLoginRequestSchema
 >;
 
 export const verifyTwoFactorLoginResponseSchema = loginResponseSchema;
 
 export const resendTwoFactorLoginRequestSchema = z.object({
-	challengeId: z.string().min(1),
+  challengeId: z.string().min(1),
 });
 
 export type ResendTwoFactorLoginRequestType = z.infer<
-	typeof resendTwoFactorLoginRequestSchema
+  typeof resendTwoFactorLoginRequestSchema
 >;
 
 export const resendTwoFactorLoginResponseSchema = okResponseSchema;
 
 export type ResendTwoFactorLoginResponseType = z.infer<
-	typeof resendTwoFactorLoginResponseSchema
+  typeof resendTwoFactorLoginResponseSchema
 >;
 
 /** Reports the 2FA flag after an enable/disable action. */
 export const twoFactorStatusResponseSchema = z.object({
-	twoFactorEnabled: z.boolean(),
-	message: z.string(),
+  twoFactorEnabled: z.boolean(),
+  message: z.string(),
 });
 
 export type TwoFactorStatusResponseType = z.infer<
-	typeof twoFactorStatusResponseSchema
+  typeof twoFactorStatusResponseSchema
 >;
 
 /** `POST /auth/2fa/setup` — emails a code so the user can turn 2FA on. */
 export const setupTwoFactorResponseSchema = okResponseSchema;
 
 export type SetupTwoFactorResponseType = z.infer<
-	typeof setupTwoFactorResponseSchema
+  typeof setupTwoFactorResponseSchema
 >;
 
 export const enableTwoFactorRequestSchema = z.object({
-	code: otpCodeSchema,
+  code: otpCodeSchema,
 });
 
 export type EnableTwoFactorRequestType = z.infer<
-	typeof enableTwoFactorRequestSchema
+  typeof enableTwoFactorRequestSchema
 >;
 
 /** `POST /auth/2fa/disable` — turning 2FA off proves the password, so a
@@ -115,24 +115,24 @@ export type EnableTwoFactorRequestType = z.infer<
  * `changePassword`'s `currentPassword`, no complexity rules here — the
  * value is verified, not created. */
 export const disableTwoFactorRequestSchema = z.object({
-	password: safeString(128, 1),
+  password: safeString(128, 1),
 });
 
 export type DisableTwoFactorRequestType = z.infer<
-	typeof disableTwoFactorRequestSchema
+  typeof disableTwoFactorRequestSchema
 >;
 
 // ─── Signup ────────────────────────────────────────────────────────
 
 export const signUpRequestSchema = z.object({
-	username: usernameSchema,
-	email: emailSchema,
-	password: passwordSchema,
-	firstname: safeString(100, 1),
-	lastname: safeString(100, 1),
-	displayname: safeString(100, 1),
-	bio: bioSchema.optional(),
-	avatarUrl: safeString(150).optional(),
+  username: usernameSchema,
+  email: emailSchema,
+  password: passwordSchema,
+  firstname: safeString(100, 1),
+  lastname: safeString(100, 1),
+  displayname: safeString(100, 1),
+  bio: bioSchema.optional(),
+  avatarUrl: safeString(150).optional(),
 });
 
 export const signUpResponseSchema = okResponseSchema;
@@ -143,7 +143,7 @@ export type SignUpResponseType = z.infer<typeof signUpResponseSchema>;
 // ─── Email verification ────────────────────────────────────────────
 
 export const verifyEmailRequestSchema = z.object({
-	token: tokenSchema("Verification token"),
+  token: tokenSchema("Verification token"),
 });
 
 export const verifyEmailResponseSchema = okResponseSchema;
@@ -152,88 +152,88 @@ export type VerifyEmailRequestType = z.infer<typeof verifyEmailRequestSchema>;
 export type VerifyEmailResponseType = z.infer<typeof verifyEmailResponseSchema>;
 
 export const resendVerificationRequestSchema = z.object({
-	email: emailSchema,
+  email: emailSchema,
 });
 
 export const resendVerificationResponseSchema = okResponseSchema;
 
 export type ResendVerificationRequestType = z.infer<
-	typeof resendVerificationRequestSchema
+  typeof resendVerificationRequestSchema
 >;
 export type ResendVerificationResponseType = z.infer<
-	typeof resendVerificationResponseSchema
+  typeof resendVerificationResponseSchema
 >;
 
 // ─── Password operations ───────────────────────────────────────────
 
 export const changePasswordRequestSchema = z.object({
-	currentPassword: safeString(128, 1),
-	newPassword: passwordSchema,
+  currentPassword: safeString(128, 1),
+  newPassword: passwordSchema,
 });
 
 export const changePasswordResponseSchema = okResponseSchema;
 
 export type ChangePasswordRequestType = z.infer<
-	typeof changePasswordRequestSchema
+  typeof changePasswordRequestSchema
 >;
 
 export type ChangePasswordResponseType = z.infer<
-	typeof changePasswordResponseSchema
+  typeof changePasswordResponseSchema
 >;
 
 export const forgotPasswordRequestSchema = z.object({
-	email: emailSchema,
+  email: emailSchema,
 });
 
 export const forgotPasswordResponseSchema = okResponseSchema;
 
 export type ForgotPasswordRequestType = z.infer<
-	typeof forgotPasswordRequestSchema
+  typeof forgotPasswordRequestSchema
 >;
 
 export type ForgotPasswordResponseType = z.infer<
-	typeof forgotPasswordResponseSchema
+  typeof forgotPasswordResponseSchema
 >;
 
 export const resetPasswordBodySchema = z.object({
-	newPassword: passwordSchema,
+  newPassword: passwordSchema,
 });
 
 export const resetPasswordQuerySchema = z.object({
-	token: tokenSchema("Reset token"),
+  token: tokenSchema("Reset token"),
 });
 
 export type ResetPasswordQueryType = z.infer<typeof resetPasswordQuerySchema>;
 export type ResetPasswordBodyType = z.infer<typeof resetPasswordBodySchema>;
 
 export const resetPasswordRequestSchema = resetPasswordBodySchema.extend({
-	token: tokenSchema("Reset token"),
+  token: tokenSchema("Reset token"),
 });
 
 export const resetPasswordResponseSchema = okResponseSchema;
 
 export type ResetPasswordRequestType = z.infer<
-	typeof resetPasswordRequestSchema
+  typeof resetPasswordRequestSchema
 >;
 
 export type ResetPasswordResponseType = z.infer<
-	typeof resetPasswordResponseSchema
+  typeof resetPasswordResponseSchema
 >;
 
 // ─── Token operations ──────────────────────────────────────────────
 
 export const refreshTokenRequestSchema = z.object({
-	refreshToken: refreshTokenSchema,
+  refreshToken: refreshTokenSchema,
 });
 
 export const refreshTokenResponseSchema = z.object({
-	accessToken: z.string().min(1),
-	refreshToken: z.string().min(1),
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
 });
 
 export type RefreshTokenRequestType = z.infer<typeof refreshTokenRequestSchema>;
 export type RefreshTokenResponseType = z.infer<
-	typeof refreshTokenResponseSchema
+  typeof refreshTokenResponseSchema
 >;
 
 // Logout ends the session the access token belongs to — nothing to pass.
@@ -248,11 +248,11 @@ export type LogoutResponseType = z.infer<typeof logoutResponseSchema>;
 
 // One live refresh-token session for the current user.
 export const sessionSchema = z.object({
-	id: z.uuid(),
-	userAgent: z.string().nullish(),
-	createdAt: z.string(),
-	expiresAt: z.string(),
-	current: z.boolean(),
+  id: z.uuid(),
+  userAgent: z.string().nullish(),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+  current: z.boolean(),
 });
 
 export type SessionType = z.infer<typeof sessionSchema>;
@@ -260,34 +260,32 @@ export type SessionType = z.infer<typeof sessionSchema>;
 // The current session is identified by the access token's `sid` claim.
 export const listSessionsRequestSchema = z.object({});
 
-export type ListSessionsRequestType = z.infer<
-	typeof listSessionsRequestSchema
->;
+export type ListSessionsRequestType = z.infer<typeof listSessionsRequestSchema>;
 
 export const listSessionsResponseSchema = z.object({
-	sessions: z.array(sessionSchema),
+  sessions: z.array(sessionSchema),
 });
 
 export type ListSessionsResponseType = z.infer<
-	typeof listSessionsResponseSchema
+  typeof listSessionsResponseSchema
 >;
 
 export const revokeSessionRequestSchema = z.object({
-	sessionId: z.uuid(),
+  sessionId: z.uuid(),
 });
 
 export type RevokeSessionRequestType = z.infer<
-	typeof revokeSessionRequestSchema
+  typeof revokeSessionRequestSchema
 >;
 
 export const revokeOtherSessionsRequestSchema = z.object({});
 
 export type RevokeOtherSessionsRequestType = z.infer<
-	typeof revokeOtherSessionsRequestSchema
+  typeof revokeOtherSessionsRequestSchema
 >;
 
 export const revokeSessionResponseSchema = okResponseSchema;
 
 export type RevokeSessionResponseType = z.infer<
-	typeof revokeSessionResponseSchema
+  typeof revokeSessionResponseSchema
 >;

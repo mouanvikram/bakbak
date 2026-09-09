@@ -152,7 +152,9 @@ function FileChip({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{a.fileName}</span>
-        <span className={cn("text-xs", mine ? "text-white/70" : "text-slate-400")}>
+        <span
+          className={cn("text-xs", mine ? "text-white/70" : "text-slate-400")}
+        >
           {ext ? `${ext} · ` : ""}
           {formatBytes(a.fileSize)}
         </span>

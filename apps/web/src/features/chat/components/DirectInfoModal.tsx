@@ -2,10 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, Check, Clock, UserPlus, Users, X } from "lucide-react";
 import type { GetProfileResponseType } from "@bakbak/contracts";
 import { getProfile } from "@/features/users/api";
-import {
-  acceptFriendRequest,
-  sendFriendRequest,
-} from "@/features/friends/api";
+import { acceptFriendRequest, sendFriendRequest } from "@/features/friends/api";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -97,7 +94,12 @@ export function DirectInfoModal({
           >
             Contact info
           </h2>
-          <IconButton label="Close" size="sm" className="-mr-1" onClick={onClose}>
+          <IconButton
+            label="Close"
+            size="sm"
+            className="-mr-1"
+            onClick={onClose}
+          >
             <X className="size-5" />
           </IconButton>
         </div>
@@ -122,7 +124,7 @@ export function DirectInfoModal({
                     </h3>
                     {profile?.verified && (
                       <BadgeCheck
-                        className="size-4 text-brand-500"
+                        className="text-brand-500 size-4"
                         aria-label="Verified"
                       />
                     )}
@@ -133,7 +135,9 @@ export function DirectInfoModal({
                 </div>
 
                 {profile?.bio && (
-                  <p className="max-w-xs text-sm text-slate-600">{profile.bio}</p>
+                  <p className="max-w-xs text-sm text-slate-600">
+                    {profile.bio}
+                  </p>
                 )}
 
                 <div className="flex items-center gap-4 pt-1 text-xs text-slate-500">
@@ -149,7 +153,10 @@ export function DirectInfoModal({
               </div>
 
               {error && (
-                <p className="px-5 pb-2 text-center text-xs text-red-600" role="alert">
+                <p
+                  className="px-5 pb-2 text-center text-xs text-red-600"
+                  role="alert"
+                >
                   {error}
                 </p>
               )}

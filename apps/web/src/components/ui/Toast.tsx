@@ -32,8 +32,14 @@ interface ToastItem extends ToastOptions {
 
 interface ToastApi {
   toast: (opts: ToastOptions) => number;
-  success: (title: string, opts?: Omit<ToastOptions, "title" | "variant">) => number;
-  error: (title: string, opts?: Omit<ToastOptions, "title" | "variant">) => number;
+  success: (
+    title: string,
+    opts?: Omit<ToastOptions, "title" | "variant">,
+  ) => number;
+  error: (
+    title: string,
+    opts?: Omit<ToastOptions, "title" | "variant">,
+  ) => number;
   dismiss: (id: number) => void;
 }
 
@@ -119,7 +125,7 @@ const ICON: Record<ToastVariant, ReactNode> = {
   default: null,
   success: <CheckCircle2 className="size-5 text-green-500" />,
   error: <TriangleAlert className="size-5 text-red-500" />,
-  info: <Info className="size-5 text-brand-500" />,
+  info: <Info className="text-brand-500 size-5" />,
 };
 
 function Toaster({
@@ -175,7 +181,9 @@ function Toaster({
                 {body}
               </button>
             ) : (
-              <div className="flex min-w-0 flex-1 items-start gap-2.5">{body}</div>
+              <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                {body}
+              </div>
             )}
             <button
               type="button"

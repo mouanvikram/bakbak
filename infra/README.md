@@ -8,11 +8,11 @@ uploads. Nothing here is used in production.
 
 `@bakbak/db` chooses the connection string by `NODE_ENV`:
 
-| `NODE_ENV`    | variable          | database                        |
-| ------------- | ----------------- | ------------------------------- |
-| `production`  | `PRODUCTION_DB_URL` | your managed/hosted Postgres   |
-| `test`        | `DEV_DB_TEST_URL`  | `bakbak_test` (truncated by the suite) |
-| _anything else_ | `DEV_DB_URL`     | `bakbak_dev`                     |
+| `NODE_ENV`      | variable            | database                               |
+| --------------- | ------------------- | -------------------------------------- |
+| `production`    | `PRODUCTION_DB_URL` | your managed/hosted Postgres           |
+| `test`          | `DEV_DB_TEST_URL`   | `bakbak_test` (truncated by the suite) |
+| _anything else_ | `DEV_DB_URL`        | `bakbak_dev`                           |
 
 Set `DATABASE_URL` to override all three (one-off scripts, hosts that only
 inject one variable).

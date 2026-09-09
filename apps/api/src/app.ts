@@ -27,10 +27,10 @@ app.use(helmet());
 
 // 3. CORS
 app.use(
-	cors({
-		origin: env.CORS_ORIGINS,
-		credentials: true,
-	}),
+  cors({
+    origin: env.CORS_ORIGINS,
+    credentials: true,
+  }),
 );
 
 // 4. Request identity

@@ -47,15 +47,17 @@ export function ChatItem({
   const otherParticipant = chat.participants?.find(
     (p) => p.user?.id !== currentUserId,
   );
-  const displayName = chat.type === "DIRECT"
-    ? otherParticipant?.user?.profile?.displayName ?? otherParticipant?.user?.username ?? "Unknown"
-    : chat.name ?? "Group";
+  const displayName =
+    chat.type === "DIRECT"
+      ? (otherParticipant?.user?.profile?.displayName ??
+        otherParticipant?.user?.username ??
+        "Unknown")
+      : (chat.name ?? "Group");
   const avatarSrc =
     chat.type === "DIRECT"
-      ? otherParticipant?.user?.profile?.avatar ?? undefined
-      : chat.avatar ?? undefined;
-  const online =
-    chat.type === "DIRECT" && isOnline(otherParticipant?.user?.id);
+      ? (otherParticipant?.user?.profile?.avatar ?? undefined)
+      : (chat.avatar ?? undefined);
+  const online = chat.type === "DIRECT" && isOnline(otherParticipant?.user?.id);
   const mineLast = lastMessage?.senderId === currentUserId;
   const hasUnread = unreadCount > 0;
   // "Seen" once the other side's read pointer reaches our latest message.
@@ -81,100 +83,105 @@ export function ChatItem({
 
   return (
     <>
-    <NavLink
-      to={`/chats/${chat.id}`}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        setMenu({ x: e.clientX, y: e.clientY });
-      }}
-      className={({ isActive }) =>
-        cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
-          isActive ? "bg-violet-50" : "hover:bg-slate-50",
-        )
-      }
-    >
-      <Avatar name={displayName} src={avatarSrc} online={online} />
+      <NavLink
+        to={`/chats/${chat.id}`}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
+        className={({ isActive }) =>
+          cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
+            isActive ? "bg-violet-50" : "hover:bg-slate-50",
+          )
+        }
+      >
+        <Avatar name={displayName} src={avatarSrc} online={online} />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={cn(
-              "truncate text-sm text-slate-800",
-              hasUnread ? "font-semibold" : "font-medium",
-            )}
-          >
-            {displayName}
-          </span>
-          <span
-            className={cn(
-              "shrink-0 text-[11px]",
-              hasUnread ? "font-semibold text-violet-600" : "text-slate-400",
-            )}
-          >
-            {lastMessage?.createdAt
-              ? new Date(lastMessage.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-              : ""}
-          </span>
-        </div>
-
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1">
-            {lastMessage && mineLast && (
-              seenByOther ? (
-                <CheckCheck className="size-3.5 shrink-0 text-sky-500" />
-              ) : (
-                <Check className="size-3.5 shrink-0 text-slate-400" />
-              )
-            )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
             <span
               className={cn(
-                "truncate text-xs",
-                hasUnread ? "text-slate-700 dark:text-slate-200" : "text-slate-500",
+                "truncate text-sm text-slate-800",
+                hasUnread ? "font-semibold" : "font-medium",
               )}
             >
-              {preview}
+              {displayName}
+            </span>
+            <span
+              className={cn(
+                "shrink-0 text-[11px]",
+                hasUnread ? "font-semibold text-violet-600" : "text-slate-400",
+              )}
+            >
+              {lastMessage?.createdAt
+                ? new Date(lastMessage.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : ""}
             </span>
           </div>
 
-          {hasUnread && (
-            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 px-1.5 text-[11px] font-semibold text-white">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
+          <div className="mt-0.5 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1">
+              {lastMessage &&
+                mineLast &&
+                (seenByOther ? (
+                  <CheckCheck className="size-3.5 shrink-0 text-sky-500" />
+                ) : (
+                  <Check className="size-3.5 shrink-0 text-slate-400" />
+                ))}
+              <span
+                className={cn(
+                  "truncate text-xs",
+                  hasUnread
+                    ? "text-slate-700 dark:text-slate-200"
+                    : "text-slate-500",
+                )}
+              >
+                {preview}
+              </span>
+            </div>
+
+            {hasUnread && (
+              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 px-1.5 text-[11px] font-semibold text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-    </NavLink>
+      </NavLink>
 
-    {menu && (
-      <ContextMenu
-        x={menu.x}
-        y={menu.y}
-        onClose={() => setMenu(null)}
-        items={[
-          {
-            label: "Delete chat",
-            icon: <Trash2 />,
-            destructive: true,
-            onSelect: () => setConfirmOpen(true),
-          },
-        ]}
-      />
-    )}
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              label: "Delete chat",
+              icon: <Trash2 />,
+              destructive: true,
+              onSelect: () => setConfirmOpen(true),
+            },
+          ]}
+        />
+      )}
 
-    {confirmOpen && (
-      <ConfirmDialog
-        title="Delete chat"
-        message={`This removes "${displayName}" from your chat list. The other ${
-          chat.type === "GROUP" ? "members" : "person"
-        } will still have it.`}
-        confirmLabel="Delete"
-        destructive
-        loading={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmOpen(false)}
-      />
-    )}
+      {confirmOpen && (
+        <ConfirmDialog
+          title="Delete chat"
+          message={`This removes "${displayName}" from your chat list. The other ${
+            chat.type === "GROUP" ? "members" : "person"
+          } will still have it.`}
+          confirmLabel="Delete"
+          destructive
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmOpen(false)}
+        />
+      )}
     </>
   );
 }

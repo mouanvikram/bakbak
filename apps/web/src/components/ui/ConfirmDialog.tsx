@@ -48,7 +48,10 @@ export function ConfirmDialog({
         className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl motion-safe:animate-[pop-in_150ms_var(--ease-emphasized)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="confirm-title" className="text-base font-semibold text-slate-900">
+        <h2
+          id="confirm-title"
+          className="text-base font-semibold text-slate-900"
+        >
           {title}
         </h2>
         <p id="confirm-body" className="mt-2 text-sm text-slate-500">

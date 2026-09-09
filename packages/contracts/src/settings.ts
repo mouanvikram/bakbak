@@ -2,60 +2,60 @@ import { z } from "zod";
 import type { UserIdType } from "./shared";
 
 export const notificationSettingsSchema = z.object({
-	messages: z.boolean(),
-	sounds: z.boolean(),
-	alerts: z.boolean(),
-	emailDigest: z.boolean(),
+  messages: z.boolean(),
+  sounds: z.boolean(),
+  alerts: z.boolean(),
+  emailDigest: z.boolean(),
 });
 
 export const appearanceSettingsSchema = z.object({
-	theme: z.enum(["light", "dark", "system"]),
-	fontSize: z.enum(["small", "medium", "large"]),
+  theme: z.enum(["light", "dark", "system"]),
+  fontSize: z.enum(["small", "medium", "large"]),
 });
 
 export const chatPreferencesSchema = z.object({
-	enterToSend: z.boolean(),
-	mediaPreview: z.boolean(),
+  enterToSend: z.boolean(),
+  mediaPreview: z.boolean(),
 });
 
 // Read-only: 2FA is turned on/off through the verified `/auth/2fa/*` endpoints,
 // never by a plain settings PATCH.
 export const privacySettingsSchema = z.object({
-	twoFactorEnabled: z.boolean(),
+  twoFactorEnabled: z.boolean(),
 });
 
 export const userSettingsResponseSchema = z.object({
-	notifications: notificationSettingsSchema,
-	appearance: appearanceSettingsSchema,
-	chat: chatPreferencesSchema,
-	privacy: privacySettingsSchema,
+  notifications: notificationSettingsSchema,
+  appearance: appearanceSettingsSchema,
+  chat: chatPreferencesSchema,
+  privacy: privacySettingsSchema,
 });
 
 export const updateNotificationSettingsRequestSchema =
-	notificationSettingsSchema;
+  notificationSettingsSchema;
 export const updateAppearanceSettingsRequestSchema = appearanceSettingsSchema;
 export const updateChatPreferencesRequestSchema = chatPreferencesSchema;
 
 export type NotificationSettingsType = z.infer<
-	typeof notificationSettingsSchema
+  typeof notificationSettingsSchema
 >;
 export type AppearanceSettingsType = z.infer<typeof appearanceSettingsSchema>;
 export type ChatPreferencesType = z.infer<typeof chatPreferencesSchema>;
 export type PrivacySettingsType = z.infer<typeof privacySettingsSchema>;
 export type UserSettingsResponseType = z.infer<
-	typeof userSettingsResponseSchema
+  typeof userSettingsResponseSchema
 >;
 
 // Service inputs. The caller's id is resolved from the access token, never
 // from the request body, so it is joined to the validated patch here.
 export interface UpdateNotificationsDto extends UserIdType {
-	settings: NotificationSettingsType;
+  settings: NotificationSettingsType;
 }
 
 export interface UpdateAppearanceDto extends UserIdType {
-	settings: AppearanceSettingsType;
+  settings: AppearanceSettingsType;
 }
 
 export interface UpdateChatPreferencesDto extends UserIdType {
-	settings: ChatPreferencesType;
+  settings: ChatPreferencesType;
 }

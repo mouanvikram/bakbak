@@ -12,9 +12,10 @@ export function FriendsPage() {
   const [friends, setFriends] = useState<FriendshipResponseType[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState<
-    { id: string; action: "message" | "remove" } | null
-  >(null);
+  const [busy, setBusy] = useState<{
+    id: string;
+    action: "message" | "remove";
+  } | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -51,17 +52,20 @@ export function FriendsPage() {
   }
 
   const removalName = pendingRemoval
-    ? friends.find((f) => f.friend.id === pendingRemoval)?.friend.profile
+    ? (friends.find((f) => f.friend.id === pendingRemoval)?.friend.profile
         ?.displayName ??
       friends.find((f) => f.friend.id === pendingRemoval)?.friend.username ??
-      "this person"
+      "this person")
     : "";
 
   async function handleMessage(friendId: string) {
     setBusy({ id: friendId, action: "message" });
     setStatus("");
     try {
-      const chat = await createDirectChat({ type: "DIRECT", participantId: friendId });
+      const chat = await createDirectChat({
+        type: "DIRECT",
+        participantId: friendId,
+      });
       navigate(`/chats/${chat.id}`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Failed to open chat");

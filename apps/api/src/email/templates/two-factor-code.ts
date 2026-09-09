@@ -1,7 +1,7 @@
 export const twoFactorCodeEmail = (
-	userName: string,
-	code: string,
-	expiresInMinutes: number,
+  userName: string,
+  code: string,
+  expiresInMinutes: number,
 ) => `
 <!DOCTYPE html>
 <html lang="en">

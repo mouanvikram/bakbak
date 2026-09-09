@@ -23,7 +23,9 @@ import {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<LoginResponseType["user"] | null>(null);
-  const [profile, setProfile] = useState<GetMeResponseType["profile"] | null>(null);
+  const [profile, setProfile] = useState<GetMeResponseType["profile"] | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
@@ -103,7 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signup = useCallback(
-    async (data: SignUpRequestType, avatar?: { blob: Blob; fileName: string }) => {
+    async (
+      data: SignUpRequestType,
+      avatar?: { blob: Blob; fileName: string },
+    ) => {
       await apiSignup(data, avatar);
     },
     [],

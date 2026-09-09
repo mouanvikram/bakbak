@@ -2,7 +2,7 @@ import Redis from "ioredis";
 import logger from "@/lib/logger";
 import { redisConfig } from "./config";
 
-// Token-bucket Lua: atomic read/refill/deduct per key. 
+// Token-bucket Lua: atomic read/refill/deduct per key.
 const TOKEN_BUCKET_SCRIPT = `
 local capacity = tonumber(ARGV[1])
 local refill_rate = tonumber(ARGV[2])
@@ -66,51 +66,51 @@ return {
 
 let redis: Redis | null = null;
 
-// Gate for the cache: true only while a connection is actually usable. 
+// Gate for the cache: true only while a connection is actually usable.
 export function isRedisReady(): boolean {
-	return redis?.status === "ready";
+  return redis?.status === "ready";
 }
 
 export function getRedisClient(): Redis {
-	if (redis) {
-		return redis;
-	}
+  if (redis) {
+    return redis;
+  }
 
-	redis = new Redis({
-		host: redisConfig.host,
-		port: redisConfig.port,
-		maxRetriesPerRequest: 1,
-		enableOfflineQueue: false,
-	});
-	redis.defineCommand("consumeBucket", {
-		numberOfKeys: 1,
-		lua: TOKEN_BUCKET_SCRIPT,
-	});
-	redis.on("connect", () => {
-		logger.info("[Redis] connected");
-	});
+  redis = new Redis({
+    host: redisConfig.host,
+    port: redisConfig.port,
+    maxRetriesPerRequest: 1,
+    enableOfflineQueue: false,
+  });
+  redis.defineCommand("consumeBucket", {
+    numberOfKeys: 1,
+    lua: TOKEN_BUCKET_SCRIPT,
+  });
+  redis.on("connect", () => {
+    logger.info("[Redis] connected");
+  });
 
-	redis.on("ready", () => {
-		logger.info("[Redis] ready");
-	});
+  redis.on("ready", () => {
+    logger.info("[Redis] ready");
+  });
 
-	redis.on("error", (error) => {
-		logger.error({ err: error }, "[Redis] error");
-	});
+  redis.on("error", (error) => {
+    logger.error({ err: error }, "[Redis] error");
+  });
 
-	redis.on("close", () => {
-		logger.info("[Redis] connection closed");
-	});
+  redis.on("close", () => {
+    logger.info("[Redis] connection closed");
+  });
 
-	redis.on("disconnect", () => {
-		logger.info("[Redis] disconnected");
-	});
+  redis.on("disconnect", () => {
+    logger.info("[Redis] disconnected");
+  });
 
-	return redis;
+  return redis;
 }
 
 export function closeRedisClient(): void {
-	if (!redis) return;
-	void redis.quit().catch(() => redis?.disconnect());
-	redis = null;
+  if (!redis) return;
+  void redis.quit().catch(() => redis?.disconnect());
+  redis = null;
 }

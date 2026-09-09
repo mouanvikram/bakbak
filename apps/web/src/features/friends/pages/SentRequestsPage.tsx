@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import type { FriendRequestResponseType } from "@bakbak/contracts";
-import { cancelFriendRequest, getPendingRequests } from "@/features/friends/api";
+import {
+  cancelFriendRequest,
+  getPendingRequests,
+} from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
 import { Button } from "@/components/ui/Button";

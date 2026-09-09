@@ -46,7 +46,7 @@ export function PasswordInput({
             "h-12 w-full rounded-lg border bg-white pr-11 pl-11 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50",
             error
               ? "border-red-300 focus:border-red-400 focus:ring-red-500/15"
-              : "border-gray-200 focus:border-brand-500 focus:ring-brand-500/15",
+              : "focus:border-brand-500 focus:ring-brand-500/15 border-gray-200",
             className,
           )}
         />
@@ -55,7 +55,7 @@ export function PasswordInput({
           type="button"
           onClick={() => setShowPassword((value) => !value)}
           disabled={props.disabled}
-          className="absolute top-1/2 right-1.5 -translate-y-1/2 flex size-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed"
+          className="absolute top-1/2 right-1.5 flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed"
           aria-label={showPassword ? "Hide password" : "Show password"}
           aria-pressed={showPassword}
         >

@@ -3,13 +3,13 @@ import { authMiddleware } from "@/middleware/auth.middleware";
 import { messageController } from "@/services/service.container";
 import { validate } from "@/middleware/validate";
 import {
-	chatIdParamsSchema,
-	editMessageRequestSchema,
-	getMessageRequestSchema,
-	listMessagesQuerySchema,
-	markChatReadRequestSchema,
-	searchMessagesQuerySchema,
-	sendMessageRequestSchema,
+  chatIdParamsSchema,
+  editMessageRequestSchema,
+  getMessageRequestSchema,
+  listMessagesQuerySchema,
+  markChatReadRequestSchema,
+  searchMessagesQuerySchema,
+  sendMessageRequestSchema,
 } from "@bakbak/contracts";
 import { rateLimitAuthorized } from "@/redis/rate-limit";
 
@@ -22,26 +22,26 @@ export const chatMessageRoutes = Router({ mergeParams: true });
 chatMessageRoutes.use(validate(chatIdParamsSchema, "params"));
 
 chatMessageRoutes.get(
-	"/search",
-	validate(searchMessagesQuerySchema, "query"),
-	messageController.searchMessages,
+  "/search",
+  validate(searchMessagesQuerySchema, "query"),
+  messageController.searchMessages,
 );
 chatMessageRoutes.get("/unread", messageController.getUnreadCount);
 chatMessageRoutes.post(
-	"/read",
-	validate(markChatReadRequestSchema),
-	messageController.markChatRead,
+  "/read",
+  validate(markChatReadRequestSchema),
+  messageController.markChatRead,
 );
 chatMessageRoutes.get(
-	"/",
-	validate(listMessagesQuerySchema, "query"),
-	messageController.listMessages,
+  "/",
+  validate(listMessagesQuerySchema, "query"),
+  messageController.listMessages,
 );
 chatMessageRoutes.post(
-	"/",
-	validate(sendMessageRequestSchema),
-	rateLimitAuthorized("messageSend"),
-	messageController.sendMessage,
+  "/",
+  validate(sendMessageRequestSchema),
+  rateLimitAuthorized("messageSend"),
+  messageController.sendMessage,
 );
 
 /**
@@ -52,18 +52,18 @@ export const messageRoutes = Router();
 messageRoutes.use(authMiddleware);
 
 messageRoutes.get(
-	"/:messageId",
-	validate(getMessageRequestSchema, "params"),
-	messageController.getMessage,
+  "/:messageId",
+  validate(getMessageRequestSchema, "params"),
+  messageController.getMessage,
 );
 messageRoutes.patch(
-	"/:messageId",
-	validate(getMessageRequestSchema, "params"),
-	validate(editMessageRequestSchema),
-	messageController.editMessage,
+  "/:messageId",
+  validate(getMessageRequestSchema, "params"),
+  validate(editMessageRequestSchema),
+  messageController.editMessage,
 );
 messageRoutes.delete(
-	"/:messageId",
-	validate(getMessageRequestSchema, "params"),
-	messageController.deleteMessage,
+  "/:messageId",
+  validate(getMessageRequestSchema, "params"),
+  messageController.deleteMessage,
 );

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import type { FriendRequestResponseType } from "@bakbak/contracts";
-import { acceptFriendRequest, getPendingRequests, rejectFriendRequest } from "@/features/friends/api";
+import {
+  acceptFriendRequest,
+  getPendingRequests,
+  rejectFriendRequest,
+} from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
 import { Button } from "@/components/ui/Button";
@@ -9,9 +13,10 @@ export function PendingRequestsPage() {
   const [requests, setRequests] = useState<FriendRequestResponseType[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState<
-    { id: string; action: "accept" | "reject" } | null
-  >(null);
+  const [busy, setBusy] = useState<{
+    id: string;
+    action: "accept" | "reject";
+  } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -64,7 +69,9 @@ export function PendingRequestsPage() {
   return (
     <div className="flex h-full w-full flex-col gap-4 overflow-y-auto p-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Pending Requests</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Pending Requests
+        </h1>
         <p className="text-sm text-gray-500">Friend requests waiting for you</p>
       </div>
       {status && <div className="text-sm text-gray-600">{status}</div>}

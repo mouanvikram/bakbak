@@ -34,9 +34,7 @@ export function listMessages(
   return apiClient(`/api/v1/chats/${chatId}/messages${qs ? `?${qs}` : ""}`);
 }
 
-export function getMessage(
-  messageId: string,
-): Promise<GetMessageResponseType> {
+export function getMessage(messageId: string): Promise<GetMessageResponseType> {
   return apiClient(`/api/v1/messages/${messageId}`);
 }
 

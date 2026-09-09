@@ -40,9 +40,9 @@ ${body}
 `;
 
 export const passwordChangedEmail = (userName: string, occurred: string) =>
-	alertLayout(
-		"Your password was changed",
-		`
+  alertLayout(
+    "Your password was changed",
+    `
 <p style="font-size:16px;color:#374151;line-height:1.6;">
 Hi ${userName},
 </p>
@@ -52,12 +52,12 @@ The password for your account was just changed (${occurred}). If this
 wasn't you, reset it immediately and revoke your sessions.
 </p>
 `,
-	);
+  );
 
 export const newDeviceLoginEmail = (userName: string, userAgent: string) =>
-	alertLayout(
-		"New sign-in to your account",
-		`
+  alertLayout(
+    "New sign-in to your account",
+    `
 <p style="font-size:16px;color:#374151;line-height:1.6;">
 Hi ${userName},
 </p>
@@ -74,4 +74,4 @@ Browser / device: <strong>${userAgent}</strong>
 If this wasn't you, change your password and sign out on all devices.
 </p>
 `,
-	);
+  );

@@ -87,7 +87,9 @@ export function DevicesPage() {
       await revokeSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to end that session");
+      setError(
+        err instanceof Error ? err.message : "Failed to end that session",
+      );
     } finally {
       setBusyId(null);
     }
@@ -140,9 +142,7 @@ export function DevicesPage() {
                       {deviceLabel(s.userAgent)}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {s.current
-                        ? "This device"
-                        : signedInLabel(s.createdAt)}
+                      {s.current ? "This device" : signedInLabel(s.createdAt)}
                     </p>
                   </div>
                 </div>

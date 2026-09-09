@@ -67,9 +67,10 @@ export function ChatPage() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   // The message being edited in the composer, or null for a normal compose.
-  const [editing, setEditing] = useState<{ id: string; original: string } | null>(
-    null,
-  );
+  const [editing, setEditing] = useState<{
+    id: string;
+    original: string;
+  } | null>(null);
   // Right-click menu on one of my messages.
   const [msgMenu, setMsgMenu] = useState<{
     x: number;
@@ -83,7 +84,9 @@ export function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Idempotency key for the in-flight / last-failed text send, so retrying the
   // same message doesn't create a duplicate.
-  const pendingSend = useRef<{ clientId: string; content: string } | null>(null);
+  const pendingSend = useRef<{ clientId: string; content: string } | null>(
+    null,
+  );
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   // participantId -> id of the last message that participant has read.
@@ -250,7 +253,9 @@ export function ChatPage() {
         navigate("/chats", { replace: true });
         return;
       }
-      setChat((prev) => (prev ? { ...prev, ...updated, messages: prev.messages } : updated));
+      setChat((prev) =>
+        prev ? { ...prev, ...updated, messages: prev.messages } : updated,
+      );
     };
 
     s.on("connect", onConnect);
@@ -510,14 +515,13 @@ export function ChatPage() {
     ? (readState[otherParticipant.user.id] ?? null)
     : null;
   const orderIndex = new Map(messages.map((m, i) => [m.id, i] as const));
-  const messageStatus = (
-    messageId: string,
-  ): "sent" | "delivered" | "seen" => {
+  const messageStatus = (messageId: string): "sent" | "delivered" | "seen" => {
     if (!isDirect || !otherParticipant) return "sent";
     if (otherReadId) {
       const readAt = orderIndex.get(otherReadId);
       const at = orderIndex.get(messageId);
-      if (readAt !== undefined && at !== undefined && readAt >= at) return "seen";
+      if (readAt !== undefined && at !== undefined && readAt >= at)
+        return "seen";
     }
     return otherOnline ? "delivered" : "sent";
   };
@@ -656,15 +660,13 @@ export function ChatPage() {
       )}
       <div className="shrink-0 border-t border-gray-100 bg-white p-3">
         {editing && (
-          <div className="mb-2 flex items-center gap-2 rounded-lg bg-brand-500/10 px-3 py-1.5 text-xs text-brand-600">
+          <div className="bg-brand-500/10 text-brand-600 mb-2 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs">
             <Pencil className="size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">
-              Editing message
-            </span>
+            <span className="min-w-0 flex-1 truncate">Editing message</span>
             <button
               type="button"
               onClick={cancelEdit}
-              className="shrink-0 rounded p-0.5 hover:bg-brand-500/15"
+              className="hover:bg-brand-500/15 shrink-0 rounded p-0.5"
               aria-label="Cancel editing"
             >
               <X className="size-3.5" />
@@ -725,7 +727,7 @@ export function ChatPage() {
                   ? "Type a message"
                   : "Type a message (Ctrl+Enter to send)"
             }
-            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
+            className="focus:border-brand-500 focus:ring-brand-500/15 max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:ring-2 disabled:opacity-60"
           />
           <button
             type="button"

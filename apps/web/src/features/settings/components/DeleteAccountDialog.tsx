@@ -57,8 +57,8 @@ export function DeleteAccountDialog({
           Delete account
         </h2>
         <p className="mt-2 text-sm text-slate-600">
-          This permanently removes your profile, messages, chats, friends and all
-          related data. It cannot be undone.
+          This permanently removes your profile, messages, chats, friends and
+          all related data. It cannot be undone.
         </p>
 
         <p className="mt-4 text-sm text-slate-600">
@@ -79,7 +79,7 @@ export function DeleteAccountDialog({
           spellCheck={false}
           autoCapitalize="none"
           placeholder={phrase}
-          className="mt-2 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 font-mono text-sm text-gray-800 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-2 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 font-mono text-sm text-gray-800 transition outline-none focus:border-red-400 focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50"
         />
 
         {error && (

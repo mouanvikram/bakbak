@@ -89,12 +89,12 @@ export function deleteMe(): Promise<{ message: string }> {
 export function checkUsername(
   username: string,
 ): Promise<CheckUsernameResponseType> {
-  return apiClient(`/api/v1/users/check-username?username=${encodeURIComponent(username)}`);
+  return apiClient(
+    `/api/v1/users/check-username?username=${encodeURIComponent(username)}`,
+  );
 }
 
-export function searchUsers(
-  query: string,
-): Promise<SearchUsersResponseType> {
+export function searchUsers(query: string): Promise<SearchUsersResponseType> {
   return apiClient(`/api/v1/users/search?query=${encodeURIComponent(query)}`);
 }
 

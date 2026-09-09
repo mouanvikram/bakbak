@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { AtSign, Check, Loader2, X } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
-import { checkUsername, updateProfile, uploadAvatar } from "@/features/users/api";
+import {
+  checkUsername,
+  updateProfile,
+  uploadAvatar,
+} from "@/features/users/api";
 import { ImageCropModal } from "@/components/ImageCropModal";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -121,7 +125,16 @@ export function AccountPage() {
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif", "image/bmp"].includes(file.type)) {
+    if (
+      ![
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/avif",
+        "image/gif",
+        "image/bmp",
+      ].includes(file.type)
+    ) {
       setError("Only JPG, PNG, WebP, AVIF, GIF or BMP images are allowed");
       return;
     }
@@ -155,12 +168,16 @@ export function AccountPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error}
+        </div>
       )}
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900">Profile Picture</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Profile Picture
+          </h2>
           <div className="flex items-center gap-4">
             <div className="relative">
               {profile?.avatar ? (
@@ -199,7 +216,9 @@ export function AccountPage() {
                   <Spinner /> Uploading...
                 </span>
               )}
-              <p className="text-xs text-gray-400">JPG, PNG, WebP, AVIF, GIF or BMP, up to 10 MB.</p>
+              <p className="text-xs text-gray-400">
+                JPG, PNG, WebP, AVIF, GIF or BMP, up to 10 MB.
+              </p>
             </div>
           </div>
         </div>
@@ -219,7 +238,9 @@ export function AccountPage() {
             </span>
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">Username</span>
+            <span className="text-sm font-semibold text-gray-900">
+              Username
+            </span>
             <div className="relative">
               <AtSign className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -269,21 +290,52 @@ export function AccountPage() {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">First Name</span>
-            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputClass} placeholder="Enter first name" />
+            <span className="text-sm font-semibold text-gray-900">
+              First Name
+            </span>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className={inputClass}
+              placeholder="Enter first name"
+            />
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">Last Name</span>
-            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className={inputClass} placeholder="Enter last name" />
+            <span className="text-sm font-semibold text-gray-900">
+              Last Name
+            </span>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className={inputClass}
+              placeholder="Enter last name"
+            />
           </label>
         </div>
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-semibold text-gray-900">Display Name</span>
-          <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputClass} placeholder="Enter display name" />
+          <span className="text-sm font-semibold text-gray-900">
+            Display Name
+          </span>
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className={inputClass}
+            placeholder="Enter display name"
+          />
         </label>
         <label className="flex flex-col gap-2">
           <span className="text-sm font-semibold text-gray-900">Bio</span>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} maxLength={500} className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" placeholder="Tell us about yourself" />
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={4}
+            maxLength={500}
+            className="focus:border-brand-500 focus:ring-brand-500/15 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 transition outline-none focus:ring-2"
+            placeholder="Tell us about yourself"
+          />
           <span className="text-xs text-gray-400">
             {bio.trim().length === 0
               ? "Leave blank, or write at least 10 characters."

@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { LogOut, UserRound, X, CalendarDays, Users, Mail, BadgeCheck } from "lucide-react";
+import {
+  LogOut,
+  UserRound,
+  X,
+  CalendarDays,
+  Users,
+  Mail,
+  BadgeCheck,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/auth-context";
 import { Avatar } from "@/components/ui/Avatar";
@@ -19,7 +27,9 @@ export function UserMenu() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(
+    null,
+  );
   const [profileOpen, setProfileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const avatarRef = useRef<HTMLButtonElement>(null);
@@ -96,8 +106,8 @@ export function UserMenu() {
           className={cn(
             "fixed z-50 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg",
             menuOpen
-              ? "scale-100 opacity-100 blur-0"
-              : "scale-[0.95] opacity-0 blur-[10px] pointer-events-none",
+              ? "blur-0 scale-100 opacity-100"
+              : "pointer-events-none scale-[0.95] opacity-0 blur-[10px]",
             "transition-all duration-200 ease-out",
           )}
           style={{
@@ -151,7 +161,11 @@ export function UserMenu() {
             </button>
 
             <div className="flex flex-col items-center gap-3 text-center">
-              <Avatar name={avatarName} src={profile?.avatar} className="size-20 text-xl" />
+              <Avatar
+                name={avatarName}
+                src={profile?.avatar}
+                className="size-20 text-xl"
+              />
               <div>
                 <div className="flex items-center justify-center gap-1.5">
                   <h2 className="text-xl font-semibold text-slate-900">
@@ -163,9 +177,7 @@ export function UserMenu() {
                 </div>
                 <p className="text-sm text-slate-500">@{profile?.username}</p>
               </div>
-              {fullName && (
-                <p className="text-sm text-slate-600">{fullName}</p>
-              )}
+              {fullName && <p className="text-sm text-slate-600">{fullName}</p>}
             </div>
 
             {profile?.bio && (

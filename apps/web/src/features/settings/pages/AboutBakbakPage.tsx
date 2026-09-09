@@ -38,7 +38,9 @@ export function AboutBakbakPage() {
     <div className="flex h-full w-full flex-col gap-6 overflow-y-auto p-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">About BakBak</h1>
-        <p className="text-sm text-gray-500">What this is, and how your data is handled</p>
+        <p className="text-sm text-gray-500">
+          What this is, and how your data is handled
+        </p>
       </div>
 
       <div className="flex flex-col gap-4">

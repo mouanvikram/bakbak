@@ -6,17 +6,15 @@
  * whitespace is trimmed. Returns null for empty/whitespace-only input.
  */
 export function titleCaseName(value: string | null | undefined): string | null {
-	if (value == null) return null;
-	const trimmed = value.trim();
-	if (!trimmed) return null;
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
 
-	return trimmed
-		.split(/\s+/)
-		.map((token) => {
-			if (!token) return token;
-			return (
-				token.charAt(0).toUpperCase() + token.slice(1).toLowerCase()
-			);
-		})
-		.join(" ");
+  return trimmed
+    .split(/\s+/)
+    .map((token) => {
+      if (!token) return token;
+      return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+    })
+    .join(" ");
 }

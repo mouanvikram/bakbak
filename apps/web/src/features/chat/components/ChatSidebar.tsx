@@ -160,7 +160,9 @@ export function ChatSidebar() {
     // Group renamed / photo changed / members added or removed.
     const onChatUpdated = (chat: ChatResponseType) => {
       if (!chat?.id) return;
-      const stillIn = chat.participants?.some((p) => p.userId === currentUserId);
+      const stillIn = chat.participants?.some(
+        (p) => p.userId === currentUserId,
+      );
       setChats((prev) => {
         if (!stillIn) return prev.filter((c) => c.id !== chat.id);
         const idx = prev.findIndex((c) => c.id === chat.id);
@@ -196,7 +198,10 @@ export function ChatSidebar() {
     return chats.filter((chat) => {
       const name = chat.name ?? "";
       const lastMsg = chat.messages?.[0]?.text ?? "";
-      return name.toLowerCase().includes(query) || lastMsg.toLowerCase().includes(query);
+      return (
+        name.toLowerCase().includes(query) ||
+        lastMsg.toLowerCase().includes(query)
+      );
     });
   }, [search, chats]);
 
@@ -277,7 +282,7 @@ export function ChatSidebar() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search chats"
-          className="h-9 w-full rounded-lg bg-slate-50 pr-3 pl-9 text-sm outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-brand-500/30"
+          className="focus-visible:ring-brand-500/30 h-9 w-full rounded-lg bg-slate-50 pr-3 pl-9 text-sm outline-none placeholder:text-slate-400 focus-visible:ring-2"
         />
       </div>
 

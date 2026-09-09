@@ -17,43 +17,43 @@ import { mock } from "bun:test";
  * "sendTwoFactorCode")` in the auth tests can still read the generated code.
  */
 export class MockEmailService {
-	async sendEmail(_dto: {
-		to: string | null;
-		subject: string;
-		html: string;
-	}): Promise<void> {}
+  async sendEmail(_dto: {
+    to: string | null;
+    subject: string;
+    html: string;
+  }): Promise<void> {}
 
-	async sendVerificationEmail(_dto: {
-		username: string;
-		email: string;
-		url: string;
-	}): Promise<void> {}
+  async sendVerificationEmail(_dto: {
+    username: string;
+    email: string;
+    url: string;
+  }): Promise<void> {}
 
-	async sendPasswordResetEmail(_dto: {
-		email: string;
-		subject: string;
-		resetPasswordUrl: string;
-	}): Promise<void> {}
+  async sendPasswordResetEmail(_dto: {
+    email: string;
+    subject: string;
+    resetPasswordUrl: string;
+  }): Promise<void> {}
 
-	async sendTwoFactorCode(_dto: {
-		email: string;
-		username: string;
-		code: string;
-		expiresInMinutes: number;
-	}): Promise<void> {}
+  async sendTwoFactorCode(_dto: {
+    email: string;
+    username: string;
+    code: string;
+    expiresInMinutes: number;
+  }): Promise<void> {}
 
-	async sendPasswordChangedEmail(_dto: {
-		email: string;
-		username: string;
-	}): Promise<void> {}
+  async sendPasswordChangedEmail(_dto: {
+    email: string;
+    username: string;
+  }): Promise<void> {}
 
-	async sendNewDeviceLoginEmail(_dto: {
-		email: string;
-		username: string;
-		userAgent?: string | null;
-	}): Promise<void> {}
+  async sendNewDeviceLoginEmail(_dto: {
+    email: string;
+    username: string;
+    userAgent?: string | null;
+  }): Promise<void> {}
 }
 
 mock.module("../../src/email/service", () => ({
-	EmailService: MockEmailService,
+  EmailService: MockEmailService,
 }));

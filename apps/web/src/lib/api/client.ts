@@ -5,7 +5,10 @@ import {
   getRefreshToken,
 } from "./tokens";
 
-export async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T> {
+export async function apiClient<T>(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<T> {
   const accessToken = getAccessToken();
 
   // FormData must set its own Content-Type so the browser can add the
@@ -26,7 +29,11 @@ export async function apiClient<T>(endpoint: string, options?: RequestInit): Pro
     headers,
   });
 
-  if (res.status === 401 && getRefreshToken() && endpoint !== "/api/v1/auth/refresh-token") {
+  if (
+    res.status === 401 &&
+    getRefreshToken() &&
+    endpoint !== "/api/v1/auth/refresh-token"
+  ) {
     try {
       const newToken = await dedupeRefresh();
 

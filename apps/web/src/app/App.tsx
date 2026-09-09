@@ -104,7 +104,10 @@ function App() {
           }
         />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/resend-verification" element={<ResendVerificationPage />} />
+        <Route
+          path="/resend-verification"
+          element={<ResendVerificationPage />}
+        />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 

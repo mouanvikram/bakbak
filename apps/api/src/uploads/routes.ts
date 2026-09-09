@@ -13,21 +13,21 @@ uploadRoutes.use(authMiddleware);
 // Rate-limited before multer, so a throttled client never gets its multipart
 // buffered and rejected — the upload bucket gates the expensive path first.
 uploadRoutes.post(
-	"/",
-	rateLimitAuthorized("uploads"),
-	attachmentUpload.middleware,
-	attachmentUpload.errorHandler,
-	uploadController.upload,
+  "/",
+  rateLimitAuthorized("uploads"),
+  attachmentUpload.middleware,
+  attachmentUpload.errorHandler,
+  uploadController.upload,
 );
 
 uploadRoutes.get(
-	"/:attachmentId",
-	validate(attachmentIdParamsSchema, "params"),
-	uploadController.getAttachment,
+  "/:attachmentId",
+  validate(attachmentIdParamsSchema, "params"),
+  uploadController.getAttachment,
 );
 
 uploadRoutes.delete(
-	"/:attachmentId",
-	validate(attachmentIdParamsSchema, "params"),
-	uploadController.deleteAttachment,
+  "/:attachmentId",
+  validate(attachmentIdParamsSchema, "params"),
+  uploadController.deleteAttachment,
 );

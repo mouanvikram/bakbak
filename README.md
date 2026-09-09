@@ -8,15 +8,15 @@ A real-time social chat app — direct & group messaging, friends, media sharing
 
 ## 🧱 Tech Stack
 
-| Layer | Tech |
-|---|---|
-| Runtime | [Bun](https://bun.sh) (monorepo workspaces) |
-| Backend | Express 5 + TypeScript, Socket.IO (presence, typing, receipts, live delivery) |
-| Database | PostgreSQL (Neon) + Prisma ORM |
-| Validation | Shared Zod contracts (`@bakbak/contracts`) — validates requests **and** responses |
-| Auth | JWT access tokens + Argon2id password hashing; email verification, password reset & email-OTP two-factor via Resend |
-| Frontend | React 19 + Vite + React Router, Tailwind CSS v4, React Compiler, `emoji-picker-react` |
-| Testing | `bun:test` — HTTP integration tests |
+| Layer      | Tech                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| Runtime    | [Bun](https://bun.sh) (monorepo workspaces)                                                                         |
+| Backend    | Express 5 + TypeScript, Socket.IO (presence, typing, receipts, live delivery)                                       |
+| Database   | PostgreSQL (Neon) + Prisma ORM                                                                                      |
+| Validation | Shared Zod contracts (`@bakbak/contracts`) — validates requests **and** responses                                   |
+| Auth       | JWT access tokens + Argon2id password hashing; email verification, password reset & email-OTP two-factor via Resend |
+| Frontend   | React 19 + Vite + React Router, Tailwind CSS v4, React Compiler, `emoji-picker-react`                               |
+| Testing    | `bun:test` — HTTP integration tests                                                                                 |
 
 ## 📁 Monorepo Structure
 

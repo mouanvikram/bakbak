@@ -1,90 +1,87 @@
 import { z } from "zod";
-import {
-	okResponseSchema,
-	userSummarySchema,
-} from "./shared";
+import { okResponseSchema, userSummarySchema } from "./shared";
 
 export const friendUserSchema = userSummarySchema;
 
 export type FriendUserType = z.infer<typeof friendUserSchema>;
 
 export const friendRequestResponseSchema = z.object({
-	id: z.uuid(),
-	status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "CANCELLED"]),
-	createdAt: z.string(),
-	updatedAt: z.string(),
-	sender: friendUserSchema,
-	receiver: friendUserSchema,
+  id: z.uuid(),
+  status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "CANCELLED"]),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  sender: friendUserSchema,
+  receiver: friendUserSchema,
 });
 
 export type FriendRequestResponseType = z.infer<
-	typeof friendRequestResponseSchema
+  typeof friendRequestResponseSchema
 >;
 
 export const friendshipResponseSchema = z.object({
-	friendshipId: z.uuid(),
-	createdAt: z.string(),
-	friend: friendUserSchema,
+  friendshipId: z.uuid(),
+  createdAt: z.string(),
+  friend: friendUserSchema,
 });
 
 export type FriendshipResponseType = z.infer<typeof friendshipResponseSchema>;
 
 export const sendFriendRequestRequestSchema = z.object({
-	receiverId: z.uuid(),
+  receiverId: z.uuid(),
 });
 
 export const friendRequestIdParamsSchema = z.object({
-	requestId: z.uuid(),
+  requestId: z.uuid(),
 });
 
 export type FriendRequestIdParamsType = z.infer<
-	typeof friendRequestIdParamsSchema
+  typeof friendRequestIdParamsSchema
 >;
 
 export const sendFriendRequestResponseSchema = friendRequestResponseSchema;
 
 export type SendFriendRequestRequestType = z.infer<
-	typeof sendFriendRequestRequestSchema
+  typeof sendFriendRequestRequestSchema
 >;
 export type SendFriendRequestResponseType = z.infer<
-	typeof sendFriendRequestResponseSchema
+  typeof sendFriendRequestResponseSchema
 >;
 
 export const cancelFriendRequestResponseSchema = friendRequestResponseSchema;
 
 export type CancelFriendRequestResponseType = z.infer<
-	typeof cancelFriendRequestResponseSchema
+  typeof cancelFriendRequestResponseSchema
 >;
 
 export const acceptFriendRequestResponseSchema = friendRequestResponseSchema;
 
 export type AcceptFriendRequestResponseType = z.infer<
-	typeof acceptFriendRequestResponseSchema
+  typeof acceptFriendRequestResponseSchema
 >;
 
 export const rejectFriendRequestResponseSchema = friendRequestResponseSchema;
 
 export type RejectFriendRequestResponseType = z.infer<
-	typeof rejectFriendRequestResponseSchema
+  typeof rejectFriendRequestResponseSchema
 >;
 
 export const getFriendsResponseSchema = z.object({
-	friendships: z.array(friendshipResponseSchema),
+  friendships: z.array(friendshipResponseSchema),
 });
 
 export type GetFriendsResponseType = z.infer<typeof getFriendsResponseSchema>;
 
 export const getPendingRequestsResponseSchema = z.object({
-	sent: z.array(friendRequestResponseSchema),
-	received: z.array(friendRequestResponseSchema),
+  sent: z.array(friendRequestResponseSchema),
+  received: z.array(friendRequestResponseSchema),
 });
 
 export type GetPendingRequestsResponseType = z.infer<
-	typeof getPendingRequestsResponseSchema
+  typeof getPendingRequestsResponseSchema
 >;
 
 export const friendIdParamsSchema = z.object({
-	friendId: z.uuid(),
+  friendId: z.uuid(),
 });
 
 export type FriendIdParamsType = z.infer<typeof friendIdParamsSchema>;
@@ -92,22 +89,22 @@ export type FriendIdParamsType = z.infer<typeof friendIdParamsSchema>;
 export const removeFriendResponseSchema = okResponseSchema;
 
 export type RemoveFriendResponseType = z.infer<
-	typeof removeFriendResponseSchema
+  typeof removeFriendResponseSchema
 >;
 
 export const getSuggestionsResponseSchema = z.object({
-	suggestions: z.array(friendUserSchema),
+  suggestions: z.array(friendUserSchema),
 });
 
 export type GetSuggestionsResponseType = z.infer<
-	typeof getSuggestionsResponseSchema
+  typeof getSuggestionsResponseSchema
 >;
 
 export interface FriendRequestType {
-	senderId: string;
-	receiverId: string;
+  senderId: string;
+  receiverId: string;
 }
 
 export type FriendRequestIdType = {
-	requestId: string;
+  requestId: string;
 };

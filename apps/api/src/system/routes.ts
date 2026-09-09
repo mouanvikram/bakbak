@@ -9,10 +9,10 @@ export const systemRoutes = Router();
 
 // Public. Lets the client detect a stale bundle.
 systemRoutes.get("/", (_req: Request, res: Response) => {
-	res.setHeader("Cache-Control", "public, max-age=60");
-	return validateResponse(res, HTTP_STATUS.OK, versionResponseSchema, {
-		version: systemConfig.appVersion,
-		commit: systemConfig.gitCommit,
-		buildTime: systemConfig.buildTime,
-	});
+  res.setHeader("Cache-Control", "public, max-age=60");
+  return validateResponse(res, HTTP_STATUS.OK, versionResponseSchema, {
+    version: systemConfig.appVersion,
+    commit: systemConfig.gitCommit,
+    buildTime: systemConfig.buildTime,
+  });
 });
