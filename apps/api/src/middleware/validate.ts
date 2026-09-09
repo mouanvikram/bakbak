@@ -1,8 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ZodType } from "zod";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-import type { AuthRequest } from "../auth/controller";
-import { userIdSchema } from "@bakbak/contracts";
 import logger from "@/lib/logger";
 
 export function validate<T>(
@@ -26,24 +24,6 @@ export function validate<T>(
 		// Expose the parsed (and coerced) value; handlers read `req.valid[source]`
 		// instead of the raw, untyped `req[source]`.
 		req.valid = { ...req.valid, [source]: result.data };
-
-		next();
-	};
-}
-
-export function validateUserId() {
-	return (req: AuthRequest, res: Response, next: NextFunction) => {
-		const result = userIdSchema.safeParse({
-			userId: req.user?.userId,
-		});
-
-		if (!result.success) {
-			throw new AppError(
-				HTTP_STATUS.NOT_FOUND,
-				ERROR_CODES.USER_ID_NOT_VALID,
-				"User Id must be of type UUID",
-			);
-		}
 
 		next();
 	};
