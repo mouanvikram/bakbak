@@ -13,7 +13,7 @@
     "db:migrate:deploy": "bun --cwd packages/db migrate:deploy",
     "db:seed": "bun apps/api/src/seed/seed.ts",
     "test": "bun --cwd apps/api test",
-    "test:docker": "docker compose -f infra/docker-compose.yml --profile test run --rm tests",
+    "test:docker": "docker compose -f infra/docker-compose.yml --profile test run --rm --build tests",
     "lint": "bun --cwd apps/api lint && bun --cwd apps/web lint",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
