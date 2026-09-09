@@ -4,8 +4,8 @@ import {
 	jwtService,
 	refreshTokenRepository,
 	userRepository,
-} from "../services/service.container";
-import type { AccessTokenPayload } from "../auth/jwt.service";
+} from "@/services/service.container";
+import type { AccessTokenPayload } from "@/auth/jwt.service";
 
 export interface AuthenticatedSocket extends Socket {
 	data: {

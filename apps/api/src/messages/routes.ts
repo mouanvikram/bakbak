@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/auth.middleware";
-import { messageController } from "../services/service.container";
-import { validate } from "../middleware/validate";
+import { authMiddleware } from "@/middleware/auth.middleware";
+import { messageController } from "@/services/service.container";
+import { validate } from "@/middleware/validate";
 import {
 	chatIdParamsSchema,
 	editMessageRequestSchema,
@@ -11,7 +11,7 @@ import {
 	searchMessagesQuerySchema,
 	sendMessageRequestSchema,
 } from "@bakbak/contracts";
-import { rateLimitAuthorized } from "../redis/rate-limit";
+import { rateLimitAuthorized } from "@/redis/rate-limit";
 
 /**
  * Message routes nested under a chat: `/api/v1/chats/:chatId/messages/*`.

@@ -1,10 +1,10 @@
 import express from "express";
-import { authMiddleware } from "../middleware/auth.middleware";
-import { uploadController } from "../services/service.container";
-import { validate } from "../middleware/validate";
-import { attachmentUpload } from "../middleware/file-upload";
+import { authMiddleware } from "@/middleware/auth.middleware";
+import { uploadController } from "@/services/service.container";
+import { validate } from "@/middleware/validate";
+import { attachmentUpload } from "@/middleware/file-upload";
 import { attachmentIdParamsSchema } from "@bakbak/contracts";
-import { rateLimitAuthorized } from "../redis/rate-limit";
+import { rateLimitAuthorized } from "@/redis/rate-limit";
 
 const router = express.Router();
 

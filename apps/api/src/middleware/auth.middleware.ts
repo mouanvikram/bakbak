@@ -1,11 +1,11 @@
-import type { AuthRequest } from "../auth/auth-request";
+import type { AuthRequest } from "@/auth/auth-request";
 import type { NextFunction, Response } from "express";
 import {
 	jwtService,
 	refreshTokenRepository,
 	userRepository,
-} from "../services/service.container";
-import type { AccessTokenPayload } from "../auth/jwt.service";
+} from "@/services/service.container";
+import type { AccessTokenPayload } from "@/auth/jwt.service";
 import logger from "@/lib/logger";
 import { userIdSchema } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";

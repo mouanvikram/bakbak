@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { versionResponseSchema } from "@bakbak/contracts";
-import { validateResponse } from "../middleware/validate";
+import { validateResponse } from "@/middleware/validate";
 import { systemConfig } from "./config";
 import { HTTP_STATUS } from "@/errors/app-error";
 

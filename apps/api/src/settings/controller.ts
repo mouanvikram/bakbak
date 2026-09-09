@@ -1,7 +1,7 @@
 import type { Response } from "express";
-import { requireUserId, type AuthRequest } from "../auth/auth-request";
+import { requireUserId, type AuthRequest } from "@/auth/auth-request";
 import type { SettingsService } from "./service";
-import { validateResponse } from "../middleware/validate";
+import { validateResponse } from "@/middleware/validate";
 import { userSettingsResponseSchema } from "@bakbak/contracts";
 import type {
 	AppearanceSettingsType,

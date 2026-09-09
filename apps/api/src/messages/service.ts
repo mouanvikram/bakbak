@@ -1,7 +1,7 @@
 import { MessageType } from "@bakbak/contracts";
 import { Prisma, type AttachmentKind } from "@bakbak/db";
 import type { MessageRepository } from "./repository";
-import type { UploadRepository } from "../uploads/repository";
+import type { UploadRepository } from "@/uploads/repository";
 import type {
 	ChatMessagesDto,
 	EditMessageDto,
@@ -11,8 +11,8 @@ import type {
 	SendMessageDto,
 } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-import type { StorageProvider } from "../uploads/storage.provider";
-import { resolveAvatarUrl } from "../uploads/avatar-url";
+import type { StorageProvider } from "@/uploads/storage.provider";
+import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import { messagesConfig } from "./config";
 
 // Non-TEXT message types, keyed by the attachment kind that implies them.
@@ -28,7 +28,7 @@ import {
 	broadcastMessageEdited,
 	broadcastMessageDeleted,
 	broadcastReadReceipt,
-} from "../websocket/emitter";
+} from "@/websocket/emitter";
 
 const messageUserSelect = {
 	id: true,

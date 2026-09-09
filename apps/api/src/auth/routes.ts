@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { authController } from "../services/service.container";
-import { validate } from "../middleware/validate";
+import { authController } from "@/services/service.container";
+import { validate } from "@/middleware/validate";
 import {
 	changePasswordRequestSchema,
 	disableTwoFactorRequestSchema,
@@ -19,13 +19,13 @@ import {
 	verifyEmailRequestSchema,
 	verifyTwoFactorLoginRequestSchema,
 } from "@bakbak/contracts";
-import { authMiddleware } from "../middleware/auth.middleware";
-import { avatarUpload } from "../middleware/file-upload";
+import { authMiddleware } from "@/middleware/auth.middleware";
+import { avatarUpload } from "@/middleware/file-upload";
 import {
 	rateLimitAuthorized,
 	rateLimitEmails,
 	rateLimitIp,
-} from "../redis/rate-limit";
+} from "@/redis/rate-limit";
 
 
 const router = Router();

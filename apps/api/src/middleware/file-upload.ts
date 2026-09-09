@@ -1,8 +1,8 @@
 import multer from "multer";
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-import { kindFromMime } from "../uploads/file-type";
-import { uploadsConfig } from "../uploads/config";
+import { kindFromMime } from "@/uploads/file-type";
+import { uploadsConfig } from "@/uploads/config";
 
 interface FileUploadOptions {
 	field?: string;

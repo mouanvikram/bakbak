@@ -1,7 +1,7 @@
-import { requireUserId, type AuthRequest } from "../auth/auth-request";
+import { requireUserId, type AuthRequest } from "@/auth/auth-request";
 import type { Response } from "express";
 import type { UserService } from "./service";
-import { validateResponse } from "../middleware/validate";
+import { validateResponse } from "@/middleware/validate";
 import {
 	checkUsernameResponseSchema,
 	deleteMeResponseSchema,

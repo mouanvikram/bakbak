@@ -1,12 +1,12 @@
 import type { AccessTokenPayload, JwtService } from "./jwt.service";
 import type { PasswordService } from "./password.service";
-import type { UserRepository } from "../users/repository";
-import type { EmailService } from "../email/service";
+import type { UserRepository } from "@/users/repository";
+import type { EmailService } from "@/email/service";
 import crypto from "crypto";
-import type { EmailRepository } from "../email/repository";
+import type { EmailRepository } from "@/email/repository";
 import type { RefreshTokenRepository } from "./refresh-token.repository";
-import type { SettingsRepository } from "../settings/repository";
-import { disconnectSockets } from "../websocket/emitter";
+import type { SettingsRepository } from "@/settings/repository";
+import { disconnectSockets } from "@/websocket/emitter";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { authConfig } from "./config";

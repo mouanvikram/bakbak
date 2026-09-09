@@ -10,12 +10,12 @@ import type {
 	UpdateChatParticipantDto,
 } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-import type { StorageProvider } from "../uploads/storage.provider";
-import { resolveAvatarUrl } from "../uploads/avatar-url";
+import type { StorageProvider } from "@/uploads/storage.provider";
+import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import {
 	addUserToChatRoom,
 	broadcastChatUpdated,
-} from "../websocket/emitter";
+} from "@/websocket/emitter";
 
 const chatUserSelect = {
 	id: true,

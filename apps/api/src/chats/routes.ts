@@ -1,8 +1,8 @@
 import express from "express";
-import { authMiddleware } from "../middleware/auth.middleware";
-import { chatController } from "../services/service.container";
-import { validate } from "../middleware/validate";
-import { chatMessageRoutes } from "../messages/routes";
+import { authMiddleware } from "@/middleware/auth.middleware";
+import { chatController } from "@/services/service.container";
+import { validate } from "@/middleware/validate";
+import { chatMessageRoutes } from "@/messages/routes";
 import {
 	addParticipantRequestSchema,
 	chatIdParamsSchema,
@@ -12,7 +12,7 @@ import {
 	updateChatParticipantRequestSchema,
 	updateChatRequestSchema,
 } from "@bakbak/contracts";
-import { rateLimitAuthorized } from "../redis/rate-limit";
+import { rateLimitAuthorized } from "@/redis/rate-limit";
 
 const router = express.Router();
 router.use(authMiddleware);

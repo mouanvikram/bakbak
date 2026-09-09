@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
 import { Prisma } from "@bakbak/db";
 import type { UserRepository } from "./repository";
-import type { FriendRepository } from "../friends/repository";
-import type { RefreshTokenRepository } from "../auth/refresh-token.repository";
-import { disconnectSockets } from "../websocket/emitter";
-import type { StorageProvider } from "../uploads/storage.provider";
+import type { FriendRepository } from "@/friends/repository";
+import type { RefreshTokenRepository } from "@/auth/refresh-token.repository";
+import { disconnectSockets } from "@/websocket/emitter";
+import type { StorageProvider } from "@/uploads/storage.provider";
 import type {
 	CheckUsernameRequestType,
 	CheckUsernameResponseType,
@@ -24,9 +24,9 @@ import type {
 import type { UploadFile } from "@bakbak/contracts";
 import { BIO_MIN_LENGTH } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-import { resolveAvatarUrl } from "../uploads/avatar-url";
-import { uploadsConfig } from "../uploads/config";
-import { titleCaseName } from "../lib/name-case";
+import { resolveAvatarUrl } from "@/uploads/avatar-url";
+import { uploadsConfig } from "@/uploads/config";
+import { titleCaseName } from "@/lib/name-case";
 
 /**
  * Present a stored bio to clients as the contract expects: `null`, or a real

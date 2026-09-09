@@ -33,7 +33,7 @@ import type {
 	DisableTwoFactorRequestType,
 	RevokeSessionRequestType,
 } from "@bakbak/contracts";
-import { validateResponse } from "../middleware/validate";
+import { validateResponse } from "@/middleware/validate";
 import {
 	requireSessionId,
 	requireUserId,

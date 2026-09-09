@@ -1,12 +1,12 @@
-import { verificationEmail } from "./templates/verify-email";
+import { verificationEmail } from "@/email/templates/verify-email";
 import { Resend } from "resend";
 import logger from "@/lib/logger";
-import { resetPasswordEmail } from "./templates/reset-password";
-import { twoFactorCodeEmail } from "./templates/two-factor-code";
+import { resetPasswordEmail } from "@/email/templates/reset-password";
+import { twoFactorCodeEmail } from "@/email/templates/two-factor-code";
 import {
 	newDeviceLoginEmail,
 	passwordChangedEmail,
-} from "./templates/security-alert";
+} from "@/email/templates/security-alert";
 import { env } from "@/config";
 import { emailConfig } from "./config";
 
