@@ -19,6 +19,14 @@ export class EmailRepository {
     });
   }
 
+  async deleteExpired() {
+    return await prisma.verificationToken.deleteMany({
+      where: {
+        expiresAt: { lt: new Date() },
+      },
+    });
+  }
+
   // Marks the account verified and clears every pending email-verification
   // token in one transaction so a stale token can never be replayed.
   async markVerifiedAndClearTokens(userId: string) {

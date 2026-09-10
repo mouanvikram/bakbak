@@ -1,5 +1,6 @@
 import Redis from "ioredis";
 import logger from "@/lib/logger";
+import { registerShutdownHook } from "@/shutdown/registry";
 import { redisConfig } from "./config";
 
 // Token-bucket Lua: atomic read/refill/deduct per key.
@@ -109,8 +110,16 @@ export function getRedisClient(): Redis {
   return redis;
 }
 
-export function closeRedisClient(): void {
+export async function closeRedisClient(): Promise<void> {
   if (!redis) return;
-  void redis.quit().catch(() => redis?.disconnect());
+  const client = redis;
   redis = null;
+  try {
+    await client.quit();
+  } catch {
+    client.disconnect();
+  }
 }
+
+// Graceful shutdown: close the connection before the process exits.
+registerShutdownHook(() => closeRedisClient());
