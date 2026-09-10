@@ -90,6 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           challengeId: response.challengeId,
         };
       }
+      if ("deleted" in response) {
+        return {
+          deleted: true,
+          id: response.id,
+          identifier: response.identifier,
+          deletedAt: response.deletedAt,
+          remainingMs: response.remainingMs,
+        };
+      }
       await startSession(response);
       return { twoFactorRequired: false };
     },

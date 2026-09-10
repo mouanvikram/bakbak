@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Mail } from "lucide-react";
 import { AuthLayout } from "@/features/auth/AuthLayout";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +17,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login, verifyTwoFactorLogin } = useAuth();
+  const navigate = useNavigate();
 
   // Set once the password step passes and the account has 2FA on.
   const [challengeId, setChallengeId] = useState<string | null>(null);
@@ -29,10 +30,20 @@ export function LoginPage() {
 
     try {
       const result = await login({ identifier, password });
-      if (result.twoFactorRequired) {
+      if ("twoFactorRequired" in result && result.twoFactorRequired) {
         setChallengeId(result.challengeId);
         setCode("");
         setResendNote("We emailed you a 6-digit code.");
+      } else if ("deleted" in result) {
+        navigate("/account-deleted", {
+          replace: true,
+          state: {
+            id: result.id,
+            identifier: result.identifier,
+            deletedAt: result.deletedAt,
+            remainingMs: result.remainingMs,
+          },
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

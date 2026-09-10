@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { Spinner } from "@/components/ui/Spinner";
 import { requestAccountDeletionChallenge } from "@/features/users/api";
 
@@ -20,6 +21,7 @@ export function DeleteAccountDialog({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const phrase = `delete:${username}`;
   const phraseMatches = text.trim() === phrase;
@@ -56,6 +58,7 @@ export function DeleteAccountDialog({
     setError("");
     try {
       await onConfirm(password, twoFactorRequired ? code : undefined);
+      navigate("/account-deleted", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete account");
       setBusy(false);

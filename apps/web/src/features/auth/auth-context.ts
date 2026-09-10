@@ -6,11 +6,17 @@ import type {
   GetMeResponseType,
 } from "@bakbak/contracts";
 
-/** What `login` reports back: either the session is live, or a 2FA code was
- * emailed and `challengeId` must go to `verifyTwoFactorLogin`. */
+//login flow
 export type LoginResult =
   | { twoFactorRequired: false }
-  | { twoFactorRequired: true; challengeId: string };
+  | { twoFactorRequired: true; challengeId: string }
+  | {
+      deleted: true;
+      id: string;
+      identifier: string;
+      deletedAt: string;
+      remainingMs: number;
+    };
 
 export interface AuthContextValue {
   user: LoginResponseType["user"] | null;

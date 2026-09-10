@@ -4,6 +4,7 @@ import { SocketProvider } from "@/features/chat/socket-context";
 import { PresenceProvider } from "@/features/chat/presence-context";
 import { MessageToastBridge } from "@/features/chat/MessageToastBridge";
 import {
+  AccountDeletedPage,
   ForgotPasswordPage,
   LoginPage,
   RecoverAccountPage,
@@ -114,6 +115,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/recover-account" element={<RecoverAccountPage />} />
         <Route path="/verify-recovery" element={<VerifyRecoveryPage />} />
+        <Route path="/account-deleted" element={<AccountDeletedPage />} />
 
         {/* Protected application routes */}
         <Route

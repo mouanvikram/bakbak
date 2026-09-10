@@ -6,3 +6,4 @@ export { ForgotPasswordPage } from "./ForgotPasswordPage";
 export { ResetPasswordPage } from "./ResetPasswordPage";
 export { RecoverAccountPage } from "./RecoverAccountPage";
 export { VerifyRecoveryPage } from "./VerifyRecoveryPage";
+export { AccountDeletedPage } from "./AccountDeletedPage";
