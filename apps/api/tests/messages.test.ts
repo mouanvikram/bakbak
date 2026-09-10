@@ -1,4 +1,4 @@
-import "./setup";
+﻿import "./setup";
 import { mock } from "bun:test";
 import {
   beforeAll,
@@ -58,16 +58,16 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
   beforeEach(async () => {
     await cleanupDatabase();
     userA = await createTestUser({
-      username: `msgA-${Date.now()}`,
-      email: `msgA-${Date.now()}@example.com`,
+      username: `msgA.${Date.now()}`,
+      email: `msgA.${Date.now()}@example.com`,
     });
     userB = await createTestUser({
-      username: `msgB-${Date.now()}`,
-      email: `msgB-${Date.now()}@example.com`,
+      username: `msgB.${Date.now()}`,
+      email: `msgB.${Date.now()}@example.com`,
     });
     userC = await createTestUser({
-      username: `msgC-${Date.now()}`,
-      email: `msgC-${Date.now()}@example.com`,
+      username: `msgC.${Date.now()}`,
+      email: `msgC.${Date.now()}@example.com`,
     });
     chat = await createTestGroupChat(userA.id, [userB.id, userC.id]);
   });
@@ -289,8 +289,8 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
 
   test("POST /chats/:chatId/messages - should fail for non-participant", async () => {
     const outsideUser = await createTestUser({
-      username: `outside-${Date.now()}`,
-      email: `outside-${Date.now()}@example.com`,
+      username: `outside.${Date.now()}`,
+      email: `outside.${Date.now()}@example.com`,
     });
 
     const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
@@ -355,8 +355,8 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
 
   test("GET /chats/:chatId/messages - should fail for non-participant", async () => {
     const outsideUser = await createTestUser({
-      username: `outside2-${Date.now()}`,
-      email: `outside2-${Date.now()}@example.com`,
+      username: `outside2.${Date.now()}`,
+      email: `outside2.${Date.now()}@example.com`,
     });
 
     const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
@@ -558,8 +558,8 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
       text: "Secret message",
     });
     const outsideUser = await createTestUser({
-      username: `outside3-${Date.now()}`,
-      email: `outside3-${Date.now()}@example.com`,
+      username: `outside3.${Date.now()}`,
+      email: `outside3.${Date.now()}@example.com`,
     });
 
     const res = await fetch(`${baseUrl()}/api/v1/messages/${message.id}`, {

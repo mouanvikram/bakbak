@@ -1,4 +1,4 @@
-import "./setup";
+﻿import "./setup";
 import { mock } from "bun:test";
 import {
   beforeAll,
@@ -75,12 +75,12 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
   beforeEach(async () => {
     await cleanupDatabase();
     userA = await createTestUser({
-      username: `upA-${Date.now()}`,
-      email: `upA-${Date.now()}@example.com`,
+      username: `upA.${Date.now()}`,
+      email: `upA.${Date.now()}@example.com`,
     });
     userB = await createTestUser({
-      username: `upB-${Date.now()}`,
-      email: `upB-${Date.now()}@example.com`,
+      username: `upB.${Date.now()}`,
+      email: `upB.${Date.now()}@example.com`,
     });
   });
 
@@ -90,7 +90,7 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
 
   const baseUrl = () => `http://localhost:${port}`;
 
-  // ── Validation / auth (no storage round-trip) ───────────────────
+  // â”€â”€ Validation / auth (no storage round-trip) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("POST /uploads - should fail without auth", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/uploads`, {
@@ -143,7 +143,7 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // ── Access control ─────────────────────────────────────────────
+  // â”€â”€ Access control â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const seedAttachment = (data: {
     ownerId: string;
@@ -178,8 +178,8 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
     const att = await seedAttachment({ ownerId: userA.id, messageId: msg.id });
 
     const outsider = await createTestUser({
-      username: `out-${Date.now()}`,
-      email: `out-${Date.now()}@example.com`,
+      username: `out.${Date.now()}`,
+      email: `out.${Date.now()}@example.com`,
     });
     const res = await fetch(`${baseUrl()}/api/v1/uploads/${att.id}`, {
       headers: await authHeader(outsider.id, outsider.username),
@@ -224,7 +224,7 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // ── Full round-trip (requires object storage) ──────────────────
+  // â”€â”€ Full round-trip (requires object storage) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test.skipIf(!STORAGE_AVAILABLE)(
     "POST /uploads - should store an image and return the attachment",

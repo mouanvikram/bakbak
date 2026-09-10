@@ -1,4 +1,4 @@
-import "./setup";
+﻿import "./setup";
 import { mock } from "bun:test";
 import {
   beforeAll,
@@ -51,8 +51,8 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
   beforeEach(async () => {
     await cleanupDatabase();
     user = await createTestUser({
-      username: `settings-${Date.now()}`,
-      email: `settings-${Date.now()}@example.com`,
+      username: `settings.${Date.now()}`,
+      email: `settings.${Date.now()}@example.com`,
     });
   });
 
@@ -83,7 +83,7 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
       body: JSON.stringify(body),
     });
 
-  // ── GET /settings ────────────────────────────────────────────────
+  // â”€â”€ GET /settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("GET /settings - should fail without auth", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/settings`);
@@ -114,7 +114,7 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     expect(second).toEqual(first);
   });
 
-  // ── PATCH /settings/notifications ────────────────────────────────
+  // â”€â”€ PATCH /settings/notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("PATCH /settings/notifications - should update and persist", async () => {
     const res = await patch("/notifications", {
@@ -188,7 +188,7 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     expect(data.error.code).toBe("VALIDATION_ERROR");
   });
 
-  // ── PATCH /settings/appearance ──────────────────────────────────
+  // â”€â”€ PATCH /settings/appearance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("PATCH /settings/appearance - should update theme and font size", async () => {
     const res = await patch("/appearance", {
@@ -231,7 +231,7 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // ── PATCH /settings/chat ───────────────────────────────────────
+  // â”€â”€ PATCH /settings/chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("PATCH /settings/chat - should update chat preferences and persist", async () => {
     const res = await patch("/chat", {
@@ -267,7 +267,7 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
   });
 
   // 2FA is managed through /auth/2fa/* (verified with an emailed code), not a
-  // plain settings PATCH — `getSettings().privacy.twoFactorEnabled` is
+  // plain settings PATCH â€” `getSettings().privacy.twoFactorEnabled` is
   // read-only. The auth suite covers the enable/disable/login flow.
   test("PATCH /settings/privacy - is gone; the route no longer exists", async () => {
     const res = await patch("/privacy", { twoFactorEnabled: true });
@@ -279,7 +279,7 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     expect(data.privacy).toEqual({ twoFactorEnabled: false });
   });
 
-  // ── Section isolation ─────────────────────────────────────────
+  // â”€â”€ Section isolation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("PATCH sections are independent - updating one leaves the others at defaults", async () => {
     await patch("/notifications", {

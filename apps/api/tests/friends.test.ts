@@ -1,4 +1,4 @@
-import "./setup";
+﻿import "./setup";
 import { mock } from "bun:test";
 import {
   beforeAll,
@@ -58,16 +58,16 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     await cleanupDatabase();
     const timestamp = Date.now();
     userA = await createTestUser({
-      username: `friendA-${timestamp}`,
-      email: `friendA-${timestamp}@example.com`,
+      username: `friendA.${timestamp}`,
+      email: `friendA.${timestamp}@example.com`,
     });
     userB = await createTestUser({
-      username: `friendB-${timestamp}`,
-      email: `friendB-${timestamp}@example.com`,
+      username: `friendB.${timestamp}`,
+      email: `friendB.${timestamp}@example.com`,
     });
     userC = await createTestUser({
-      username: `friendC-${timestamp}`,
-      email: `friendC-${timestamp}@example.com`,
+      username: `friendC.${timestamp}`,
+      email: `friendC.${timestamp}@example.com`,
     });
   });
 
@@ -514,7 +514,7 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     expect(data.error || data.message).toBeDefined();
   });
 
-  // ── GET /friends/suggestions ────────────────────────────────────
+  // â”€â”€ GET /friends/suggestions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("GET /friends/suggestions - should list other users", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/friends/suggestions`, {
@@ -571,7 +571,7 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // ── DELETE /friends/:friendId (unfriend by friendship id) ───────
+  // â”€â”€ DELETE /friends/:friendId (unfriend by friendship id) â”€â”€â”€â”€â”€â”€â”€
 
   test("DELETE /friends/:friendId - should remove a friendship", async () => {
     const friendship = await createTestFriendship(userA.id, userB.id);

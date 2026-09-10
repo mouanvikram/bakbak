@@ -1,4 +1,4 @@
-import "./setup";
+﻿import "./setup";
 // Must precede `../src/app` so the resend mock is in place before EmailService
 // instantiates its client.
 import "./mocks/resend";
@@ -84,12 +84,12 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   const baseUrl = () => `http://localhost:${port}`;
 
   test("POST /api/v1/auth/signup - should create a new user with valid data", async () => {
-    const email = `newuser-${Date.now()}@example.com`;
+    const email = `newuser.${Date.now()}@example.com`;
     const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `newuser-${Date.now()}`,
+        username: `newuser.${Date.now()}`,
         email,
         password: "TestPass123!",
         firstname: "John",
@@ -114,7 +114,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: "ab",
-        email: `shortuser-${Date.now()}@example.com`,
+        email: `shortuser.${Date.now()}@example.com`,
         password: "TestPass123!",
         firstname: "John",
         lastname: "Doe",
@@ -132,7 +132,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `bademail-${Date.now()}`,
+        username: `bademail.${Date.now()}`,
         email: "not-an-email",
         password: "TestPass123!",
         firstname: "John",
@@ -151,8 +151,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `weakpwd-${Date.now()}`,
-        email: `weakpwd-${Date.now()}@example.com`,
+        username: `weakpwd.${Date.now()}`,
+        email: `weakpwd.${Date.now()}@example.com`,
         password: "weak",
         firstname: "John",
         lastname: "Doe",
@@ -170,8 +170,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `nofirst-${Date.now()}`,
-        email: `nofirst-${Date.now()}@example.com`,
+        username: `nofirst.${Date.now()}`,
+        email: `nofirst.${Date.now()}@example.com`,
         password: "TestPass123!",
         lastname: "Doe",
         displayname: "John Doe",
@@ -185,14 +185,14 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/signup - should fail with duplicate email", async () => {
     const user = await createTestUser({
-      email: `dup-${Date.now()}@example.com`,
+      email: `dup.${Date.now()}@example.com`,
     });
 
     const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `dup-${Date.now()}`,
+        username: `dup.${Date.now()}`,
         email: user.email,
         password: "TestPass123!",
         firstname: "John",
@@ -207,14 +207,14 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   });
 
   test("POST /api/v1/auth/signup - should fail with duplicate username", async () => {
-    const user = await createTestUser({ username: `dupuser-${Date.now()}` });
+    const user = await createTestUser({ username: `dupuser.${Date.now()}` });
 
     const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: user.username,
-        email: `dupuser-${Date.now()}@example.com`,
+        email: `dupuser.${Date.now()}@example.com`,
         password: "TestPass123!",
         firstname: "John",
         lastname: "Doe",
@@ -241,7 +241,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - should login with valid credentials", async () => {
     const user = await createTestUser({
-      email: `login-${Date.now()}@example.com`,
+      email: `login.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -264,7 +264,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(data.user.id).toBe(user.id);
     expect(data.user.identifier).toBe(user.username);
 
-    // A fresh login creates a brand-new session → new-device alert.
+    // A fresh login creates a brand-new session â†’ new-device alert.
     expect(newDeviceLoginEmailSpy).toHaveBeenCalledWith({
       email: user.email,
       username: user.username,
@@ -274,7 +274,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - should login with username as identifier", async () => {
     const user = await createTestUser({
-      username: `loginuser-${Date.now()}`,
+      username: `loginuser.${Date.now()}`,
       isEmailVerified: true,
     });
 
@@ -294,7 +294,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - normalizes a mixed-case/padded identifier before lookup", async () => {
     const user = await createTestUser({
-      email: `mixedcase-${Date.now()}@example.com`,
+      email: `mixedcase.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -316,7 +316,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - should fail with wrong password", async () => {
     const user = await createTestUser({
-      email: `wrongpwd-${Date.now()}@example.com`,
+      email: `wrongpwd.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -339,7 +339,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        identifier: `nonexistent-${Date.now()}@example.com`,
+        identifier: `nonexistent.${Date.now()}@example.com`,
         password: "TestPass123!",
       }),
     });
@@ -351,7 +351,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - a deleted account with a valid password returns the deleted signal", async () => {
     const user = await createTestUser({
-      username: `deleted-${Date.now()}`,
+      username: `deleted.${Date.now()}`,
     });
     await prisma.user.update({
       where: { id: user.id },
@@ -380,7 +380,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - a deleted account without the password still gets invalid credentials", async () => {
     const user = await createTestUser({
-      username: `deleted-wrong-${Date.now()}`,
+      username: `deletedwrong.${Date.now()}`,
     });
     await prisma.user.update({
       where: { id: user.id },
@@ -403,7 +403,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - should fail with unverified email", async () => {
     const user = await createTestUser({
-      email: `unverified-${Date.now()}@example.com`,
+      email: `unverified.${Date.now()}@example.com`,
       isEmailVerified: false,
     });
 
@@ -437,7 +437,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   });
 
   test("POST /api/v1/auth/login - accepts a simple password (enumeration-independent)", async () => {
-    // Login validates an existing credential — no complexity rules. A
+    // Login validates an existing credential â€” no complexity rules. A
     // simple (but non-empty, <= 128-char) password is valid input and flows
     // to the normal auth path: unknown account -> uniform 401, NOT a
     // validation error. This keeps the failure signaled identically whether
@@ -446,7 +446,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        identifier: `simple-${Date.now()}@example.com`,
+        identifier: `simple.${Date.now()}@example.com`,
         password: "weak",
       }),
     });
@@ -456,7 +456,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - should lock the account after repeated failures", async () => {
     const user = await createTestUser({
-      email: `lock-${Date.now()}@example.com`,
+      email: `lock.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
     const body = (password: string) =>
@@ -498,7 +498,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/login - successful login resets failed attempts", async () => {
     const user = await createTestUser({
-      email: `reset-${Date.now()}@example.com`,
+      email: `reset.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
     const body = (password: string) =>
@@ -527,13 +527,13 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(record?.lockedUntil).toBeNull();
   }, 45000);
 
-  // ── Two-factor authentication (email OTP) ─────────────────────────
+  // â”€â”€ Two-factor authentication (email OTP) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const PASSWORD = "TestPass123!";
 
   const makeUser = async (twoFactor: boolean) => {
     const user = await createTestUser({
-      email: `2fa-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`,
+      email: `2fa.${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`,
       isEmailVerified: true,
     });
     if (twoFactor) {
@@ -769,11 +769,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/verify-email - should verify with valid token", async () => {
     const user = await createTestUser({
-      email: `verify-${Date.now()}@example.com`,
+      email: `verify.${Date.now()}@example.com`,
       isEmailVerified: false,
     });
 
-    const token = `verify-token-${Date.now()}`;
+    const token = `verify-token.${Date.now()}`;
     const hashedToken = await crypto.subtle
       .digest("SHA-256", Buffer.from(token))
       .then((buf) => Buffer.from(buf).toString("hex"));
@@ -829,11 +829,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/verify-email - should fail with expired token", async () => {
     const user = await createTestUser({
-      email: `expired-${Date.now()}@example.com`,
+      email: `expired.${Date.now()}@example.com`,
       isEmailVerified: false,
     });
 
-    const token = `expired-token-${Date.now()}`;
+    const token = `expired-token.${Date.now()}`;
     const hashedToken = await crypto.subtle
       .digest("SHA-256", Buffer.from(token))
       .then((buf) => Buffer.from(buf).toString("hex"));
@@ -860,7 +860,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/resend-verification - should resend for valid unverified email", async () => {
     const user = await createTestUser({
-      email: `resend-${Date.now()}@example.com`,
+      email: `resend.${Date.now()}@example.com`,
       isEmailVerified: false,
     });
 
@@ -879,7 +879,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     const res = await fetch(`${baseUrl()}/api/v1/auth/resend-verification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: `nonexistent-${Date.now()}@example.com` }),
+      body: JSON.stringify({ email: `nonexistent.${Date.now()}@example.com` }),
     });
 
     expect(res.status).toBe(200);
@@ -889,7 +889,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/resend-verification - should return generic response for already verified email", async () => {
     const user = await createTestUser({
-      email: `verified-${Date.now()}@example.com`,
+      email: `verified.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -906,7 +906,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/change-password - should change password with valid data and auth", async () => {
     const user = await createTestUser({
-      email: `changepwd-${Date.now()}@example.com`,
+      email: `changepwd.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -950,7 +950,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/change-password - should fail with wrong current password", async () => {
     const user = await createTestUser({
-      email: `wrongold-${Date.now()}@example.com`,
+      email: `wrongold.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1007,7 +1007,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/change-password - revokes all sessions: old access and refresh tokens stop working", async () => {
     const user = await createTestUser({
-      email: `chargerevoke-${Date.now()}@example.com`,
+      email: `chargerevoke.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1038,7 +1038,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     }
 
     // ... so the pre-change access token (its `sid` session is gone) is
-    // rejected with the uniform 401 — no more authed calls on it.
+    // rejected with the uniform 401 â€” no more authed calls on it.
     const meRes = await fetch(`${baseUrl()}/api/v1/users/me`, {
       headers: { Authorization: `Bearer ${loginData.accessToken}` },
     });
@@ -1055,7 +1055,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/forgot-password - should create reset token for valid email", async () => {
     const user = await createTestUser({
-      email: `forgot-${Date.now()}@example.com`,
+      email: `forgot.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1081,7 +1081,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     const res = await fetch(`${baseUrl()}/api/v1/auth/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: `nonexistent-${Date.now()}@example.com` }),
+      body: JSON.stringify({ email: `nonexistent.${Date.now()}@example.com` }),
     });
 
     expect(res.status).toBe(200);
@@ -1091,7 +1091,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/forgot-password - unverified account gets the generic response and no reset token", async () => {
     const user = await createTestUser({
-      email: `forgotunverified-${Date.now()}@example.com`,
+      email: `forgotunverified.${Date.now()}@example.com`,
       isEmailVerified: false,
     });
 
@@ -1101,7 +1101,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       body: JSON.stringify({ email: user.email }),
     });
 
-    // Same response as a non-existent account — no enumeration oracle.
+    // Same response as a non-existent account â€” no enumeration oracle.
     expect(res.status).toBe(200);
     const data = (await res.json()) as any;
     expect(data.message).toBe(
@@ -1117,11 +1117,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/reset-password - should reset password with valid token", async () => {
     const user = await createTestUser({
-      email: `reset-${Date.now()}@example.com`,
+      email: `reset.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
-    const token = `reset-token-${Date.now()}`;
+    const token = `reset-token.${Date.now()}`;
     const hashedToken = await crypto.subtle
       .digest("SHA-256", Buffer.from(token))
       .then((buf) => Buffer.from(buf).toString("hex"));
@@ -1145,7 +1145,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     const data = (await res.json()) as any;
     expect(data.message).toBe("Password reset successful");
 
-    // Account-recovery is a credential change too — the owner gets an alert.
+    // Account-recovery is a credential change too â€” the owner gets an alert.
     expect(passwordChangedEmailSpy).toHaveBeenCalledWith({
       email: user.email,
       username: user.username,
@@ -1163,11 +1163,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/reset-password - rejects a valid token for an unverified account", async () => {
     const user = await createTestUser({
-      email: `resetunverified-${Date.now()}@example.com`,
+      email: `resetunverified.${Date.now()}@example.com`,
       isEmailVerified: false,
     });
 
-    const token = `reset-token-unverified-${Date.now()}`;
+    const token = `reset-token-unverified.${Date.now()}`;
     const hashedToken = await crypto.subtle
       .digest("SHA-256", Buffer.from(token))
       .then((buf) => Buffer.from(buf).toString("hex"));
@@ -1187,7 +1187,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       body: JSON.stringify({ token, newPassword: "NewResetPass123!" }),
     });
 
-    // Same error as a deleted account / invalid token — no new oracle.
+    // Same error as a deleted account / invalid token â€” no new oracle.
     expect(res.status).toBe(400);
     const data = (await res.json()) as any;
     expect(data.error.code).toBe("INVALID_OR_EXPIRED_RESET_TOKEN");
@@ -1204,14 +1204,14 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/reset-password - revokes all sessions: old access and refresh tokens stop working", async () => {
     const user = await createTestUser({
-      email: `resetrevoke-${Date.now()}@example.com`,
+      email: `resetrevoke.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
     // Sign in to get tokens bound to a real session (S1).
     const loginData = await loginAs(user.email);
 
-    const token = `reset-revoke-${Date.now()}`;
+    const token = `reset-revoke.${Date.now()}`;
     const hashedToken = await crypto.subtle
       .digest("SHA-256", Buffer.from(token))
       .then((buf) => Buffer.from(buf).toString("hex"));
@@ -1273,11 +1273,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/reset-password - should fail with expired token", async () => {
     const user = await createTestUser({
-      email: `expiredreset-${Date.now()}@example.com`,
+      email: `expiredreset.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
-    const token = `expired-reset-${Date.now()}`;
+    const token = `expired-reset.${Date.now()}`;
     const hashedToken = await crypto.subtle
       .digest("SHA-256", Buffer.from(token))
       .then((buf) => Buffer.from(buf).toString("hex"));
@@ -1304,11 +1304,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/reset-password - should fail without password in body", async () => {
     const user = await createTestUser({
-      email: `resetnopwd-${Date.now()}@example.com`,
+      email: `resetnopwd.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
-    const token = `reset-nopwd-${Date.now()}`;
+    const token = `reset-nopwd.${Date.now()}`;
     const hashedToken = await crypto.subtle
       .digest("SHA-256", Buffer.from(token))
       .then((buf) => Buffer.from(buf).toString("hex"));
@@ -1334,9 +1334,9 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   });
 
   test("POST /api/v1/auth/signup - accepts an avatar sent as multipart with the fields", async () => {
-    const email = `avatar-${Date.now()}@example.com`;
+    const email = `avatar.${Date.now()}@example.com`;
     const form = new FormData();
-    form.append("username", `avatar-${Date.now()}`);
+    form.append("username", `avatar.${Date.now()}`);
     form.append("email", email);
     form.append("password", "TestPass123!");
     form.append("firstname", "John");
@@ -1367,9 +1367,9 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   });
 
   test("POST /api/v1/auth/signup - rejects an unsupported avatar file type", async () => {
-    const email = `tiff-${Date.now()}@example.com`;
+    const email = `tiff.${Date.now()}@example.com`;
     const form = new FormData();
-    form.append("username", `tiff-${Date.now()}`);
+    form.append("username", `tiff.${Date.now()}`);
     form.append("email", email);
     form.append("password", "TestPass123!");
     form.append("firstname", "John");
@@ -1388,18 +1388,18 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
     expect(res.status).toBe(400);
 
-    // The account must not exist — a rejected avatar rejects the signup.
+    // The account must not exist â€” a rejected avatar rejects the signup.
     const created = await prisma.user.findFirst({ where: { email } });
     expect(created).toBeNull();
   });
 
   test("POST /api/v1/auth/signup - still accepts a plain JSON body with no avatar", async () => {
-    const email = `nofile-${Date.now()}@example.com`;
+    const email = `nofile.${Date.now()}@example.com`;
     const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `nofile-${Date.now()}`,
+        username: `nofile.${Date.now()}`,
         email,
         password: "TestPass123!",
         firstname: "John",
@@ -1417,12 +1417,12 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   });
 
   test("POST /api/v1/auth/signup - should handle optional bio and avatarUrl", async () => {
-    const email = `optional-${Date.now()}@example.com`;
+    const email = `optional.${Date.now()}@example.com`;
     const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `optional-${Date.now()}`,
+        username: `optional.${Date.now()}`,
         email,
         password: "TestPass123!",
         firstname: "John",
@@ -1455,11 +1455,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     return (await res.json()) as any;
   };
 
-  // ── Refresh Token ────────────────────────────────────────────────
+  // â”€â”€ Refresh Token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("POST /api/v1/auth/login - should return a refresh token", async () => {
     const user = await createTestUser({
-      email: `refreshlogin-${Date.now()}@example.com`,
+      email: `refreshlogin.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1473,7 +1473,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/refresh-token - should rotate tokens with valid refresh token", async () => {
     const user = await createTestUser({
-      email: `refreshvalid-${Date.now()}@example.com`,
+      email: `refreshvalid.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1518,7 +1518,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/refresh-token - should fail with revoked refresh token", async () => {
     const user = await createTestUser({
-      email: `refreshrevoked-${Date.now()}@example.com`,
+      email: `refreshrevoked.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1545,7 +1545,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/refresh-token - reusing an already-rotated token revokes every session", async () => {
     const user = await createTestUser({
-      email: `reuse-${Date.now()}@example.com`,
+      email: `reuse.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1588,11 +1588,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/refresh-token - should fail with expired refresh token", async () => {
     const user = await createTestUser({
-      email: `refreshexpired-${Date.now()}@example.com`,
+      email: `refreshexpired.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
-    const token = `expired-rt-${Date.now()}`;
+    const token = `expired-rt.${Date.now()}`;
     await prisma.refreshToken.create({
       data: {
         userId: user.id,
@@ -1626,7 +1626,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/refresh-token - new access token should be usable", async () => {
     const user = await createTestUser({
-      email: `refreshtokenusability-${Date.now()}@example.com`,
+      email: `refreshtokenusability.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1649,11 +1649,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(meData.profile.id).toBe(user.id);
   });
 
-  // ── Logout ───────────────────────────────────────────────────────
+  // â”€â”€ Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test("POST /api/v1/auth/logout - ends only the caller's session, not the others", async () => {
     const user = await createTestUser({
-      email: `logoutcurrent-${Date.now()}@example.com`,
+      email: `logoutcurrent.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1673,13 +1673,13 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     const data = (await res.json()) as any;
     expect(data.message).toBe("Logged out successfully");
 
-    // This session's refresh token is dead…
+    // This session's refresh token is deadâ€¦
     const mine = await prisma.refreshToken.findFirst({
       where: { tokenHash: hashToken(here.refreshToken) },
     });
     expect(mine?.revokedAt).not.toBeNull();
 
-    // …the other session still works.
+    // â€¦the other session still works.
     const stillGood = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1690,7 +1690,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /api/v1/auth/logout - revoked refresh token should not be usable", async () => {
     const user = await createTestUser({
-      email: `logoutverify-${Date.now()}@example.com`,
+      email: `logoutverify.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
@@ -1724,7 +1724,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // ── Active sessions / Devices ────────────────────────────────────
+  // â”€â”€ Active sessions / Devices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const loginWithUA = async (identifier: string, ua: string) => {
     const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
@@ -1737,7 +1737,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /auth/sessions - lists live sessions and flags the caller's", async () => {
     const user = await createTestUser({
-      email: `sess-${Date.now()}@example.com`,
+      email: `sess.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
     const a = await loginWithUA(user.email, "AgentA/1.0");
@@ -1761,7 +1761,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /auth/sessions/revoke - ends one session; that refresh token stops working", async () => {
     const user = await createTestUser({
-      email: `sessrev-${Date.now()}@example.com`,
+      email: `sessrev.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
     const a = await loginWithUA(user.email, "Keep/1.0");
@@ -1800,7 +1800,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("POST /auth/sessions/revoke-others - keeps only the current session", async () => {
     const user = await createTestUser({
-      email: `sessother-${Date.now()}@example.com`,
+      email: `sessother.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
     const a = await loginWithUA(user.email, "Mine/1.0");
@@ -1832,7 +1832,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // ── Hardcore boundary & injection tests ─────────────────────────
+  // â”€â”€ Hardcore boundary & injection tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const maxUsername = "a".repeat(30);
   const overMaxUsername = "a".repeat(31);
@@ -1871,7 +1871,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: maxUsername,
-        email: `maxuser-${Date.now()}@example.com`,
+        email: `maxuser.${Date.now()}@example.com`,
         password: "TestPass123!",
         firstname: "John",
         lastname: "Doe",
@@ -1884,7 +1884,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   test("signup - should reject username over max (31)", async () => {
     await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
       username: overMaxUsername,
-      email: `overuser-${Date.now()}@example.com`,
+      email: `overuser.${Date.now()}@example.com`,
       password: "TestPass123!",
       firstname: "John",
       lastname: "Doe",
@@ -1897,7 +1897,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `maxemail-${Date.now()}`,
+        username: `maxemail.${Date.now()}`,
         email: maxEmail,
         password: "TestPass123!",
         firstname: "John",
@@ -1910,7 +1910,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("signup - should reject email over max (101)", async () => {
     await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
-      username: `overemail-${Date.now()}`,
+      username: `overemail.${Date.now()}`,
       email: overMaxEmail,
       password: "TestPass123!",
       firstname: "John",
@@ -1924,8 +1924,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `maxpwd-${Date.now()}`,
-        email: `maxpwd-${Date.now()}@example.com`,
+        username: `maxpwd.${Date.now()}`,
+        email: `maxpwd.${Date.now()}@example.com`,
         password: maxPassword,
         firstname: "John",
         lastname: "Doe",
@@ -1937,8 +1937,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("signup - should reject password over max (129)", async () => {
     await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
-      username: `overpwd-${Date.now()}`,
-      email: `overpwd-${Date.now()}@example.com`,
+      username: `overpwd.${Date.now()}`,
+      email: `overpwd.${Date.now()}@example.com`,
       password: overMaxPassword,
       firstname: "John",
       lastname: "Doe",
@@ -1951,8 +1951,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `maxbio-${Date.now()}`,
-        email: `maxbio-${Date.now()}@example.com`,
+        username: `maxbio.${Date.now()}`,
+        email: `maxbio.${Date.now()}@example.com`,
         password: "TestPass123!",
         firstname: "John",
         lastname: "Doe",
@@ -1965,8 +1965,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("signup - should reject a too-short bio", async () => {
     await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
-      username: `shortbio-${Date.now()}`,
-      email: `shortbio-${Date.now()}@example.com`,
+      username: `shortbio.${Date.now()}`,
+      email: `shortbio.${Date.now()}@example.com`,
       password: "TestPass123!",
       firstname: "John",
       lastname: "Doe",
@@ -1976,12 +1976,12 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   });
 
   test("signup - a blank bio is stored as null, not an empty string", async () => {
-    const email = `blankbio-${Date.now()}@example.com`;
+    const email = `blankbio.${Date.now()}@example.com`;
     const res = await fetch(`${baseUrl()}/api/v1/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `blankbio-${Date.now()}`,
+        username: `blankbio.${Date.now()}`,
         email,
         password: "TestPass123!",
         firstname: "John",
@@ -2000,8 +2000,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("signup - should reject bio over max (501)", async () => {
     await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
-      username: `overbio-${Date.now()}`,
-      email: `overbio-${Date.now()}@example.com`,
+      username: `overbio.${Date.now()}`,
+      email: `overbio.${Date.now()}@example.com`,
       password: "TestPass123!",
       firstname: "John",
       lastname: "Doe",
@@ -2015,8 +2015,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: `maxdn-${Date.now()}`,
-        email: `maxdn-${Date.now()}@example.com`,
+        username: `maxdn.${Date.now()}`,
+        email: `maxdn.${Date.now()}@example.com`,
         password: "TestPass123!",
         firstname: "John",
         lastname: "Doe",
@@ -2028,8 +2028,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
   test("signup - should reject displayname over max (101)", async () => {
     await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
-      username: `overdn-${Date.now()}`,
-      email: `overdn-${Date.now()}@example.com`,
+      username: `overdn.${Date.now()}`,
+      email: `overdn.${Date.now()}@example.com`,
       password: "TestPass123!",
       firstname: "John",
       lastname: "Doe",
@@ -2059,7 +2059,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   test("signup - should reject null byte in username", async () => {
     await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
       username: nullBytePayload,
-      email: `nullbyte-${Date.now()}@example.com`,
+      email: `nullbyte.${Date.now()}@example.com`,
       password: "TestPass123!",
       firstname: "John",
       lastname: "Doe",
@@ -2070,7 +2070,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   test("signup - should reject unicode surrogate in username", async () => {
     await expectValidationError(`${baseUrl()}/api/v1/auth/signup`, {
       username: unicodeBomb,
-      email: `unicode-${Date.now()}@example.com`,
+      email: `unicode.${Date.now()}@example.com`,
       password: "TestPass123!",
       firstname: "John",
       lastname: "Doe",

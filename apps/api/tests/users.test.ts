@@ -1,4 +1,4 @@
-import "./setup";
+﻿import "./setup";
 import crypto from "node:crypto";
 import { mock } from "bun:test";
 import {
@@ -70,8 +70,8 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
   beforeEach(async () => {
     await cleanupDatabase();
     testUser = await createTestUser({
-      username: `user-${Date.now()}`,
-      email: `user-${Date.now()}@example.com`,
+      username: `user.${Date.now()}`,
+      email: `user.${Date.now()}@example.com`,
     });
   });
 
@@ -171,7 +171,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
   });
 
   test("PATCH /users/me - changes the username and it sticks", async () => {
-    const newName = `renamed-${Date.now()}`;
+    const newName = `renamed.${Date.now()}`;
     const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
       method: "PATCH",
       headers: {
@@ -189,7 +189,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
   });
 
   test("PATCH /users/me - blocks a second username change within the cooldown", async () => {
-    const first = `first-${Date.now()}`;
+    const first = `first.${Date.now()}`;
     const firstRes = await fetch(`${baseUrl()}/api/v1/users/me`, {
       method: "PATCH",
       headers: {
@@ -206,7 +206,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
         "Content-Type": "application/json",
         ...(await authHeader(testUser.id, testUser.username)),
       },
-      body: JSON.stringify({ username: `again-${Date.now()}` }),
+      body: JSON.stringify({ username: `again.${Date.now()}` }),
     });
 
     expect(res.status).toBe(429);
@@ -235,12 +235,12 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
 
   test("PATCH /users/me - rejects a username already taken by someone else", async () => {
     const other = await createTestUser({
-      username: `taken-${Date.now()}`,
-      email: `taken-${Date.now()}@example.com`,
+      username: `taken.${Date.now()}`,
+      email: `taken.${Date.now()}@example.com`,
     });
     const fresh = await createTestUser({
-      username: `fresh-${Date.now()}`,
-      email: `fresh-${Date.now()}@example.com`,
+      username: `fresh.${Date.now()}`,
+      email: `fresh.${Date.now()}@example.com`,
     });
 
     const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
@@ -391,7 +391,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
 
   test("DELETE /users/me - unverified account cannot be deleted", async () => {
     const unverified = await createTestUser({
-      email: `unver-${Date.now()}@example.com`,
+      email: `unver.${Date.now()}@example.com`,
       isEmailVerified: false,
     });
 
@@ -415,7 +415,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
 
   test("DELETE /users/me - leaves the user's sent messages untouched", async () => {
     const other = await createTestUser({
-      email: `other-${Date.now()}@example.com`,
+      email: `other.${Date.now()}@example.com`,
     });
     const chat = await prisma.chat.create({
       data: {
@@ -470,7 +470,12 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
         password: "TestPass123!",
       }),
     });
-    expect(login.status).toBe(401);
+    // Soft-deleted account, correct password: login still fails authentication
+    // but answers 200 with the deleted-account signal so the web can route the
+    // owner to the recovery flow, instead of issuing tokens.
+    expect(login.status).toBe(200);
+    const body = (await login.json()) as { deleted?: boolean };
+    expect(body.deleted).toBe(true);
   });
 
   test("DELETE /users/me - revokes all sessions: old access and refresh tokens stop working", async () => {
@@ -769,7 +774,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
       where: { id: testUser.id },
       data: { deletedAt: new Date() },
     });
-    const plaintext = `recover-${Date.now()}`;
+    const plaintext = `recover.${Date.now()}`;
     const tokenHash = crypto
       .createHash("sha256")
       .update(plaintext)
@@ -818,7 +823,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
       where: { id: testUser.id },
       data: { deletedAt: new Date() },
     });
-    const plaintext = `expired-${Date.now()}`;
+    const plaintext = `expired.${Date.now()}`;
     await prisma.verificationToken.create({
       data: {
         userId: testUser.id,
@@ -865,7 +870,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
   });
 
   test("GET /users/check-username - should return available for unused username", async () => {
-    const username = `check-${Date.now()}`;
+    const username = `check.${Date.now()}`;
     const res = await fetch(
       `${baseUrl()}/api/v1/users/check-username?username=${username}`,
       {
@@ -903,7 +908,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
   });
 
   test("GET /users/search - should return matching users", async () => {
-    const uniqueName = `searchable-${Date.now()}`;
+    const uniqueName = `searchable.${Date.now()}`;
     await createTestUser({
       username: uniqueName,
       firstName: "Searchable",
@@ -969,8 +974,8 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
 
   test("GET /users/:username - reports friendship status between two users", async () => {
     const other = await createTestUser({
-      username: `other-${Date.now()}`,
-      email: `other-${Date.now()}@example.com`,
+      username: `other.${Date.now()}`,
+      email: `other.${Date.now()}@example.com`,
     });
 
     const url = `${baseUrl()}/api/v1/users/${encodeURIComponent(other.username)}`;

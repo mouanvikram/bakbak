@@ -1,4 +1,4 @@
-import "./setup";
+﻿import "./setup";
 import { mock } from "bun:test";
 import {
   beforeAll,
@@ -57,16 +57,16 @@ describe.skipIf(!DB_AVAILABLE)("Chats Endpoints", () => {
   beforeEach(async () => {
     await cleanupDatabase();
     userA = await createTestUser({
-      username: `chatA-${Date.now()}`,
-      email: `chatA-${Date.now()}@example.com`,
+      username: `chatA.${Date.now()}`,
+      email: `chatA.${Date.now()}@example.com`,
     });
     userB = await createTestUser({
-      username: `chatB-${Date.now()}`,
-      email: `chatB-${Date.now()}@example.com`,
+      username: `chatB.${Date.now()}`,
+      email: `chatB.${Date.now()}@example.com`,
     });
     userC = await createTestUser({
-      username: `chatC-${Date.now()}`,
-      email: `chatC-${Date.now()}@example.com`,
+      username: `chatC.${Date.now()}`,
+      email: `chatC.${Date.now()}@example.com`,
     });
   });
 

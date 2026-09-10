@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 import { prisma, ParticipantRole, MessageType } from "@bakbak/db";
 import type { User } from "@bakbak/db";
 import { type AccessTokenPayload, JwtService } from "@/auth/jwt.service";
@@ -47,8 +47,8 @@ export async function createTestUser(
   const timestamp = Date.now();
   const randomStr = Math.random().toString(36).slice(2, 8);
 
-  const email = overrides.email || `test-${timestamp}-${randomStr}@example.com`;
-  const username = overrides.username || `testuser-${timestamp}-${randomStr}`;
+  const email = overrides.email || `test.${timestamp}-${randomStr}@example.com`;
+  const username = overrides.username || `testuser.${timestamp}.${randomStr}`;
   const passwordHash =
     overrides.passwordHash ||
     (await Bun.password.hash("TestPass123!", {
