@@ -4,6 +4,7 @@ import {
   verifyEmailResponseSchema,
   loginResponseSchema,
   loginChallengeResponseSchema,
+  deletedAccountResponseSchema,
   signUpResponseSchema,
   resendVerificationResponseSchema,
   changePasswordResponseSchema,
@@ -72,6 +73,17 @@ export class AuthController {
         res,
         HTTP_STATUS.OK,
         loginChallengeResponseSchema,
+        response,
+      );
+    }
+
+    // Soft-deleted account, valid password → tell the owner it's gone and
+    // point them at the recovery flow (no tokens ever issued).
+    if ("deleted" in response) {
+      return validateResponse(
+        res,
+        HTTP_STATUS.OK,
+        deletedAccountResponseSchema,
         response,
       );
     }

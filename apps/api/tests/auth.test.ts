@@ -349,6 +349,58 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(data.error || data.message).toBeDefined();
   });
 
+  test("POST /api/v1/auth/login - a deleted account with a valid password returns the deleted signal", async () => {
+    const user = await createTestUser({
+      username: `deleted-${Date.now()}`,
+    });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: user.username,
+        password: "TestPass123!",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as any;
+    expect(data.deleted).toBe(true);
+    expect(data.id).toBe(user.id);
+    expect(data.identifier).toBe(user.username);
+    expect(data.deletedAt).toBeDefined();
+    expect(data.remainingMs).toBeGreaterThan(0);
+    expect(data.accessToken).toBeUndefined();
+    expect(data.refreshToken).toBeUndefined();
+  });
+
+  test("POST /api/v1/auth/login - a deleted account without the password still gets invalid credentials", async () => {
+    const user = await createTestUser({
+      username: `deleted-wrong-${Date.now()}`,
+    });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: user.username,
+        password: "WrongPass123!",
+      }),
+    });
+
+    expect(res.status).toBe(401);
+    const data = (await res.json()) as any;
+    expect(data.error.code).toBe("INVALID_CREDENTIALS");
+  });
+
   test("POST /api/v1/auth/login - should fail with unverified email", async () => {
     const user = await createTestUser({
       email: `unverified-${Date.now()}@example.com`,

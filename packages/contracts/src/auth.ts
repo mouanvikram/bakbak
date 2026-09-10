@@ -17,8 +17,6 @@ export const loginRequestSchema = z.object({
   // (citext-backed), so normalize here too rather than relying on citext alone.
   identifier: safeString(100, 4).trim().toLowerCase(),
   // Login validates an existing credential, so apply no complexity rules
-  // here — they'd turn vary the error path (enumeration) and reject a
-  // legitimately-stored simple password. min(1)/max(128) guards the no-op.
   password: safeString(128, 1),
 });
 
@@ -57,8 +55,25 @@ export type LoginChallengeResponseType = z.infer<
   typeof loginChallengeResponseSchema
 >;
 
-/** `POST /auth/login` may resolve to either tokens or a 2FA challenge. */
-export type LoginOutcomeType = LoginResponseType | LoginChallengeResponseType;
+//`POST /auth/login` may resolve to either tokens or a 2FA challenge.
+export type LoginOutcomeType =
+  | LoginResponseType
+  | LoginChallengeResponseType
+  | DeletedAccountResponseType;
+
+// A soft-deleted account that submitted a valid password. 
+export const deletedAccountResponseSchema = z.object({
+  deleted: z.literal(true),
+  id: z.uuid(),
+  identifier: z.string().min(1),
+  deletedAt: z.string().min(1),
+  remainingMs: z.number().int().nonnegative(),
+  message: z.string(),
+});
+
+export type DeletedAccountResponseType = z.infer<
+  typeof deletedAccountResponseSchema
+>;
 
 export const verifyTwoFactorLoginRequestSchema = z.object({
   challengeId: z.string().min(1),

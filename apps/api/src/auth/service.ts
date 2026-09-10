@@ -181,7 +181,7 @@ export class AuthService {
     userAgent?: string,
   ): Promise<LoginOutcomeType> {
     const user = await this.userRepository.findFirst({
-      deletedAt: null,
+      // soft-deleted account resolves to a "deleted account" signal below;
       OR: [{ username: dto.identifier }, { email: dto.identifier }],
     });
 
@@ -238,6 +238,22 @@ export class AuthService {
     }
 
     await this.userRepository.resetLoginFailures(user.id);
+
+    // Deleted but the password matched: no tokens, no 2FA challenge — tell
+    // the owner (only they know the password) and let them recover.
+    if (user.deletedAt) {
+      return {
+        deleted: true,
+        id: user.id,
+        identifier: user.username,
+        deletedAt: user.deletedAt.toISOString(),
+        remainingMs: Math.max(
+          0,
+          user.deletedAt.getTime() + authConfig.accountRecoveryWindowMs - Date.now(),
+        ),
+        message: "This account was deleted and can no longer be signed in to.",
+      };
+    }
 
     if (!user.isEmailVerified) {
       throw new AppError(
