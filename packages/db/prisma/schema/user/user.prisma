@@ -1,10 +1,7 @@
 model User {
   id String @id @default(uuid()) @db.Uuid
 
-  // citext: case-insensitive comparison/uniqueness at the DB level. The app
-  // also normalizes both to lowercase before every write (see contracts'
-  // emailSchema/usernameSchema) — citext is the backstop for any write path
-  // that doesn't go through those schemas.
+  // citext: case-insensitive comparison/uniqueness at the DB level. 
   email        String @unique @db.Citext
   username     String @unique @db.Citext
   passwordHash String
@@ -22,6 +19,8 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
   deletedAt DateTime?
+
+  anonymizedAt DateTime?
 
   usernameChangedAt DateTime?
 

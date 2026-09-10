@@ -214,4 +214,53 @@ export class UserRepository {
       data: { deletedAt: null },
     });
   }
+
+  // Accounts soft-deleted long enough ago that their recovery window has  lapsed and they are not yet anonymized. 
+  async findDeletedSince(cutoff: Date) {
+    return prisma.user.findMany({
+      where: {
+        deletedAt: { lt: cutoff },
+        anonymizedAt: null,
+      },
+      select: { id: true },
+    });
+  }
+
+  // Scrubs a user whose recovery window has lapsed
+  async anonymizeAccount(id: string) {
+    return prisma.$transaction(async (tx) => {
+      await tx.refreshToken.deleteMany({ where: { userId: id } });
+      await tx.session.deleteMany({ where: { userId: id } });
+      await tx.verificationToken.deleteMany({ where: { userId: id } });
+
+      return tx.user.update({
+        where: { id },
+        data: {
+          email: `deleted+${id}@bakbak.invalid`,
+          username: `deleted_${id}`,
+          passwordHash: "!anonymized!",
+          isEmailVerified: false,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          twoFactorFailedAttempts: 0,
+          twoFactorLockedUntil: null,
+          anonymizedAt: new Date(),
+          profile: {
+            update: {
+              data: {
+                displayName: null,
+                firstName: null,
+                lastName: null,
+                avatar: null,
+                bio: null,
+                dob: null,
+                isOnline: false,
+                lastSeenAt: null,
+              },
+            },
+          },
+        },
+      });
+    });
+  }
 }
