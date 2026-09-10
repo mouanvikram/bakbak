@@ -4,7 +4,9 @@ import {
   BIO_MAX_LENGTH,
   BIO_MIN_LENGTH,
   bioSchema,
+  displayNameFieldSchema,
   emailSchema,
+  nameFieldSchema,
   okResponseSchema,
   passwordSchema,
   profileSnippetSchema,
@@ -39,13 +41,14 @@ export const getMeResponseSchema = z.object({
 export type GetMeResponseType = z.infer<typeof getMeResponseSchema>;
 
 export const updateProfileRequestSchema = z.object({
-  // Same rules as signup (4–30 chars, lowercased); the API also checks it's not taken.
+  // Same rules as signup (4–30 chars, lowercased, ASCII-only, no profanity);
+  // the API also checks it's not taken.
   username: usernameSchema.optional(),
   // `null`/blank clears the bio; a real value must be 10–500 chars.
   bio: bioSchema.optional(),
-  firstName: safeString(100).optional(),
-  lastName: safeString(100).optional(),
-  displayName: safeString(100).optional(),
+  firstName: nameFieldSchema.optional(),
+  lastName: nameFieldSchema.optional(),
+  displayName: displayNameFieldSchema.optional(),
 });
 
 export const updateProfileResponseSchema = userProfileSchema.pick({
@@ -78,11 +81,7 @@ export type UpdateAvatarResponseType = z.infer<
   typeof updateAvatarResponseSchema
 >;
 
-/**
- * Re-proves the owner before destruction. `password` is always required; the
- * service demands `twoFactorCode` too when the account has 2FA enabled (the
- * code is emailed by `POST /users/me/delete-challenge`).
- */
+/// Re-proves the owner before destruction. `password` is always required;
 export const deleteMeRequestSchema = z.object({
   password: passwordSchema,
   twoFactorCode: otpCodeSchema.optional(),
@@ -112,8 +111,9 @@ export const deleteMeResponseSchema = okResponseSchema;
 
 export type DeleteMeResponseType = z.infer<typeof deleteMeResponseSchema>;
 
+// Same validation as signup so a "available" here is a username signup would actually accept.
 export const checkUsernameRequestSchema = z.object({
-  username: safeString(30),
+  username: usernameSchema,
 });
 
 export const checkUsernameResponseSchema = z.object({
@@ -147,7 +147,7 @@ export const getProfileRequestSchema = z.object({
   username: safeString(100, 1),
 });
 
-/** How the caller is related to the profile they're looking at. */
+// How the caller is related to the profile they're looking at. 
 export const friendshipStatusSchema = z.enum([
   "self",
   "friends",

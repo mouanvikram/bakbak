@@ -1,7 +1,9 @@
 import { z } from "zod";
 import {
   bioSchema,
+  displayNameFieldSchema,
   emailSchema,
+  nameFieldSchema,
   okResponseSchema,
   passwordSchema,
   refreshTokenSchema,
@@ -125,10 +127,7 @@ export type EnableTwoFactorRequestType = z.infer<
   typeof enableTwoFactorRequestSchema
 >;
 
-/** `POST /auth/2fa/disable` — turning 2FA off proves the password, so a
- * stolen session token alone can't downgrade the account. Like
- * `changePassword`'s `currentPassword`, no complexity rules here — the
- * value is verified, not created. */
+// `POST /auth/2fa/disable` — turning 2FA off proves the password
 export const disableTwoFactorRequestSchema = z.object({
   password: safeString(128, 1),
 });
@@ -143,9 +142,9 @@ export const signUpRequestSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
-  firstname: safeString(100, 1),
-  lastname: safeString(100, 1),
-  displayname: safeString(100, 1),
+  firstname: nameFieldSchema,
+  lastname: nameFieldSchema,
+  displayname: displayNameFieldSchema,
   bio: bioSchema.optional(),
   avatarUrl: safeString(150).optional(),
 });

@@ -1,5 +1,12 @@
 import { z } from "zod";
+import {
+  containsOffensiveContent,
+  DISALLOWED_CONTROL_CHARS_RE,
+  normalizeForStorage,
+} from "./moderation";
 
+// Base rule for any plain string field: non-empty, at most `max` chars, and
+// no null bytes (\0). Compose this with .trim().toLowerCase() / .regex() etc.
 export const safeString = (max: number, min = 1) =>
   z
     .string()
@@ -7,21 +14,48 @@ export const safeString = (max: number, min = 1) =>
     .max(max)
     .regex(/^(?!.*\0)/, "Null bytes are not allowed");
 
-// Username is canonically lowercase (matches the citext column, which is the
-// backstop — this is what actually keeps stored values consistent).
-export const usernameSchema = safeString(30, 4).trim().toLowerCase();
+// Username rules, in plain terms:
+//   - always lowercased (the DB column is citext, so stored values are too)
+//   - only a–z, 0–9, and "." are allowed — no lookalike letters like the
+//     Cyrillic "п" in "johп", which a person could mistake for "john"
+//   - no profanity
+//
+//   Good: "alice42", "john.doe"
+//   Bad:  "johп"      -> non-ASCII lookalike
+//         "John Doe"  -> uppercase + space
+//         "fuck"      -> profanity
+//
+// Existing users with other characters keep them: this schema only runs when
+// a profile is created or a username is changed (see users/service.ts).
+export const usernameSchema = safeString(30, 4)
+  .trim()
+  .toLowerCase()
+  .regex(
+    /^[a-z0-9.]+$/,
+    "Username may only contain lowercase letters, numbers, or dots",
+  )
+  .refine((value) => !containsOffensiveContent(value), {
+    message: "Username contains language we do not allow",
+  });
 
 export const emailSchema = z.email().max(100).trim().toLowerCase();
 
-/** Smallest bio we'll store — anything shorter (once trimmed) isn't worth keeping. */
+/**
+ * The shortest bio worth keeping. Shorter than this (after trimming) is stored
+ * as `null` instead — e.g. "Hi" or "" become null.
+ */
 export const BIO_MIN_LENGTH = 10;
 export const BIO_MAX_LENGTH = 500;
 
 /**
- * A user bio for write paths (signup, profile update). A bio is either absent —
- * `null`, `undefined`, or blank/whitespace, all normalised to `null` — or a real
- * string of {@link BIO_MIN_LENGTH}–{@link BIO_MAX_LENGTH} characters after
- * trimming. Empty strings are never persisted.
+ * Validation for a bio on write paths (signup, profile update).
+ *
+ *   "" / "   " / null / missing  -> stored as null
+ *   "Hello world" (11 chars)     -> OK
+ *   "Hi"                         -> too short, rejected
+ *   fullwidth "ＡＢＣ hello..."  -> NFKC-normalised to "ABC hello..."
+ *   "fuck this"                  -> profanity, rejected
+ *   "hidden \u200b space"        -> invisible char, rejected
  */
 export const bioSchema = z
   .string()
@@ -29,12 +63,47 @@ export const bioSchema = z
   .regex(/^(?!.*\0)/, "Null bytes are not allowed")
   .nullable()
   .transform((value) => {
-    const trimmed = value?.trim() ?? "";
-    return trimmed.length === 0 ? null : trimmed;
+    const normalized = normalizeForStorage(value ?? "").trim();
+    return normalized.length === 0 ? null : normalized;
   })
   .refine((value) => value === null || value.length >= BIO_MIN_LENGTH, {
     message: `Bio must be at least ${BIO_MIN_LENGTH} characters`,
+  })
+  .refine((value) => value === null || !DISALLOWED_CONTROL_CHARS_RE.test(value), {
+    message: "Bio contains unsupported control characters",
+  })
+  .refine((value) => value === null || !containsOffensiveContent(value), {
+    message: "Bio contains language we do not allow",
   });
+
+/**
+ * Rules for free-text profile fields (first name, last name, display name).
+ * NFKC-normalises lookalike chars (Ａ→A), trims surrounding whitespace, and
+ * rejects hidden control/format chars (zero-width spaces, bidi overrides).
+ *
+ * Names keep full Unicode on purpose — é, ñ, 中文 are real names — so they are
+ * NOT restricted to ASCII. Only usernames are (see `usernameSchema`).
+ */
+export const profileTextField = (max: number) =>
+  safeString(max)
+    .transform((value) => normalizeForStorage(value).trim())
+    .refine((value) => !DISALLOWED_CONTROL_CHARS_RE.test(value), {
+      message: "Field contains unsupported control characters",
+    });
+
+/** First/last name (e.g. "José", "Nguyen", "李"). NOT profanity-checked on
+ * purpose: real surnames like "Cummings" or places like "Scunthorpe" would
+ * trip the word list. */
+export const nameFieldSchema = profileTextField(100);
+
+/** Public display name (e.g. "Alex", "Jo's Kitchen"). IS profanity-checked —
+ * it's user-written and shown to everyone. */
+export const displayNameFieldSchema = profileTextField(100).refine(
+  (value) => !containsOffensiveContent(value),
+  {
+    message: "Display name contains language we do not allow",
+  },
+);
 
 export const passwordSchema = safeString(128, 12)
   .regex(/[A-Z]/, "Password must contain an uppercase letter")
