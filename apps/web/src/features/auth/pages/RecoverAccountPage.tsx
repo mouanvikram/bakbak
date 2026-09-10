@@ -41,11 +41,11 @@ export function RecoverAccountPage() {
         <Branding />
         {status === "idle" && (
           <>
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#4C18EF]/10">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-600/10">
               <RotateCcw
                 size={42}
                 strokeWidth={1.8}
-                className="text-[#4C18EF]"
+                className="text-brand-600"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -73,7 +73,7 @@ export function RecoverAccountPage() {
               Remember your password?{" "}
               <Link
                 to="/login"
-                className="font-semibold text-[#4C18EF] hover:underline"
+                className="font-semibold text-brand-600 hover:underline"
               >
                 Log in
               </Link>
@@ -85,7 +85,7 @@ export function RecoverAccountPage() {
             <LoaderCircle
               size={56}
               strokeWidth={1.8}
-              className="animate-spin text-[#4C18EF]"
+              className="animate-spin text-brand-600"
             />
             <div className="flex flex-col gap-2">
               <h2 className="text-2xl font-semibold text-gray-900">
@@ -123,7 +123,7 @@ export function RecoverAccountPage() {
               <button
                 type="button"
                 onClick={() => setStatus("idle")}
-                className="cursor-pointer font-semibold text-[#4C18EF] hover:underline"
+                className="cursor-pointer font-semibold text-brand-600 hover:underline"
               >
                 Try again
               </button>

@@ -140,7 +140,7 @@ export function LoginPage() {
                 type="button"
                 onClick={handleResend}
                 disabled={loading}
-                className="font-semibold text-[#4C18EF]"
+                className="font-semibold text-brand-600"
               >
                 Resend code
               </button>
@@ -172,7 +172,7 @@ export function LoginPage() {
             <div className="text-right">
               <Link
                 to="/forgot-password"
-                className="text-sm text-[#4C18EF]"
+                className="text-sm text-brand-600"
                 aria-disabled={loading}
               >
                 Forgot Password?
@@ -190,7 +190,7 @@ export function LoginPage() {
 
             <p className="text-center">
               Don't have an account?{" "}
-              <Link to="/signup" className="font-semibold text-[#4C18EF]">
+              <Link to="/signup" className="font-semibold text-brand-600">
                 Sign up
               </Link>
             </p>
