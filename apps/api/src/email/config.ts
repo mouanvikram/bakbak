@@ -1,14 +1,9 @@
 import { str } from "@/config/parse";
-
-const resendApiKey = process.env.RESEND_API_KEY;
-
-if (!resendApiKey) {
-  throw new Error(
-    "RESEND_API_KEY is missing. Set it in the repo-root .env file (see .env.example).",
-  );
-}
+import { requiredAlways } from "@/config/required";
 
 export const emailConfig = {
-  resendApiKey,
+  // Mandatory everywhere: without it the Resend client fails on first send
+  // rather than at boot.
+  resendApiKey: requiredAlways(process.env.RESEND_API_KEY, "RESEND_API_KEY"),
   devInbox: str(process.env.DEV_INBOX, ""),
 };

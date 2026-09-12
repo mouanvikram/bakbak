@@ -1,9 +1,15 @@
-import { str } from "@/config/parse";
+import { requiredInProduction } from "@/config/required";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
 export const authConfig = {
-  frontendUrl: str(process.env.FRONTEND_URL, "http://localhost:5173"),
+  // Base for verification / reset / recovery links in outbound email, so a
+  // localhost value surviving into production sends users dead links.
+  frontendUrl: requiredInProduction(
+    process.env.FRONTEND_URL,
+    "FRONTEND_URL",
+    { insecureDevDefault: "http://localhost:5173" },
+  ),
   refreshTokenExpiryDays: 7,
   verificationTokenTtlMs: ONE_HOUR_MS,
   passwordResetTokenTtlMs: ONE_HOUR_MS,

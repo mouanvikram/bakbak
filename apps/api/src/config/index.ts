@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import dotenv from "dotenv";
 import { nonNegativeInt, positiveNum } from "./parse";
+import { isProduction, warnInProduction } from "./required";
 
 dotenv.config({
   path: resolve(import.meta.dir, "../../../../.env"),
@@ -18,12 +19,37 @@ const DEFAULT_CORS_ORIGINS = [
   "http://127.0.0.1:3000",
 ];
 
+const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|$)/;
+
+// The localhost defaults are a dev convenience, so production has to name its
+// origins explicitly rather than inherit them.
 function parseOrigins(raw?: string): string[] {
-  if (!raw) return DEFAULT_CORS_ORIGINS;
-  return raw
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const origins =
+    raw
+      ?.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean) ?? [];
+
+  if (!isProduction()) {
+    return origins.length ? origins : DEFAULT_CORS_ORIGINS;
+  }
+
+  if (!origins.length) {
+    throw new Error(
+      "CORS_ORIGINS is missing and is required when NODE_ENV=production; " +
+        "the localhost defaults must not ship. See .env.example.",
+    );
+  }
+
+  const local = origins.filter((origin) => LOCAL_ORIGIN.test(origin));
+  if (local.length) {
+    throw new Error(
+      `CORS_ORIGINS contains development origins (${local.join(", ")}), ` +
+        "which must not be allowed in production. See .env.example.",
+    );
+  }
+
+  return origins;
 }
 
 export const env = {
@@ -34,3 +60,10 @@ export const env = {
   // ignored, req.ip is the socket peer).
   TRUST_PROXY: nonNegativeInt(process.env.TRUST_PROXY, 0),
 };
+
+warnInProduction(
+  env.TRUST_PROXY === 0,
+  "TRUST_PROXY is 0 — if the API sits behind a reverse proxy, X-Forwarded-For " +
+    "is ignored and every rate-limit bucket keys on the proxy's IP, making one " +
+    "shared bucket for all clients.",
+);
