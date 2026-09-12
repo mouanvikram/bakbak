@@ -124,7 +124,13 @@ export class FriendRepository {
 
   async findFriends(where: Prisma.FriendshipWhereInput) {
     return await prisma.friendship.findMany({
-      where,
+      where: {
+        ...where,
+        // A soft-deleted account (or one already anonymized past its recovery
+        // window) is not a friend — keep them out of the friends list.
+        user1: { deletedAt: null },
+        user2: { deletedAt: null },
+      },
       include: {
         user1: { select: friendUserSelect },
         user2: { select: friendUserSelect },
