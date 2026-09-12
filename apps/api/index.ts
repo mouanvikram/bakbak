@@ -6,6 +6,7 @@ import { startJobs } from "@/jobs";
 import app from "@/app";
 import { env } from "@/config";
 import { initializeWebSocket } from "@/websocket";
+import { createHealthzRouter, createReadyzRouter } from "@/system/health";
 import { registerShutdownHook } from "@/shutdown/registry";
 import logger from "@/lib/logger";
 
@@ -15,9 +16,10 @@ app.get("/", (_: Request, res: Response) => {
   });
 });
 
-app.get("/healthz", (_: Request, res: Response) =>
-  res.status(200).json({ status: "ok" }),
-);
+// Liveness + readiness live in the system module: /healthz is a static
+// liveness probe, /readyz checks DB / Redis / storage / Resend connectivity.
+app.use("/healthz", createHealthzRouter());
+app.use("/readyz", createReadyzRouter());
 
 const httpServer = createServer(app);
 
