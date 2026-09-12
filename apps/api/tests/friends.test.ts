@@ -248,6 +248,35 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     expect(friendships.length).toBe(0);
   });
 
+  test("POST /friends/requests/:requestId/accept - concurrent accepts create a single friendship", async () => {
+    const target = await createTestUser();
+    const request = await sendFriendRequest(userA.id, target.id);
+
+    const [first, second] = await Promise.all([
+      fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`, {
+        method: "POST",
+        headers: await authHeader(target.id, target.username),
+      }),
+      fetch(`${baseUrl()}/api/v1/friends/requests/${request.id}/accept`, {
+        method: "POST",
+        headers: await authHeader(target.id, target.username),
+      }),
+    ]);
+
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    const friendshipCount = await prisma.friendship.count({
+      where: {
+        OR: [
+          { user1Id: userA.id, user2Id: target.id },
+          { user1Id: target.id, user2Id: userA.id },
+        ],
+      },
+    });
+    expect(friendshipCount).toBe(1);
+  });
+
   test("POST /friends/requests/:requestId/accept - should fail without auth", async () => {
     const request = await sendFriendRequest(userA.id, userB.id);
     const res = await fetch(
@@ -318,6 +347,26 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     );
 
     expect(res.status).toBe(404);
+    const data = (await res.json()) as any;
+    expect(data.error || data.message).toBeDefined();
+  });
+
+  test("POST /friends/requests/:requestId/reject - should fail for a non-pending request", async () => {
+    const request = await sendFriendRequest(userA.id, userB.id);
+    await prisma.friendRequest.update({
+      where: { id: request.id },
+      data: { status: "ACCEPTED" },
+    });
+
+    const res = await fetch(
+      `${baseUrl()}/api/v1/friends/requests/${request.id}/reject`,
+      {
+        method: "POST",
+        headers: await authHeader(userB.id, userB.username),
+      },
+    );
+
+    expect(res.status).toBe(409);
     const data = (await res.json()) as any;
     expect(data.error || data.message).toBeDefined();
   });
@@ -439,6 +488,23 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     expect(data.friendships.length).toBe(0);
   });
 
+  test("GET /friends/ - should exclude a soft-deleted friend", async () => {
+    const ghost = await createTestUser();
+    await createTestFriendship(userA.id, ghost.id);
+    await prisma.user.update({
+      where: { id: ghost.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const res = await fetch(`${baseUrl()}/api/v1/friends/`, {
+      headers: await authHeader(userA.id, userA.username),
+    });
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as any;
+    expect(data.friendships).toHaveLength(0);
+  });
+
   test("GET /friends/ - should fail without auth", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/friends/`);
 
@@ -494,8 +560,16 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     );
 
     expect(res.status).toBe(409);
-    const data = (await res.json()) as any;
-    expect(data.error || data.message).toBeDefined();
+    const text = await res.text();
+    // The unique-index P2002 surfaces as a typed CONFLICT, never a Prisma message.
+    expect(JSON.parse(text).error.code).toBe("CONFLICT");
+    expect(text).not.toMatch(/prisma|unique constraint|P2002/i);
+
+    // The (senderId, receiverId) unique index guarantees one row, not two.
+    const rows = await prisma.friendRequest.count({
+      where: { senderId: userA.id, receiverId: userB.id },
+    });
+    expect(rows).toBe(1);
   });
 
   test("POST /friends/requests/:receiverId - should not allow duplicate reverse requests", async () => {
@@ -512,6 +586,35 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     expect(res.status).toBe(409);
     const data = (await res.json()) as any;
     expect(data.error || data.message).toBeDefined();
+
+    const rows = await prisma.friendRequest.count({
+      where: { senderId: userB.id, receiverId: userA.id },
+    });
+    expect(rows).toBe(1);
+  });
+
+  test("POST /friends/requests/:receiverId - parallel double-send yields one request, not two", async () => {
+    const target = await createTestUser();
+
+    const [first, second] = await Promise.all([
+      fetch(`${baseUrl()}/api/v1/friends/requests/${target.id}`, {
+        method: "POST",
+        headers: await authHeader(userA.id, userA.username),
+      }),
+      fetch(`${baseUrl()}/api/v1/friends/requests/${target.id}`, {
+        method: "POST",
+        headers: await authHeader(userA.id, userA.username),
+      }),
+    ]);
+
+    // Exactly one send wins; the second hits the unique index / pre-check -> 409.
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    const rows = await prisma.friendRequest.count({
+      where: { senderId: userA.id, receiverId: target.id },
+    });
+    expect(rows).toBe(1);
   });
 
   // â”€â”€ GET /friends/suggestions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -564,6 +667,23 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     const ids = data.suggestions.map((u: any) => u.id);
     expect(ids).not.toContain(userB.id);
     expect(ids).not.toContain(userC.id);
+  });
+
+  test("GET /friends/suggestions - should exclude soft-deleted users", async () => {
+    const ghost = await createTestUser();
+    await prisma.user.update({
+      where: { id: ghost.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const res = await fetch(`${baseUrl()}/api/v1/friends/suggestions`, {
+      headers: await authHeader(userA.id, userA.username),
+    });
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as any;
+    const ids = data.suggestions.map((u: any) => u.id);
+    expect(ids).not.toContain(ghost.id);
   });
 
   test("GET /friends/suggestions - should fail without auth", async () => {
