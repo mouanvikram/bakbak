@@ -13,7 +13,7 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 - [x] **Password change & reset revoke every session** — change requires the current password + a verified email; all sessions revoked, sockets force-disconnected; stale access and refresh tokens stop working (tested for change, reset, and account deletion).
 - [x] **Re-auth by construction** — 2FA disable re-proves the account password; **account deletion re-proves the current password and, when 2FA is on, a freshly-emailed 2FA code** (`POST /users/me/delete-challenge` pre-checks the password and mints the code; the code is single-use). Email is read-only in this API version (change deferred to a future version).
 - [x] **Security alert emails** — owner notified on password change/reset and on every brand-new device login; token rotation deliberately silent; best-effort, never blocks the action.
-- [x] **30-day account recovery** — deleting the account emails a deletion notice + a recovery link (single-use, hashed, expiry anchored to `deletedAt + 30 days`; resends never extend the window); `POST /auth/recover-account` resends, `POST /auth/recover-account/verify` restores the account; generic responses keep live and deleted accounts indistinguishable.
+- [x] **30-day account recovery & post-window anonymization** — deleting the account emails a deletion notice + a recovery link (single-use, hashed, expiry anchored to `deletedAt + 30 days`; resends never extend the window); `POST /auth/recover-account` resends, `POST /auth/recover-account/verify` restores the account; generic responses keep live and deleted accounts indistinguishable. A **correct** login against a soft-deleted account still fails with no tokens, but resolves to a dedicated deleted-account response (deletion time + remaining window) that routes the web client to its account-deleted page; once the window lapses, a background job (`jobs/anonymize-deleted-users`) scrubs the row — email/username/hash replaced, profile zeroed, sessions + tokens deleted.
 
 ## 🔁 Sessions & Refresh Tokens
 
@@ -30,9 +30,9 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 👥 Users
 
-- [x] **Profiles** — read/update your own profile, editable username with live availability check + race handling and a 6-month change cooldown, normalized bios, title-cased names.
+- [x] **Profiles** — read/update your own profile, editable username with live availability check + race handling and a 6-month change cooldown, normalized bios, title-cased names. **Usernames are ASCII-only** (`a–z 0–9 .`) and profanity-screened; display names and bios are NFKC-normalised, reject hidden control/format chars (zero-width spaces, bidi overrides), and are screened by an obscenity guard that defeats leetspeak, lookalike letters, and stretched text (first/last names keep full Unicode and are deliberately not screened).
 - [x] **Avatars** — upload (incl. at signup) and URL-set; one at a time; previous object removed; signed URLs served on every read.
-- [x] **Account deletion & recovery** — soft-delete (row retained, identifying fields intact), requires a verified email + the current password (plus a fresh 2FA code when enabled), revokes all sessions + sockets, then emails a 30-day recovery link; resend and verify endpoints restore the account before the window lapses.
+- [x] **Account deletion & recovery** — soft-delete (row retained, identifying fields intact), requires a verified email + the current password (plus a fresh 2FA code when enabled), revokes all sessions + sockets, then emails a 30-day recovery link; resend and verify endpoints restore the account before the window lapses; a **login with correct credentials on a deleted account returns a deleted-account signal** (routed to the web's account-deleted page), and the row is **anonymized by a background job once the window lapses**.
 - [x] **Search & public profiles** — capped username/first/last-name search; public profile reports the caller's live relationship status; soft-deleted accounts are treated as non-existent everywhere.
 
 ## 🤝 Friends
@@ -88,4 +88,4 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🧪 Testing
 
-- [x] **287-test HTTP integration suite** — `bun:test` against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends, chats, messages, uploads, and settings — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion.
+- [x] **303-test HTTP integration suite** — `bun:test` against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends, chats, messages, uploads, and settings — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion. Contract-level profiles/moderated-field rules are covered by unit tests in `packages/contracts`.
