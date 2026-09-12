@@ -88,4 +88,4 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🧪 Testing
 
-- [x] **303-test HTTP integration suite** — `bun:test` against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends, chats, messages, uploads, and settings — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion. Contract-level profiles/moderated-field rules are covered by unit tests in `packages/contracts`.
+- [x] **311-test HTTP integration suite** — `bun:test` against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends, chats, messages, uploads, and settings — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion. Contract-level profiles/moderated-field rules are covered by unit tests in `packages/contracts`.

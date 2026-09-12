@@ -2,7 +2,7 @@
 
 A real-time social chat app — direct & group messaging, friends, media sharing.
 
-> ⚠️ **Work in progress — single-instance only.** The backend core (auth, users, friends, chats, messages, attachments), the Socket.IO realtime layer, media/avatar uploads, and the React client are all implemented and wired end-to-end (303 HTTP integration tests). Not yet built: horizontal scaling (no Socket.IO Redis adapter — realtime assumes one process), notifications, message reactions/replies, offline support, and any deployment/CI tooling. See [Status](#-current-status) below and the compact, always-current feature checklist in [`FEATURES.md`](FEATURES.md).
+> ⚠️ **Work in progress — single-instance only.** The backend core (auth, users, friends, chats, messages, attachments), the Socket.IO realtime layer, media/avatar uploads, and the React client are all implemented and wired end-to-end (311 HTTP integration tests). Not yet built: horizontal scaling (no Socket.IO Redis adapter — realtime assumes one process), notifications, message reactions/replies, offline support, and any deployment/CI tooling. See [Status](#-current-status) below and the compact, always-current feature checklist in [`FEATURES.md`](FEATURES.md).
 
 ---
 
