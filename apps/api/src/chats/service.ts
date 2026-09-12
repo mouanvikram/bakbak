@@ -13,6 +13,7 @@ import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "@/uploads/storage.provider";
 import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import { addUserToChatRoom, broadcastChatUpdated } from "@/websocket/emitter";
+import { toIso } from "@/lib/dates";
 
 const chatUserSelect = {
   id: true,
@@ -119,8 +120,8 @@ export class ChatService {
     const serialized = {
       ...participant,
       joinedAt: participant.joinedAt.toISOString(),
-      mutedUntil: participant.mutedUntil?.toISOString() ?? null,
-      leftAt: participant.leftAt?.toISOString() ?? null,
+      mutedUntil: toIso(participant.mutedUntil),
+      leftAt: toIso(participant.leftAt),
     };
     if (serialized.user) {
       await this.resolveUserAvatar(serialized.user);
@@ -165,7 +166,7 @@ export class ChatService {
       ...chat,
       createdAt: chat.createdAt.toISOString(),
       updatedAt: chat.updatedAt.toISOString(),
-      lastMessageAt: chat.lastMessageAt?.toISOString() ?? null,
+      lastMessageAt: toIso(chat.lastMessageAt),
       ...(avatar !== undefined ? { avatar } : {}),
       createdBy,
       participants,

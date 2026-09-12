@@ -13,6 +13,8 @@ import type {
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "@/uploads/storage.provider";
 import { resolveAvatarUrl } from "@/uploads/avatar-url";
+import { cursorPaginationArgs } from "@/lib/pagination";
+import { toIso } from "@/lib/dates";
 import { messagesConfig } from "./config";
 
 // Non-TEXT message types, keyed by the attachment kind that implies them.
@@ -140,8 +142,8 @@ export class MessageService {
     const serialized = {
       ...participant,
       joinedAt: participant.joinedAt.toISOString(),
-      mutedUntil: participant.mutedUntil?.toISOString() ?? null,
-      leftAt: participant.leftAt?.toISOString() ?? null,
+      mutedUntil: toIso(participant.mutedUntil),
+      leftAt: toIso(participant.leftAt),
     };
     if (serialized.user?.profile?.avatar !== undefined) {
       serialized.user.profile.avatar = await resolveAvatarUrl(
@@ -351,6 +353,8 @@ export class MessageService {
   async listMessages(dto: ChatMessagesDto) {
     await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
+    const { cursor, skip, take } = cursorPaginationArgs(dto.cursor, dto.limit);
+
     const messages = await this.messageRepository.findMany({
       where: {
         chatId: dto.chatId,
@@ -359,9 +363,9 @@ export class MessageService {
       orderBy: {
         createdAt: "desc",
       },
-      cursor: dto.cursor ? { id: dto.cursor } : undefined,
-      skip: dto.cursor ? 1 : undefined,
-      take: dto.limit ?? 50,
+      cursor,
+      skip,
+      take,
       include: messageInclude,
     });
 
@@ -553,6 +557,8 @@ export class MessageService {
 
     await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
 
+    const { cursor, skip, take } = cursorPaginationArgs(dto.cursor, dto.limit);
+
     const messages = await this.messageRepository.findMany({
       where: {
         chatId: dto.chatId,
@@ -565,9 +571,9 @@ export class MessageService {
       orderBy: {
         createdAt: "desc",
       },
-      cursor: dto.cursor ? { id: dto.cursor } : undefined,
-      skip: dto.cursor ? 1 : undefined,
-      take: dto.limit ?? 50,
+      cursor,
+      skip,
+      take,
       include: messageInclude,
     });
 
