@@ -23,4 +23,10 @@ export interface StorageProvider {
 
   /** Return true when an object exists at `key`. */
   exists(key: string): Promise<boolean>;
+
+  /**
+   * Lightweight, read-only connectivity probe (e.g. a bucket head request).
+   * Used by the `/readyz` readiness probe; must be side-effect free.
+   */
+  ping(): Promise<boolean>;
 }

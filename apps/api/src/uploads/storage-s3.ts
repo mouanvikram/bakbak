@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
@@ -48,6 +49,16 @@ export class S3StorageProvider implements StorageProvider {
         secretAccessKey: options.secretAccessKey,
       },
     });
+  }
+
+  // Read-only connectivity probe for the `/readyz` readiness check. 
+  async ping(): Promise<boolean> {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async upload(key: string, buffer: Buffer, contentType: string) {
