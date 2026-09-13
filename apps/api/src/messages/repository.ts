@@ -65,4 +65,18 @@ export class MessageRepository {
   ) {
     return await prisma.chatParticipant.update(args);
   }
+
+  async findReaction<
+    T extends Prisma.MessageReactionFindFirstArgs,
+  >(args: Prisma.SelectSubset<T, Prisma.MessageReactionFindFirstArgs>) {
+    return await prisma.messageReaction.findFirst(args);
+  }
+
+  async createReaction(args: Prisma.MessageReactionCreateArgs) {
+    return await prisma.messageReaction.create(args);
+  }
+
+  async deleteReaction(id: string) {
+    return await prisma.messageReaction.delete({ where: { id } });
+  }
 }

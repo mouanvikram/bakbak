@@ -29,6 +29,7 @@ model Message {
   replies   Message[] @relation("MessageReplies")
 
   attachments Attachment[]
+  reactions   MessageReaction[]
 
   //life-cycle
   deletedAt DateTime?
@@ -40,4 +41,18 @@ model Message {
   @@index([chatId, createdAt])
   @@index([senderId])
   @@index([replyToId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid()) @db.Uuid()
+  emoji     String
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
 }

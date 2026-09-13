@@ -186,6 +186,222 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
     expect(row?.messageId).toBe(data.id);
   });
 
+  test("POST /chats/:chatId/messages - replyToId returns the answered message", async () => {
+    const original = await createTestMessage(chat.id, userA.id, {
+      text: "the original",
+    });
+
+    const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await authHeader(userB.id, userB.username)),
+      },
+      body: JSON.stringify({
+        text: "the reply",
+        clientId: crypto.randomUUID(),
+        replyToId: original.id,
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as any;
+    expect(data.replyToId).toBe(original.id);
+    expect(data.replyTo).toMatchObject({
+      id: original.id,
+      chatId: chat.id,
+      senderId: userA.id,
+      text: "the original",
+    });
+    expect(typeof data.replyTo.createdAt).toBe("string");
+
+    // The answered message rides along on list responses too.
+    const list = await fetch(
+      `${baseUrl()}/api/v1/chats/${chat.id}/messages`,
+      { headers: await authHeader(userB.id, userB.username) },
+    );
+    const listed = await list.json();
+    const reply = (listed as any).messages.find((m: any) => m.text === "the reply");
+    expect(reply.replyTo.id).toBe(original.id);
+  });
+
+  test("POST /chats/:chatId/messages - rejects a reply to a message in another chat", async () => {
+    const otherChat = await createTestDirectChat(userA.id, userB.id);
+    const foreign = await createTestMessage(otherChat.id, userA.id, {
+      text: "elsewhere",
+    });
+
+    const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await authHeader(userA.id, userA.username)),
+      },
+      body: JSON.stringify({
+        text: "wrong target",
+        clientId: crypto.randomUUID(),
+        replyToId: foreign.id,
+      }),
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  test("POST /chats/:chatId/messages - rejects a reply to a deleted message", async () => {
+    const original = await createTestMessage(chat.id, userA.id, {
+      text: "doomed",
+    });
+    const del = await fetch(
+      `${baseUrl()}/api/v1/messages/${original.id}`,
+      {
+        method: "DELETE",
+        headers: await authHeader(userA.id, userA.username),
+      },
+    );
+    expect(del.status).toBe(200);
+
+    const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await authHeader(userB.id, userB.username)),
+      },
+      body: JSON.stringify({
+        text: "zombie target",
+        clientId: crypto.randomUUID(),
+        replyToId: original.id,
+      }),
+    });
+
+    expect(res.status).toBe(404);
+  });
+
+  test("PUT /chats/:chatId/messages/:messageId/reactions - adds a reaction", async () => {
+    const message = await createTestMessage(chat.id, userA.id, {
+      text: "react to me",
+    });
+
+    const res = await fetch(
+      `${baseUrl()}/api/v1/chats/${chat.id}/messages/${message.id}/reactions`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader(userB.id, userB.username)),
+        },
+        body: JSON.stringify({ emoji: "👍" }),
+      },
+    );
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as any;
+    expect(data.id).toBe(message.id);
+    expect(data.reactions).toEqual([
+      expect.objectContaining({ emoji: "👍", userId: userB.id }),
+    ]);
+  });
+
+  test("PUT .../reactions - same emoji again removes it (toggle)", async () => {
+    const message = await createTestMessage(chat.id, userA.id, {
+      text: "toggle me",
+    });
+
+    const react = async () =>
+      fetch(
+        `${baseUrl()}/api/v1/chats/${chat.id}/messages/${message.id}/reactions`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(await authHeader(userB.id, userB.username)),
+          },
+          body: JSON.stringify({ emoji: "😂" }),
+        },
+      );
+
+    const first = await react();
+    expect(first.status).toBe(200);
+    expect(((await first.json()) as any).reactions).toHaveLength(1);
+
+    const second = await react();
+    expect(second.status).toBe(200);
+    expect(((await second.json()) as any).reactions).toHaveLength(0);
+  });
+
+  test("PUT .../reactions - different users and emojis accumulate", async () => {
+    const message = await createTestMessage(chat.id, userA.id, {
+      text: "party",
+    });
+
+    for (const user of [userB, userC]) {
+      const res = await fetch(
+        `${baseUrl()}/api/v1/chats/${chat.id}/messages/${message.id}/reactions`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(await authHeader(user.id, user.username)),
+          },
+          body: JSON.stringify({ emoji: "🎉" }),
+        },
+      );
+      expect(res.status).toBe(200);
+    }
+
+    const res = await fetch(
+      `${baseUrl()}/api/v1/chats/${chat.id}/messages/${message.id}/reactions`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader(userB.id, userB.username)),
+        },
+        body: JSON.stringify({ emoji: "❤️" }),
+      },
+    );
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as any;
+    const emojis = data.reactions.map((r: any) => r.emoji).sort();
+    expect(emojis).toEqual(["❤️", "🎉", "🎉"]);
+  });
+
+  test("PUT .../reactions - rejects a reaction to a message in another chat", async () => {
+    const otherChat = await createTestDirectChat(userA.id, userB.id);
+    const foreign = await createTestMessage(otherChat.id, userA.id, {
+      text: "elsewhere",
+    });
+
+    const res = await fetch(
+      `${baseUrl()}/api/v1/chats/${chat.id}/messages/${foreign.id}/reactions`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader(userA.id, userA.username)),
+        },
+        body: JSON.stringify({ emoji: "👍" }),
+      },
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  test("PUT .../reactions - rejects a reaction to a missing message", async () => {
+    const res = await fetch(
+      `${baseUrl()}/api/v1/chats/${chat.id}/messages/${crypto.randomUUID()}/reactions`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader(userA.id, userA.username)),
+        },
+        body: JSON.stringify({ emoji: "👍" }),
+      },
+    );
+
+    expect(res.status).toBe(404);
+  });
+
   test("POST /chats/:chatId/messages - rejects an attachment owned by someone else", async () => {
     const attachment = await seedAttachment(userB.id, "IMAGE");
 
@@ -709,6 +925,61 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as any;
     expect(data.messages).toHaveLength(3);
+  }, 30000);
+
+  test("GET /chats/:chatId/messages - pagination boundary with shared timestamps must not skip or duplicate messages", async () => {
+    // Seven messages created in the same millisecond exercise the (createdAt, id)
+    // ordering tie: a cursor that only orders by createdAt can skip or duplicate
+    // rows across a page boundary.
+    const t0 = new Date(Date.now());
+    const createdIds: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const message = await prisma.message.create({
+        data: {
+          chatId: chat.id,
+          senderId: userA.id,
+          type: "TEXT",
+          text: `same-timestamp ${i}`,
+          clientId: crypto.randomUUID(),
+          createdAt: t0,
+          updatedAt: t0,
+        },
+      });
+      createdIds.push(message.id);
+    }
+
+    const seen = new Set<string>();
+    const allFetchedIds: string[] = [];
+    let cursor: string | undefined;
+    let pageCount = 0;
+
+    do {
+      const url = new URL(`${baseUrl()}/api/v1/chats/${chat.id}/messages`);
+      url.searchParams.set("limit", "3");
+      if (cursor) url.searchParams.set("cursor", cursor);
+
+      const res = await fetch(url, {
+        headers: await authHeader(userA.id, userA.username),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as any;
+
+      for (const message of data.messages) {
+        allFetchedIds.push(message.id);
+        seen.add(message.id);
+      }
+
+      if (data.messages.length === 0) break;
+      cursor = data.messages[data.messages.length - 1].id;
+      pageCount += 1;
+    } while (cursor && seen.size < createdIds.length && pageCount < 10);
+
+    // Nothing skipped, nothing duplicated, and every created message surfaced.
+    expect(seen.size).toBe(createdIds.length);
+    expect(allFetchedIds.length).toBe(createdIds.length);
+    for (const id of createdIds) {
+      expect(seen.has(id)).toBe(true);
+    }
   }, 30000);
 
   test("GET /chats/:chatId/messages - should cap limit at 100", async () => {

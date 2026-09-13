@@ -7,8 +7,10 @@ import type {
   EditMessageDto,
   MarkChatReadDto,
   MessageIdDto,
+  MessageResponseType,
   SearchMessagesDto,
   SendMessageDto,
+  ToggleReactionDto,
 } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "@/uploads/storage.provider";
@@ -29,6 +31,7 @@ import {
   broadcastMessage,
   broadcastMessageEdited,
   broadcastMessageDeleted,
+  broadcastMessageReaction,
   broadcastReadReceipt,
 } from "@/websocket/emitter";
 
@@ -50,7 +53,48 @@ const messageInclude = {
     select: messageUserSelect,
   },
   attachments: true,
+
+  replyTo: {
+    include: {
+      sender: {
+        select: messageUserSelect,
+      },
+      attachments: true,
+    },
+  },
+  reactions: {
+    orderBy: { createdAt: "asc" },
+  },
 } satisfies Prisma.MessageInclude;
+
+type SerializedMessage = {
+  [key: string]: unknown;
+  deleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  attachments: Array<{
+    id: string;
+    kind: AttachmentKind;
+    fileName: string;
+    filePath: string;
+    mimeType: string;
+    fileSize: number;
+    width: number | null;
+    height: number | null;
+    duration: number | null;
+    url: string;
+    createdAt: string;
+  }>;
+  reactions: Array<{
+    id: string;
+    emoji: string;
+    userId: string;
+    messageId: string;
+    createdAt: string;
+  }>;
+  sender?: { profile?: { avatar: string | null } | null } | null;
+  replyTo?: SerializedMessage | null;
+};
 
 export class MessageService {
   constructor(
@@ -107,8 +151,37 @@ export class MessageService {
         duration: number | null;
         createdAt: Date;
       }>;
+      replyTo?: {
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt: Date | null;
+        sender?: { profile?: { avatar?: string | null } | null };
+        attachments?: Array<{
+          id: string;
+          kind: AttachmentKind;
+          fileName: string;
+          filePath: string;
+          mimeType: string;
+          fileSize: number;
+          width: number | null;
+          height: number | null;
+          duration: number | null;
+          createdAt: Date;
+        }>;
+      } | null;
+      reactions?: Array<{
+        id: string;
+        emoji: string;
+        userId: string;
+        messageId: string;
+        createdAt: Date;
+      }>;
     },
-  >(message: T) {
+  >(message: T): Promise<SerializedMessage> {
+    const replyTo =
+      message.replyTo != null
+        ? await this.serializeMessage(message.replyTo)
+        : undefined;
     const serialized = {
       ...message,
       deleted: message.deletedAt !== null,
@@ -121,6 +194,15 @@ export class MessageService {
             ),
           )
         : [],
+      reactions:
+        message.reactions?.map((reaction) => ({
+          id: reaction.id,
+          emoji: reaction.emoji,
+          userId: reaction.userId,
+          messageId: reaction.messageId,
+          createdAt: reaction.createdAt.toISOString(),
+        })) ?? [],
+      ...(replyTo !== undefined ? { replyTo } : {}),
     };
     if (serialized.sender?.profile?.avatar !== undefined) {
       serialized.sender.profile.avatar = await resolveAvatarUrl(
@@ -128,7 +210,7 @@ export class MessageService {
         this.storageProvider,
       );
     }
-    return serialized;
+    return serialized as SerializedMessage;
   }
 
   private async serializeParticipant<
@@ -217,6 +299,17 @@ export class MessageService {
       }
     }
 
+    if (dto.replyToId) {
+      const target = await this.requireVisibleMessage(dto.replyToId);
+      if (target.chatId !== dto.chatId) {
+        throw new AppError(
+          HTTP_STATUS.BAD_REQUEST,
+          ERROR_CODES.VALIDATION_ERROR,
+          "Cannot reply to a message from a different chat",
+        );
+      }
+    }
+
     const attachmentIds = dto.attachmentIds ?? [];
     const attachments = attachmentIds.length
       ? await this.loadOwnedUnlinkedAttachments(
@@ -246,6 +339,7 @@ export class MessageService {
       clientId: dto.clientId,
       chatId: dto.chatId,
       senderId: dto.currentUserId,
+      replyToId: dto.replyToId,
     });
 
     if (attachments.length) {
@@ -263,7 +357,7 @@ export class MessageService {
     const serialized = await this.serializeMessage(full);
 
     try {
-      broadcastMessage(dto.chatId, serialized);
+      broadcastMessage(dto.chatId, serialized as MessageResponseType);
     } catch {
       // WebSocket may not be initialised in test runners.
     }
@@ -278,6 +372,7 @@ export class MessageService {
     clientId: string;
     chatId: string;
     senderId: string;
+    replyToId?: string;
   }) {
     try {
       return await this.messageRepository.createWithChatTouch({
@@ -287,6 +382,9 @@ export class MessageService {
           clientId: row.clientId,
           chat: { connect: { id: row.chatId } },
           sender: { connect: { id: row.senderId } },
+          ...(row.replyToId
+            ? { replyTo: { connect: { id: row.replyToId } } }
+            : {}),
         },
         include: messageInclude,
       });
@@ -360,9 +458,7 @@ export class MessageService {
         chatId: dto.chatId,
         deletedAt: null,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       cursor,
       skip,
       take,
@@ -379,6 +475,53 @@ export class MessageService {
     await this.requireActiveParticipant(message.chatId, dto.currentUserId);
 
     return await this.serializeMessage(message);
+  }
+
+  /** Add a reaction, or remove it if the sender already used that emoji. */
+  async toggleReaction(dto: ToggleReactionDto) {
+    await this.requireActiveParticipant(dto.chatId, dto.currentUserId);
+
+    const message = await this.requireVisibleMessage(dto.messageId);
+    if (message.chatId !== dto.chatId) {
+      throw new AppError(
+        HTTP_STATUS.BAD_REQUEST,
+        ERROR_CODES.VALIDATION_ERROR,
+        "Cannot react to a message from a different chat",
+      );
+    }
+
+    const existing = await this.messageRepository.findReaction({
+      where: {
+        messageId: dto.messageId,
+        userId: dto.currentUserId,
+        emoji: dto.emoji,
+      },
+    });
+    if (existing) {
+      await this.messageRepository.deleteReaction(existing.id);
+    } else {
+      await this.messageRepository.createReaction({
+        data: {
+          emoji: dto.emoji,
+          messageId: dto.messageId,
+          userId: dto.currentUserId,
+        },
+      });
+    }
+
+    const updated = await this.messageRepository.findUnique({
+      where: { id: dto.messageId },
+      include: messageInclude,
+    });
+    const serialized = await this.serializeMessage(updated ?? message);
+
+    try {
+      broadcastMessageReaction(dto.chatId, serialized as MessageResponseType);
+    } catch {
+      // WebSocket may not be initialised in test runners.
+    }
+
+    return serialized;
   }
 
   async editMessage(dto: EditMessageDto) {
@@ -416,7 +559,7 @@ export class MessageService {
     const serialized = await this.serializeMessage(updated);
 
     try {
-      broadcastMessageEdited(message.chatId, serialized);
+      broadcastMessageEdited(message.chatId, serialized as MessageResponseType);
     } catch {
       // WebSocket may not be initialised in test runners.
     }
@@ -450,7 +593,10 @@ export class MessageService {
     const serialized = await this.serializeMessage(deleted);
 
     try {
-      broadcastMessageDeleted(message.chatId, serialized);
+      broadcastMessageDeleted(
+        message.chatId,
+        serialized as MessageResponseType,
+      );
     } catch {
       // WebSocket may not be initialised in test runners.
     }

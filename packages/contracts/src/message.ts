@@ -17,6 +17,44 @@ export const messageSenderSchema = userSummarySchema.extend({
 
 export type MessageSenderType = z.infer<typeof messageSenderSchema>;
 
+export const reactionResponseSchema = z.object({
+  id: z.uuid(),
+  emoji: z.string().trim().min(1).max(8),
+  userId: z.uuid(),
+  messageId: z.uuid(),
+  createdAt: z.string(),
+});
+
+export type ReactionResponseType = z.infer<typeof reactionResponseSchema>;
+
+export const toggleReactionRequestSchema = z.object({
+  emoji: z.string().trim().min(1).max(8),
+});
+
+export type ToggleReactionRequestType = z.infer<
+  typeof toggleReactionRequestSchema
+>;
+
+// The message a reply answers: the same shape as a full message but without a
+// nested `replyTo` of its own. Replies resolve one hop deep, so both the wire
+// format and the serialiser stay non-recursive.
+export const repliedMessageSchema = z.object({
+  id: z.uuid(),
+  chatId: z.uuid(),
+  senderId: z.uuid(),
+  type: messageTypeSchema,
+  text: safeString(5000).nullish(),
+  deleted: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  sender: messageSenderSchema,
+  attachments: z.array(attachmentResponseSchema).default([]),
+  replyToId: z.uuid().nullish(),
+  reactions: z.array(reactionResponseSchema).default([]),
+});
+
+export type RepliedMessageType = z.infer<typeof repliedMessageSchema>;
+
 export const messageResponseSchema = z.object({
   id: z.uuid(),
   chatId: z.uuid(),
@@ -28,6 +66,10 @@ export const messageResponseSchema = z.object({
   updatedAt: z.string(),
   sender: messageSenderSchema,
   attachments: z.array(attachmentResponseSchema).default([]),
+  // Reply chain: the id of the message this one answers, and its payload.
+  replyToId: z.uuid().nullish(),
+  replyTo: repliedMessageSchema.nullish(),
+  reactions: z.array(reactionResponseSchema).default([]),
 });
 
 export type MessageResponseType = z.infer<typeof messageResponseSchema>;
@@ -47,6 +89,8 @@ export const sendMessageRequestSchema = z.object({
   // Required — the column is NOT NULL, so a missing one has to fail validation
   // with a 400 rather than blowing up on insert.
   clientId: z.uuid(),
+  // The message this one is answering, if any.
+  replyToId: z.uuid().optional(),
 });
 
 export const sendMessageResponseSchema = messageResponseSchema;
@@ -109,6 +153,20 @@ export type DeleteMessageResponseType = z.infer<
   typeof deleteMessageResponseSchema
 >;
 
+export const toggleReactionResponseSchema = messageResponseSchema;
+
+export type ToggleReactionResponseType = z.infer<
+  typeof toggleReactionResponseSchema
+>;
+
+// Params for the nested reaction route: /chats/:chatId/messages/:messageId/reactions.
+export const chatMessageIdParamsSchema = z.object({
+  chatId: z.uuid(),
+  messageId: z.uuid(),
+});
+
+export type ChatMessageIdParamsType = z.infer<typeof chatMessageIdParamsSchema>;
+
 export const markChatReadRequestSchema = z.object({
   messageId: z.uuid().optional(),
 });
@@ -150,11 +208,17 @@ export interface SendMessageDto extends ChatMessagesDto {
   type: MessageType;
   attachmentIds?: string[];
   clientId: string;
+  replyToId?: string;
 }
 
 export interface MessageIdDto {
   currentUserId: string;
   messageId: string;
+}
+
+export interface ToggleReactionDto extends MessageIdDto {
+  chatId: string;
+  emoji: string;
 }
 
 export interface EditMessageDto extends MessageIdDto {

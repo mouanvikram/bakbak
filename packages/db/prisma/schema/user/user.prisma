@@ -40,7 +40,8 @@ model User {
   chats        ChatParticipant[]
   createdChats Chat[]            @relation("CreatedChats")
 
-  messages Message[]
+  messages   Message[]
+  reactions  MessageReaction[]
 }
 
 enum GenderType {

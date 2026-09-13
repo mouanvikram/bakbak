@@ -4,9 +4,11 @@ import {
   ArrowLeft,
   Check,
   Info,
+  MessageSquare,
   Paperclip,
   Pencil,
   Phone,
+  Reply,
   SendHorizontal,
   Smile,
   Trash2,
@@ -23,6 +25,7 @@ import {
   editMessage,
   deleteMessage,
   markChatRead,
+  toggleReaction,
 } from "@/features/messages/api";
 import { uploadFile } from "@/lib/api/upload";
 import type { ChatResponseType } from "@bakbak/contracts";
@@ -71,7 +74,12 @@ export function ChatPage() {
     id: string;
     original: string;
   } | null>(null);
-  // Right-click menu on one of my messages.
+  // The message being answered in the composer (reply); mutually exclusive
+  // with `editing`.
+  const [replyTarget, setReplyTarget] = useState<MessageResponseType | null>(
+    null,
+  );
+  // Right-click menu on a message.
   const [msgMenu, setMsgMenu] = useState<{
     x: number;
     y: number;
@@ -83,10 +91,13 @@ export function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Idempotency key for the in-flight / last-failed text send, so retrying the
-  // same message doesn't create a duplicate.
-  const pendingSend = useRef<{ clientId: string; content: string } | null>(
-    null,
-  );
+  // same message doesn't create a duplicate. Scoped by chat id and reply target
+  // so two different messages can't collide on one key.
+  const pendingSend = useRef<{
+    clientId: string;
+    content: string;
+    replyToId?: string;
+  } | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   // participantId -> id of the last message that participant has read.
@@ -105,6 +116,8 @@ export function ChatPage() {
     // A pending clientId is scoped to the chat it was sent in — switching
     // chats must never let it get reused (and possibly matched) elsewhere.
     pendingSend.current = null;
+    // A reply target is scoped to its chat too.
+    setReplyTarget(null);
   }, [id]);
 
   useEffect(() => {
@@ -200,6 +213,13 @@ export function ChatPage() {
       );
     };
 
+    const onMessageReaction = (message: MessageResponseType) => {
+      if (message.chatId !== id) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === message.id ? message : m)),
+      );
+    };
+
     const onTyping = (data: {
       chatId: string;
       userId: string;
@@ -277,6 +297,7 @@ export function ChatPage() {
     s.on("message:new", onNewMessage);
     s.on("message:edited", onMessageEdited);
     s.on("message:deleted", onMessageDeleted);
+    s.on("message:reaction", onMessageReaction);
     s.on("typing", onTyping);
     s.on("presence", onPresence);
     s.on("read:receipt", onReadReceipt);
@@ -288,6 +309,7 @@ export function ChatPage() {
       s.off("message:new", onNewMessage);
       s.off("message:edited", onMessageEdited);
       s.off("message:deleted", onMessageDeleted);
+      s.off("message:reaction", onMessageReaction);
       s.off("typing", onTyping);
       s.off("presence", onPresence);
       s.off("read:receipt", onReadReceipt);
@@ -336,6 +358,16 @@ export function ChatPage() {
     });
   }
 
+  async function handleReaction(message: MessageResponseType, emoji: string) {
+    if (!id || message.deleted) return;
+    try {
+      const res = await toggleReaction(id, message.id, emoji);
+      upsertMessage(res);
+    } catch {
+      toastError("Couldn't update reaction");
+    }
+  }
+
   async function handleSend() {
     const content = text.trim();
     if (!id || sending || uploading) return;
@@ -363,12 +395,14 @@ export function ChatPage() {
 
     if (!content) return;
 
-    // Reuse the key when retrying the exact same message.
+    // Reuse the key when retrying the exact same message (same text + target).
+    const replyToId = replyTarget?.id;
     const clientId =
-      pendingSend.current?.content === content
+      pendingSend.current?.content === content &&
+      pendingSend.current?.replyToId === replyToId
         ? pendingSend.current.clientId
         : crypto.randomUUID();
-    pendingSend.current = { clientId, content };
+    pendingSend.current = { clientId, content, replyToId };
 
     setSending(true);
     setError("");
@@ -376,9 +410,14 @@ export function ChatPage() {
       socket.emit("typing", { chatId: id, isTyping: false });
     }
     try {
-      const res = await sendMessage(id, { text: content, clientId });
+      const res = await sendMessage(id, {
+        text: content,
+        clientId,
+        ...(replyToId ? { replyToId } : {}),
+      });
       pendingSend.current = null;
       setText("");
+      setReplyTarget(null);
       // The socket may also deliver it; dedupe on id in onNewMessage.
       upsertMessage(res);
     } catch {
@@ -403,9 +442,11 @@ export function ChatPage() {
           attachmentIds: [attachment.id],
           clientId: crypto.randomUUID(),
           ...(caption ? { text: caption } : {}),
+          ...(replyTarget?.id ? { replyToId: replyTarget.id } : {}),
         });
         caption = "";
         setText("");
+        setReplyTarget(null);
         upsertMessage(res);
       }
     } catch (err) {
@@ -419,6 +460,7 @@ export function ChatPage() {
   }
 
   function startEdit(message: MessageResponseType) {
+    setReplyTarget(null);
     setEditing({ id: message.id, original: message.text ?? "" });
     setText(message.text ?? "");
     setEmojiOpen(false);
@@ -428,6 +470,17 @@ export function ChatPage() {
   function cancelEdit() {
     setEditing(null);
     setText("");
+  }
+
+  function startReply(message: MessageResponseType) {
+    setEditing(null);
+    setReplyTarget(message);
+    setEmojiOpen(false);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  function cancelReply() {
+    setReplyTarget(null);
   }
 
   async function confirmDeleteMessage() {
@@ -478,9 +531,13 @@ export function ChatPage() {
       event.preventDefault();
       void handleSend();
     }
-    if (event.key === "Escape" && editing) {
+    if (event.key === "Escape") {
       event.preventDefault();
-      cancelEdit();
+      if (editing) {
+        cancelEdit();
+      } else if (replyTarget) {
+        cancelReply();
+      }
     }
   }
 
@@ -649,12 +706,14 @@ export function ChatPage() {
                 key={m.id}
                 message={m}
                 mine={m.senderId === currentUserId}
+                currentUserId={currentUserId ?? ""}
                 isGroup={chat?.type === "GROUP"}
                 isEditing={editing?.id === m.id}
                 mediaPreview={preferences.mediaPreview}
                 status={messageStatus(m.id)}
+                onReaction={(emoji) => void handleReaction(m, emoji)}
                 onContextMenu={(e) => {
-                  if (m.senderId !== currentUserId || m.deleted) return;
+                  if (m.deleted) return;
                   e.preventDefault();
                   setMsgMenu({ x: e.clientX, y: e.clientY, message: m });
                 }}
@@ -687,6 +746,24 @@ export function ChatPage() {
               onClick={cancelEdit}
               className="hover:bg-brand-500/15 shrink-0 rounded p-0.5"
               aria-label="Cancel editing"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+        {replyTarget && (
+          <div className="bg-brand-500/10 text-brand-600 mb-2 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs">
+            <MessageSquare className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+              Replying to{" "}
+              {replyTarget.sender.profile?.displayName ??
+                replyTarget.sender.username}
+            </span>
+            <button
+              type="button"
+              onClick={cancelReply}
+              className="hover:bg-brand-500/15 shrink-0 rounded p-0.5"
+              aria-label="Cancel reply"
             >
               <X className="size-3.5" />
             </button>
@@ -742,9 +819,11 @@ export function ChatPage() {
             placeholder={
               editing
                 ? "Edit your message"
-                : preferences.enterToSend
-                  ? "Type a message"
-                  : "Type a message (Ctrl+Enter to send)"
+                : replyTarget
+                  ? `Reply to ${replyTarget.sender.profile?.displayName ?? replyTarget.sender.username}`
+                  : preferences.enterToSend
+                    ? "Type a message"
+                    : "Type a message (Ctrl+Enter to send)"
             }
             className="focus:border-brand-500 focus:ring-brand-500/15 max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 transition outline-none placeholder:text-gray-400 focus:ring-2 disabled:opacity-60"
           />
@@ -794,6 +873,11 @@ export function ChatPage() {
           y={msgMenu.y}
           onClose={() => setMsgMenu(null)}
           items={[
+            {
+              label: "Reply",
+              icon: <Reply />,
+              onSelect: () => startReply(msgMenu.message),
+            },
             ...(msgMenu.message.text
               ? [
                   {

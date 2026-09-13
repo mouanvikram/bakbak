@@ -83,6 +83,13 @@ export function broadcastMessageDeleted(
   broadcastToChat(chatId, "message:deleted", message);
 }
 
+export function broadcastMessageReaction(
+  chatId: string,
+  message: MessageResponseType,
+) {
+  broadcastToChat(chatId, "message:reaction", message);
+}
+
 export function broadcastReadReceipt(
   chatId: string,
   userId: string,

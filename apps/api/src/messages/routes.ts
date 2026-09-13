@@ -4,12 +4,14 @@ import { messageController } from "@/services/service.container";
 import { validate } from "@/middleware/validate";
 import {
   chatIdParamsSchema,
+  chatMessageIdParamsSchema,
   editMessageRequestSchema,
   getMessageRequestSchema,
   listMessagesQuerySchema,
   markChatReadRequestSchema,
   searchMessagesQuerySchema,
   sendMessageRequestSchema,
+  toggleReactionRequestSchema,
 } from "@bakbak/contracts";
 import { rateLimitAuthorized } from "@/redis/rate-limit";
 
@@ -42,6 +44,12 @@ chatMessageRoutes.post(
   validate(sendMessageRequestSchema),
   rateLimitAuthorized("messageSend"),
   messageController.sendMessage,
+);
+chatMessageRoutes.put(
+  "/:messageId/reactions",
+  validate(chatMessageIdParamsSchema, "params"),
+  validate(toggleReactionRequestSchema),
+  messageController.toggleReaction,
 );
 
 /**

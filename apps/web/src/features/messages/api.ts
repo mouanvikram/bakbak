@@ -10,6 +10,7 @@ import type {
   MarkChatReadResponseType,
   SearchMessagesResponseType,
   GetUnreadCountResponseType,
+  MessageResponseType,
 } from "@bakbak/contracts";
 import { apiClient } from "@/lib/api/client";
 
@@ -20,6 +21,18 @@ export function sendMessage(
   return apiClient(`/api/v1/chats/${chatId}/messages`, {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+/** Add a reaction, or remove it if the caller already used that emoji. */
+export function toggleReaction(
+  chatId: string,
+  messageId: string,
+  emoji: string,
+): Promise<MessageResponseType> {
+  return apiClient(`/api/v1/chats/${chatId}/messages/${messageId}/reactions`, {
+    method: "PUT",
+    body: JSON.stringify({ emoji }),
   });
 }
 

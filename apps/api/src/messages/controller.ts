@@ -12,6 +12,7 @@ import {
   searchMessagesResponseSchema,
   sendMessageResponseSchema,
   getUnreadCountResponseSchema,
+  toggleReactionResponseSchema,
 } from "@bakbak/contracts";
 import { HTTP_STATUS } from "@/errors/app-error";
 import type {
@@ -22,6 +23,7 @@ import type {
   MarkChatReadRequestType,
   SearchMessagesQueryType,
   SendMessageRequestType,
+  ToggleReactionRequestType,
 } from "@bakbak/contracts";
 
 export class MessageController {
@@ -39,6 +41,7 @@ export class MessageController {
       type: body.type ?? MessageType.TEXT,
       attachmentIds: body.attachmentIds,
       clientId: body.clientId,
+      replyToId: body.replyToId,
     });
 
     return validateResponse(
@@ -78,6 +81,27 @@ export class MessageController {
     return validateResponse(res, HTTP_STATUS.OK, getMessageResponseSchema, {
       message: response,
     });
+  };
+
+  toggleReaction = async (req: Request, res: Response) => {
+    const currentUserId = requireUserId(req);
+    const { chatId } = req.valid?.params as ChatIdParamsType;
+    const { messageId } = req.valid?.params as GetMessageRequestType;
+    const { emoji } = req.valid?.body as ToggleReactionRequestType;
+
+    const response = await this.messageService.toggleReaction({
+      currentUserId,
+      chatId,
+      messageId,
+      emoji,
+    });
+
+    return validateResponse(
+      res,
+      HTTP_STATUS.OK,
+      toggleReactionResponseSchema,
+      response,
+    );
   };
 
   editMessage = async (req: Request, res: Response) => {
