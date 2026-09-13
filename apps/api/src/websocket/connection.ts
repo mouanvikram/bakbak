@@ -3,19 +3,15 @@ import { prisma } from "@bakbak/db";
 import logger from "@/lib/logger";
 import type { AuthenticatedSocket } from "./auth";
 import { websocketConfig } from "./config";
+import { presenceConfig } from "@/redis/presence/config";
+import { touchSocket, releaseSocket } from "@/redis/presence";
 
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-// userId → set of active socket ids
-const presenceMap = new Map<string, Set<string>>();
+// socketId → heartbeat timer refreshing the Redis presence badge
+const heartbeatTimers = new Map<string, ReturnType<typeof setInterval>>();
 // socketId → set of chatIds the socket has joined (for presence broadcasting)
 const socketChatRooms = new Map<string, Set<string>>();
-
-let _io: Server | null = null;
-
-export function setRefIo(io: Server) {
-  _io = io;
-}
 
 export function registerConnection(io: Server, socket: AuthenticatedSocket) {
   const s = socket;
@@ -23,22 +19,26 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 
   logger.info({ socketId: s.id, userId, username }, "Socket connected");
 
-  if (!presenceMap.has(userId)) {
-    presenceMap.set(userId, new Set());
-  }
-  const userSockets = presenceMap.get(userId);
-  const isFirstConnection = userSockets?.size === 0;
-  userSockets?.add(s.id);
+  // Heartbeat keeps the user's badge (and TTL) alive so a crashed instance's
+  // stale socket expires via the lease instead of pinning the user "online".
+  const heartbeatTimer = setInterval(() => {
+    void touchSocket(userId, s.id);
+  }, presenceConfig.heartbeatMs);
+  heartbeatTimers.set(s.id, heartbeatTimer);
 
-  if (isFirstConnection) {
-    void markPresence(userId, true);
-  }
+  void (async () => {
+    // Cluster-wide: `first` only when this is the user's first live socket
+    // anywhere, so multi-instance connects don't thrash the presence flags.
+    const { first } = await touchSocket(userId, s.id);
+    if (first) {
+      void markPresence(userId, true);
+    }
 
-  // Auto-join every chat the user is an active participant of.
-  void joinAllChats(s, userId).then(async (chatIds) => {
+    // Auto-join every chat the user is an active participant of.
+    const chatIds = await joinAllChats(s, userId);
     socketChatRooms.set(s.id, new Set(chatIds));
     for (const chatId of chatIds) {
-      if (isFirstConnection) {
+      if (first) {
         s.to(`chat:${chatId}`).emit("presence", { userId, online: true });
       }
       // Hand this socket a snapshot of who is already online in the room,
@@ -49,7 +49,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
         online: await onlineUserIdsInChat(io, chatId, userId),
       });
     }
-  });
+  })();
 
   s.on("chat:join", async (chatId: unknown) => {
     if (typeof chatId !== "string") return;
@@ -127,25 +127,30 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
   s.on("disconnect", (reason) => {
     logger.info({ socketId: s.id, userId, reason }, "Socket disconnected");
 
-    const sockets = presenceMap.get(userId);
-    if (sockets) {
-      sockets.delete(s.id);
-      const isLast = sockets.size === 0;
-      if (isLast) {
-        presenceMap.delete(userId);
+    const heartbeatTimer = heartbeatTimers.get(s.id);
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimers.delete(s.id);
+    }
+
+    const rooms = socketChatRooms.get(s.id);
+    socketChatRooms.delete(s.id);
+
+    // Cluster-wide: `offline` only when the user has no live socket anywhere.
+    void releaseSocket(userId, s.id).then(({ offline }) => {
+      if (offline) {
         void markPresence(userId, false);
-        const rooms = socketChatRooms.get(s.id);
         if (rooms) {
           for (const chatId of rooms) {
-            _io?.to(`chat:${chatId}`).emit("presence", {
+            io.to(`chat:${chatId}`).emit("presence", {
               userId,
               online: false,
+              lastSeenAt: new Date().toISOString(),
             });
           }
         }
       }
-    }
-    socketChatRooms.delete(s.id);
+    });
 
     // Clear lingering typing timers for this socket's user.
     for (const tKey of [...typingTimers.keys()]) {

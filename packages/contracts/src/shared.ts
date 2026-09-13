@@ -147,6 +147,8 @@ export const profileCoreSchema = z.object({
   firstName: z.string().nullish(),
   lastName: z.string().nullish(),
   avatar: safeString(1024).nullish(),
+  isOnline: z.boolean().optional(),
+  lastSeenAt: z.string().nullish(),
 });
 
 export const userSummarySchema = z.object({

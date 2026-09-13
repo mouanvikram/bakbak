@@ -24,6 +24,8 @@ const chatUserSelect = {
       firstName: true,
       lastName: true,
       avatar: true,
+      isOnline: true,
+      lastSeenAt: true,
     },
   },
 } satisfies Prisma.UserSelect;
@@ -96,15 +98,25 @@ export class ChatService {
 
   private async resolveUserAvatar<
     U extends {
-      profile?: { avatar?: string | null } | null;
+      profile?: {
+        avatar?: string | null;
+        lastSeenAt?: Date | string | null;
+      } | null;
     },
   >(user: U): Promise<U> {
-    const avatar = user.profile?.avatar;
-    if (avatar !== undefined && user.profile) {
-      user.profile.avatar = await resolveAvatarUrl(
-        avatar,
+    const profile = user.profile;
+    if (!profile) return user;
+
+    if (profile.avatar !== undefined) {
+      profile.avatar = await resolveAvatarUrl(
+        profile.avatar,
         this.storageProvider,
       );
+    }
+    // Prisma returns the DateTime as a Date object; the response schema needs
+    // an ISO string, so convert here — otherwise validateResponse 500s.
+    if (profile.lastSeenAt instanceof Date) {
+      profile.lastSeenAt = profile.lastSeenAt.toISOString();
     }
     return user;
   }

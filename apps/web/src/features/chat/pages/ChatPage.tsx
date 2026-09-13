@@ -39,7 +39,7 @@ import { EmojiPopover } from "@/features/chat/components/EmojiPopover";
 import { EmptyState } from "@/components/ui/States";
 import { MessageThreadSkeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
-import { cn } from "@/lib/utils";
+import { cn, formatLastSeen } from "@/lib/utils";
 
 /** Files the composer lets you attach. Anything the API rejects still surfaces
  * an error toast. */
@@ -91,6 +91,8 @@ export function ChatPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   // participantId -> id of the last message that participant has read.
   const [readState, setReadState] = useState<Record<string, string | null>>({});
+  // userId -> ISO timestamp of when they last went offline, from `presence`.
+  const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   // userId -> timer that drops a stale "typing" indicator if no stop arrives.
   const typingExpiry = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -233,9 +235,21 @@ export function ChatPage() {
       setReadState((prev) => ({ ...prev, [data.userId]: data.messageId }));
     };
 
-    const onPresence = (data: { userId: string; online: boolean }) => {
+    const onPresence = (data: {
+      userId: string;
+      online: boolean;
+      lastSeenAt?: string;
+    }) => {
       if (!id) return;
       if (data.userId === currentUserId) return;
+      if (!data.online) {
+        setLastSeen((prev) => {
+          const next = { ...prev };
+          if (data.lastSeenAt) next[data.userId] = data.lastSeenAt;
+          else delete next[data.userId];
+          return next;
+        });
+      }
       setOnlineUsers((prev) => {
         const next = new Set(prev);
         if (data.online) next.add(data.userId);
@@ -495,7 +509,12 @@ export function ChatPage() {
       ? `${chat.participants?.length ?? 0} participants`
       : otherOnline
         ? "Online"
-        : "Offline"
+        : formatLastSeen(
+            otherParticipant?.user.profile?.lastSeenAt ??
+              (otherParticipant
+                ? lastSeen[otherParticipant.user.id]
+                : undefined),
+          )
     : "";
 
   const typingLabel =
