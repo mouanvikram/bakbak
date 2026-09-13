@@ -1,5 +1,5 @@
 import { type Request, type Response } from "express";
-import type { AuthService } from "./service";
+import type { AuthService, IssuedTokens } from "./service";
 import {
   verifyEmailResponseSchema,
   loginResponseSchema,
@@ -14,7 +14,6 @@ import {
   verifyRecoveryResponseSchema,
   logoutResponseSchema,
   refreshTokenResponseSchema,
-  verifyTwoFactorLoginResponseSchema,
   resendTwoFactorLoginResponseSchema,
   setupTwoFactorResponseSchema,
   twoFactorStatusResponseSchema,
@@ -25,7 +24,6 @@ import type {
   ChangePasswordRequestType,
   ForgotPasswordRequestType,
   LoginRequestType,
-  RefreshTokenRequestType,
   ResendVerificationRequestType,
   ResetPasswordRequestType,
   SignUpRequestType,
@@ -40,10 +38,22 @@ import type {
 } from "@bakbak/contracts";
 import { validateResponse } from "@/middleware/validate";
 import { requireSessionId, requireUserId } from "./auth-request";
-import { HTTP_STATUS } from "@/errors/app-error";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
+import {
+  clearRefreshCookie,
+  readRefreshCookie,
+  setRefreshCookie,
+} from "./refresh-cookie";
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  // The refresh token goes into the httpOnly cookie; the response schema strips
+  // it from the JSON body, so it never reaches page scripts.
+  private sendTokens(res: Response, tokens: IssuedTokens) {
+    setRefreshCookie(res, tokens.refreshToken);
+    return validateResponse(res, HTTP_STATUS.OK, loginResponseSchema, tokens);
+  }
 
   signUp = async (req: Request, res: Response) => {
     //bio if left blank will be null. matches db schema.
@@ -88,7 +98,7 @@ export class AuthController {
       );
     }
 
-    return validateResponse(res, HTTP_STATUS.OK, loginResponseSchema, response);
+    return this.sendTokens(res, response);
   };
 
   verifyTwoFactorLogin = async (req: Request, res: Response) => {
@@ -97,12 +107,7 @@ export class AuthController {
       req.headers["user-agent"],
     );
 
-    return validateResponse(
-      res,
-      HTTP_STATUS.OK,
-      verifyTwoFactorLoginResponseSchema,
-      response,
-    );
+    return this.sendTokens(res, response);
   };
 
   resendTwoFactorLogin = async (req: Request, res: Response) => {
@@ -264,21 +269,43 @@ export class AuthController {
     const userId = requireUserId(req);
 
     const result = await this.authService.logout(userId, requireSessionId(req));
+    clearRefreshCookie(res);
 
     return validateResponse(res, HTTP_STATUS.OK, logoutResponseSchema, result);
   };
 
   refreshToken = async (req: Request, res: Response) => {
-    const result = await this.authService.refreshAccessToken(
-      req.valid?.body as RefreshTokenRequestType,
-    );
+    try {
+      const token = readRefreshCookie(req);
+      if (!token) {
+        throw new AppError(
+          HTTP_STATUS.UNAUTHORIZED,
+          ERROR_CODES.INVALID_REFRESH_TOKEN,
+          "Invalid refresh token",
+        );
+      }
 
-    return validateResponse(
-      res,
-      HTTP_STATUS.OK,
-      refreshTokenResponseSchema,
-      result,
-    );
+      const result = await this.authService.refreshAccessToken(token);
+      setRefreshCookie(res, result.refreshToken);
+
+      return validateResponse(
+        res,
+        HTTP_STATUS.OK,
+        refreshTokenResponseSchema,
+        result,
+      );
+    } catch (error) {
+      // A dead cookie is cleared so the browser stops presenting it — except
+      // after a lost rotation race, where the winner's Set-Cookie already
+      // replaced it and clearing would sign the user out.
+      if (!(
+        error instanceof AppError &&
+        error.code === ERROR_CODES.REFRESH_TOKEN_ROTATED
+      )) {
+        clearRefreshCookie(res);
+      }
+      throw error;
+    }
   };
 
   listSessions = async (req: Request, res: Response) => {
@@ -331,6 +358,8 @@ export class AuthController {
     const userId = requireUserId(req);
 
     const result = await this.authService.revokeAllSessions(userId);
+    // "Everywhere" includes this browser.
+    clearRefreshCookie(res);
 
     return validateResponse(
       res,

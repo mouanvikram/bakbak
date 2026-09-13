@@ -20,15 +20,12 @@ import type {
   VerifyRecoveryResponseType,
   ChangePasswordRequestType,
   ChangePasswordResponseType,
-  RefreshTokenRequestType,
-  RefreshTokenResponseType,
   LogoutRequestType,
   LogoutResponseType,
   ListSessionsResponseType,
   RevokeSessionResponseType,
 } from "@bakbak/contracts";
 import { apiClient } from "@/lib/api/client";
-import { getRefreshToken } from "@/lib/api/tokens";
 
 /** Resolves to tokens, or — when the account has 2FA on — a challenge that
  * must be replayed to `verifyTwoFactorLogin` with the emailed code. */
@@ -79,11 +76,11 @@ export function disableTwoFactor(
   });
 }
 
-// Refresh token is sent only as a fallback for identifying the current session.
+// The current session is identified by the access token's session id.
 export function listSessions(): Promise<ListSessionsResponseType> {
   return apiClient("/api/v1/auth/sessions", {
     method: "POST",
-    body: JSON.stringify({ refreshToken: getRefreshToken() ?? undefined }),
+    body: JSON.stringify({}),
   });
 }
 
@@ -99,7 +96,7 @@ export function revokeSession(
 export function revokeOtherSessions(): Promise<RevokeSessionResponseType> {
   return apiClient("/api/v1/auth/sessions/revoke-others", {
     method: "POST",
-    body: JSON.stringify({ refreshToken: getRefreshToken() ?? undefined }),
+    body: JSON.stringify({}),
   });
 }
 
@@ -192,15 +189,6 @@ export function verifyRecovery(
   return apiClient("/api/v1/auth/recover-account/verify", {
     method: "POST",
     body: JSON.stringify({ token }),
-  });
-}
-
-export function refreshToken(
-  data: RefreshTokenRequestType,
-): Promise<RefreshTokenResponseType> {
-  return apiClient("/api/v1/auth/refresh-token", {
-    method: "POST",
-    body: JSON.stringify(data),
   });
 }
 

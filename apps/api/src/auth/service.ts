@@ -30,8 +30,6 @@ import type {
   SignUpResponseType,
   VerifyEmailRequestType,
   VerifyEmailResponseType,
-  RefreshTokenRequestType,
-  RefreshTokenResponseType,
   LogoutResponseType,
   LoginOutcomeType,
   VerifyTwoFactorLoginRequestType,
@@ -65,6 +63,13 @@ interface EmailRecipient {
   email: string;
   username: string;
 }
+
+// Contracts describe the wire; the refresh token never goes over it in a body —
+// the controller moves it into the httpOnly cookie.
+export type IssuedTokens = LoginResponseType & { refreshToken: string };
+
+export type LoginOutcome =
+  Exclude<LoginOutcomeType, LoginResponseType> | IssuedTokens;
 
 export class AuthService {
   constructor(
@@ -179,7 +184,7 @@ export class AuthService {
   async login(
     dto: LoginRequestType,
     userAgent?: string,
-  ): Promise<LoginOutcomeType> {
+  ): Promise<LoginOutcome> {
     const user = await this.userRepository.findFirst({
       // soft-deleted account resolves to a "deleted account" signal below;
       OR: [{ username: dto.identifier }, { email: dto.identifier }],
@@ -249,7 +254,9 @@ export class AuthService {
         deletedAt: user.deletedAt.toISOString(),
         remainingMs: Math.max(
           0,
-          user.deletedAt.getTime() + authConfig.accountRecoveryWindowMs - Date.now(),
+          user.deletedAt.getTime() +
+            authConfig.accountRecoveryWindowMs -
+            Date.now(),
         ),
         message: "This account was deleted and can no longer be signed in to.",
       };
@@ -294,7 +301,7 @@ export class AuthService {
     username: string,
     userAgent?: string | null,
     existingSessionId?: string,
-  ): Promise<LoginResponseType> {
+  ): Promise<IssuedTokens> {
     const expiresAt = new Date(
       Date.now() + authConfig.refreshTokenExpiryDays * 24 * 60 * 60 * 1000,
     );
@@ -475,10 +482,7 @@ export class AuthService {
   }
 
   // verify 2FA code.
-  async consumeTwoFactorCode(
-    userId: string,
-    code: string,
-  ): Promise<void> {
+  async consumeTwoFactorCode(userId: string, code: string): Promise<void> {
     const user = await this.userRepository.findBy({ id: userId });
     if (
       user?.twoFactorLockedUntil &&
@@ -549,7 +553,7 @@ export class AuthService {
   async verifyLoginTwoFactor(
     dto: VerifyTwoFactorLoginRequestType,
     userAgent?: string,
-  ): Promise<LoginResponseType> {
+  ): Promise<IssuedTokens> {
     const userId = this.readChallenge(dto.challengeId);
 
     const user = await this.userRepository.findBy({ id: userId });
@@ -794,9 +798,9 @@ export class AuthService {
   }
 
   async refreshAccessToken(
-    dto: RefreshTokenRequestType,
-  ): Promise<RefreshTokenResponseType> {
-    const tokenHash = this.hashToken(dto.refreshToken);
+    refreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const tokenHash = this.hashToken(refreshToken);
 
     const stored = await this.refreshTokenRepository.findFirst({
       tokenHash,
@@ -811,6 +815,17 @@ export class AuthService {
     }
 
     if (stored.revokedAt) {
+      // Rotated moments ago: almost always a benign race (two tabs, a retried
+      // request whose response was lost), not theft. Refuse it without the
+      // revoke-everything response; the client retries with the cookie the
+      // winning rotation already set.
+      if (
+        Date.now() - stored.revokedAt.getTime() <=
+        authConfig.refreshTokenReuseGraceMs
+      ) {
+        throw this.rotatedError();
+      }
+
       logger.warn(
         { userId: stored.userId, sessionId: stored.sessionId },
         "Refresh token reuse detected — revoking all sessions",
@@ -853,16 +868,29 @@ export class AuthService {
       );
     }
 
-    await this.refreshTokenRepository.revoke(stored.id);
+    // Claim the token atomically. Losing here means a concurrent request with
+    // the same token rotated it first — the same benign race as above.
+    if (!(await this.refreshTokenRepository.revokeIfActive(stored.id))) {
+      throw this.rotatedError();
+    }
 
-    const { accessToken, refreshToken } = await this.issueTokens(
-      user.id,
-      user.username,
-      null,
-      stored.sessionId ?? undefined,
+    const { accessToken, refreshToken: nextRefreshToken } =
+      await this.issueTokens(
+        user.id,
+        user.username,
+        null,
+        stored.sessionId ?? undefined,
+      );
+
+    return { accessToken, refreshToken: nextRefreshToken };
+  }
+
+  private rotatedError(): AppError {
+    return new AppError(
+      HTTP_STATUS.UNAUTHORIZED,
+      ERROR_CODES.REFRESH_TOKEN_ROTATED,
+      "Refresh token was already rotated",
     );
-
-    return { accessToken, refreshToken };
   }
 
   async forgotPassword(

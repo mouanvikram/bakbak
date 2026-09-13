@@ -6,7 +6,6 @@ import {
   nameFieldSchema,
   okResponseSchema,
   passwordSchema,
-  refreshTokenSchema,
   safeString,
   tokenSchema,
   usernameSchema,
@@ -22,9 +21,10 @@ export const loginRequestSchema = z.object({
   password: safeString(128, 1),
 });
 
+// The refresh token is never in a response body — the API sets it as an
+// httpOnly cookie, so page scripts can't read it.
 export const loginResponseSchema = z.object({
   accessToken: z.string(),
-  refreshToken: z.string(),
   user: z.object({
     id: z.uuid(),
     identifier: z.string().min(1),
@@ -59,11 +59,9 @@ export type LoginChallengeResponseType = z.infer<
 
 //`POST /auth/login` may resolve to either tokens or a 2FA challenge.
 export type LoginOutcomeType =
-  | LoginResponseType
-  | LoginChallengeResponseType
-  | DeletedAccountResponseType;
+  LoginResponseType | LoginChallengeResponseType | DeletedAccountResponseType;
 
-// A soft-deleted account that submitted a valid password. 
+// A soft-deleted account that submitted a valid password.
 export const deletedAccountResponseSchema = z.object({
   deleted: z.literal(true),
   id: z.uuid(),
@@ -268,16 +266,12 @@ export type VerifyRecoveryResponseType = z.infer<
 
 // ─── Token operations ──────────────────────────────────────────────
 
-export const refreshTokenRequestSchema = z.object({
-  refreshToken: refreshTokenSchema,
-});
-
+// `POST /auth/refresh-token` takes no body: the refresh token is the httpOnly
+// cookie, and the rotated one comes back the same way.
 export const refreshTokenResponseSchema = z.object({
   accessToken: z.string().min(1),
-  refreshToken: z.string().min(1),
 });
 
-export type RefreshTokenRequestType = z.infer<typeof refreshTokenRequestSchema>;
 export type RefreshTokenResponseType = z.infer<
   typeof refreshTokenResponseSchema
 >;

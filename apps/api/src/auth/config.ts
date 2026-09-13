@@ -1,16 +1,39 @@
-import { requiredInProduction } from "@/config/required";
+import { bool } from "@/config/parse";
+import { isProduction, requiredInProduction } from "@/config/required";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+// SameSite for the refresh cookie. "strict" fits the web app reaching the API
+// same-origin (Vite proxy in dev, a rewrite in prod); "none" is only for a
+// cross-site API, and browsers require Secure alongside it.
+function parseSameSite(raw: string | undefined): "strict" | "lax" | "none" {
+  const value = raw?.trim().toLowerCase();
+  return value === "lax" || value === "none" ? value : "strict";
+}
+
+const refreshCookieSameSite = parseSameSite(process.env.AUTH_COOKIE_SAMESITE);
 
 export const authConfig = {
   // Base for verification / reset / recovery links in outbound email, so a
   // localhost value surviving into production sends users dead links.
-  frontendUrl: requiredInProduction(
-    process.env.FRONTEND_URL,
-    "FRONTEND_URL",
-    { insecureDevDefault: "http://localhost:5173" },
-  ),
+  frontendUrl: requiredInProduction(process.env.FRONTEND_URL, "FRONTEND_URL", {
+    insecureDevDefault: "http://localhost:5173",
+  }),
   refreshTokenExpiryDays: 7,
+  // A refresh token rotated this recently is refused without triggering reuse
+  // detection: inside the window a replay is almost always a benign race (two
+  // tabs, a retried request whose response was lost), not a stolen token.
+  refreshTokenReuseGraceMs: 30_000,
+  // The refresh token travels only in this httpOnly cookie, scoped to the auth
+  // routes, so page scripts — and any XSS — can never read it.
+  refreshCookie: {
+    name: "bakbak_rt",
+    path: "/api/v1/auth/refresh-token",
+    sameSite: refreshCookieSameSite,
+    secure:
+      refreshCookieSameSite === "none" ||
+      bool(process.env.AUTH_COOKIE_SECURE, isProduction()),
+  },
   verificationTokenTtlMs: ONE_HOUR_MS,
   passwordResetTokenTtlMs: ONE_HOUR_MS,
   accountRecoveryWindowMs: 30 * 24 * 60 * 60 * 1000,

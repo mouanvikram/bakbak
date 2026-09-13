@@ -1,9 +1,4 @@
-import {
-  clearTokens,
-  dedupeRefresh,
-  getAccessToken,
-  getRefreshToken,
-} from "./tokens";
+import { clearTokens, dedupeRefresh, getAccessToken } from "./tokens";
 
 export async function apiClient<T>(
   endpoint: string,
@@ -29,9 +24,11 @@ export async function apiClient<T>(
     headers,
   });
 
+  // Only a request that carried a token can have failed on its expiry — a 401
+  // from, say, a wrong password at login must surface as-is.
   if (
     res.status === 401 &&
-    getRefreshToken() &&
+    accessToken &&
     endpoint !== "/api/v1/auth/refresh-token"
   ) {
     try {

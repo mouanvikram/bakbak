@@ -17,8 +17,9 @@ import { AuthContext, type LoginResult } from "./auth-context";
 import {
   clearTokens as clearStoredTokens,
   dedupeRefresh,
-  getStoredTokens,
-  storeTokens as storeStoredTokens,
+  getAccessToken,
+  hasSession,
+  storeAccessToken,
 } from "@/lib/api/tokens";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -29,8 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    const { accessToken } = getStoredTokens();
-    if (!accessToken) {
+    if (!getAccessToken()) {
       setUser(null);
       setProfile(null);
       return;
@@ -47,8 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const { accessToken, refreshToken } = getStoredTokens();
-    if (!accessToken || !refreshToken) {
+    // The access token is memory-only, so every page load starts by trading
+    // the httpOnly refresh cookie for a new one. The session hint skips that
+    // request for visitors who were never signed in.
+    if (!hasSession()) {
       setIsLoading(false);
       return;
     }
@@ -67,19 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const startSession = useCallback(
-    async (response: {
-      accessToken: string;
-      refreshToken: string;
-      user: LoginResponseType["user"];
-    }) => {
-      storeStoredTokens(response.accessToken, response.refreshToken);
-      setUser(response.user);
-      const me = await getMe();
-      setProfile(me.profile);
-    },
-    [],
-  );
+  const startSession = useCallback(async (response: LoginResponseType) => {
+    // The refresh token already arrived as an httpOnly cookie on this response.
+    storeAccessToken(response.accessToken);
+    setUser(response.user);
+    const me = await getMe();
+    setProfile(me.profile);
+  }, []);
 
   const login = useCallback(
     async (data: LoginRequestType): Promise<LoginResult> => {

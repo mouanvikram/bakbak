@@ -10,7 +10,6 @@ import {
   loginRequestSchema,
   logoutRequestSchema,
   recoverAccountRequestSchema,
-  refreshTokenRequestSchema,
   resendTwoFactorLoginRequestSchema,
   resendVerificationRequestSchema,
   resetPasswordRequestSchema,
@@ -28,6 +27,7 @@ import {
   rateLimitEmails,
   rateLimitIp,
 } from "@/redis/rate-limit";
+import { requireTrustedOrigin } from "./refresh-cookie";
 
 export const authRoutes = Router();
 
@@ -97,9 +97,11 @@ authRoutes.post(
   validate(logoutRequestSchema),
   authController.logout,
 );
+// The refresh token arrives as the httpOnly cookie, not in the body — so the
+// only thing to check up front is that a browser request came from our site.
 authRoutes.post(
   "/refresh-token",
-  validate(refreshTokenRequestSchema),
+  requireTrustedOrigin,
   authController.refreshToken,
 );
 // Recover account

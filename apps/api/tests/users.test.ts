@@ -489,6 +489,12 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
       }),
     });
     const loginData = (await login.json()) as any;
+    // The refresh token now arrives only as the httpOnly cookie.
+    const refreshCookie = login.headers
+      .getSetCookie()
+      .map((cookie) => cookie.split(";")[0]!)
+      .find((pair) => pair.startsWith("bakbak_rt="));
+    expect(refreshCookie).toBeDefined();
 
     const delRes = await fetch(`${baseUrl()}/api/v1/users/me`, {
       method: "DELETE",
@@ -518,8 +524,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
     // And the pre-delete refresh token can no longer rotate.
     const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+      headers: { Cookie: refreshCookie! },
     });
     expect(refreshRes.status).toBe(401);
   });
@@ -828,10 +833,7 @@ describe.skipIf(!DB_AVAILABLE)("Users Endpoints", () => {
       data: {
         userId: testUser.id,
         type: "ACCOUNT_RECOVERY",
-        tokenHash: crypto
-          .createHash("sha256")
-          .update(plaintext)
-          .digest("hex"),
+        tokenHash: crypto.createHash("sha256").update(plaintext).digest("hex"),
         expiresAt: new Date(Date.now() - 60 * 1000),
       },
     });

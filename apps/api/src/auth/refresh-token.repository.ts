@@ -9,11 +9,14 @@ export class RefreshTokenRepository {
     return await prisma.refreshToken.findFirst({ where });
   }
 
-  async revoke(id: string) {
-    return await prisma.refreshToken.update({
-      where: { id },
+  // Conditional flip: only one concurrent caller can move revokedAt off null,
+  // so two requests racing the same refresh token can't both rotate it.
+  async revokeIfActive(id: string): Promise<boolean> {
+    const result = await prisma.refreshToken.updateMany({
+      where: { id, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    return result.count === 1;
   }
 
   async deleteExpired() {

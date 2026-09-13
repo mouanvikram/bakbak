@@ -375,7 +375,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(data.deletedAt).toBeDefined();
     expect(data.remainingMs).toBeGreaterThan(0);
     expect(data.accessToken).toBeUndefined();
-    expect(data.refreshToken).toBeUndefined();
+    expect(refreshCookieFrom(res)).toBeUndefined();
   });
 
   test("POST /api/v1/auth/login - a deleted account without the password still gets invalid credentials", async () => {
@@ -590,7 +590,9 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as any;
     expect(data.accessToken).toBeDefined();
-    expect(data.refreshToken).toBeDefined();
+    // The refresh token is set as the httpOnly cookie, never in the body.
+    expect(data.refreshToken).toBeUndefined();
+    expect(refreshCookieFrom(res)).toBeDefined();
 
     // The code is single-use.
     const left = await prisma.verificationToken.count({
@@ -1045,11 +1047,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(meRes.status).toBe(401);
 
     // And the pre-change refresh token can no longer rotate.
-    const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: loginData.refreshToken }),
-    });
+    const refreshRes = await refreshWith(loginData.refreshToken);
     expect(refreshRes.status).toBe(401);
   });
 
@@ -1248,11 +1246,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(meRes.status).toBe(401);
 
     // And the pre-reset refresh token can no longer rotate.
-    const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: loginData.refreshToken }),
-    });
+    const refreshRes = await refreshWith(loginData.refreshToken);
     expect(refreshRes.status).toBe(401);
   });
 
@@ -1446,29 +1440,68 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   const hashToken = (token: string) =>
     crypto.createHash("sha256").update(token).digest("hex");
 
+  const REFRESH_COOKIE = "bakbak_rt";
+
+  /** The refresh token the API set as an httpOnly cookie on this response. */
+  const refreshCookieFrom = (res: Response): string | undefined => {
+    for (const header of res.headers.getSetCookie()) {
+      const pair = header.split(";")[0]!;
+      const eq = pair.indexOf("=");
+      if (pair.slice(0, eq) === REFRESH_COOKIE) {
+        return decodeURIComponent(pair.slice(eq + 1)) || undefined;
+      }
+    }
+    return undefined;
+  };
+
+  /** Logs in; `refreshToken` is read from the Set-Cookie header. */
   const loginAs = async (identifier: string, password = "TestPass123!") => {
     const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier, password }),
     });
-    return (await res.json()) as any;
+    const data = (await res.json()) as any;
+    return { ...data, refreshToken: refreshCookieFrom(res) } as any;
   };
+
+  /** POSTs /auth/refresh-token presenting `token` as the refresh cookie. */
+  const refreshWith = (token: string, headers: Record<string, string> = {}) =>
+    fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
+      method: "POST",
+      headers: { Cookie: `${REFRESH_COOKIE}=${token}`, ...headers },
+    });
 
   // â”€â”€ Refresh Token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  test("POST /api/v1/auth/login - should return a refresh token", async () => {
+  test("POST /api/v1/auth/login - sets the refresh token as an httpOnly cookie, not in the body", async () => {
     const user = await createTestUser({
       email: `refreshlogin.${Date.now()}@example.com`,
       isEmailVerified: true,
     });
 
-    const data = await loginAs(user.email);
+    const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: user.email,
+        password: "TestPass123!",
+      }),
+    });
+    expect(res.status).toBe(200);
 
+    const data = (await res.json()) as any;
     expect(data.accessToken).toBeDefined();
-    expect(data.refreshToken).toBeDefined();
-    expect(typeof data.refreshToken).toBe("string");
-    expect(data.refreshToken.length).toBeGreaterThan(0);
+    expect(data.refreshToken).toBeUndefined();
+
+    const cookie = res.headers
+      .getSetCookie()
+      .find((c) => c.startsWith(`${REFRESH_COOKIE}=`));
+    expect(cookie).toBeDefined();
+    expect(cookie).toMatch(/;\s*HttpOnly/i);
+    expect(cookie).toMatch(/;\s*SameSite=Strict/i);
+    expect(cookie).toMatch(/;\s*Path=\/api\/v1\/auth/i);
+    expect(refreshCookieFrom(res)!.length).toBeGreaterThan(0);
   });
 
   test("POST /api/v1/auth/refresh-token - should rotate tokens with valid refresh token", async () => {
@@ -1483,19 +1516,17 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     // must NOT be treated as a new device.
     newDeviceLoginEmailSpy.mockClear();
 
-    const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: loginData.refreshToken }),
-    });
+    const res = await refreshWith(loginData.refreshToken);
 
     expect(newDeviceLoginEmailSpy).not.toHaveBeenCalled();
 
     expect(res.status).toBe(200);
     const data = (await res.json()) as any;
     expect(data.accessToken).toBeDefined();
-    expect(data.refreshToken).toBeDefined();
-    expect(data.refreshToken).not.toBe(loginData.refreshToken);
+    expect(data.refreshToken).toBeUndefined();
+    const rotatedToken = refreshCookieFrom(res);
+    expect(rotatedToken).toBeDefined();
+    expect(rotatedToken).not.toBe(loginData.refreshToken);
 
     const oldHash = hashToken(loginData.refreshToken);
     const oldToken = await prisma.refreshToken.findFirst({
@@ -1504,16 +1535,17 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(oldToken?.revokedAt).not.toBeNull();
   });
 
-  test("POST /api/v1/auth/refresh-token - should fail with invalid refresh token", async () => {
-    const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: "totally-fake-token" }),
-    });
+  test("POST /api/v1/auth/refresh-token - should fail with invalid refresh token and clear the cookie", async () => {
+    const res = await refreshWith("totally-fake-token");
 
     expect(res.status).toBe(401);
     const data = (await res.json()) as any;
-    expect(data.error || data.message).toBeDefined();
+    expect(data.error.code).toBe("INVALID_REFRESH_TOKEN");
+    expect(
+      res.headers
+        .getSetCookie()
+        .some((c) => c.startsWith(`${REFRESH_COOKIE}=;`)),
+    ).toBe(true);
   });
 
   test("POST /api/v1/auth/refresh-token - should fail with revoked refresh token", async () => {
@@ -1532,18 +1564,14 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       data: { revokedAt: new Date() },
     });
 
-    const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: loginData.refreshToken }),
-    });
+    const res = await refreshWith(loginData.refreshToken);
 
     expect(res.status).toBe(401);
     const data = (await res.json()) as any;
     expect(data.error || data.message).toBeDefined();
   });
 
-  test("POST /api/v1/auth/refresh-token - reusing an already-rotated token revokes every session", async () => {
+  test("POST /api/v1/auth/refresh-token - reusing a rotated token after the grace window revokes every session", async () => {
     const user = await createTestUser({
       email: `reuse.${Date.now()}@example.com`,
       isEmailVerified: true,
@@ -1554,19 +1582,16 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     const b = await loginAs(user.email);
 
     // The legitimate client rotates device A's token once.
-    const rotated = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: a.refreshToken }),
-    });
+    const rotated = await refreshWith(a.refreshToken);
     expect(rotated.status).toBe(200);
 
-    // Replaying the now-revoked old token is the reuse signal.
-    const replay = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: a.refreshToken }),
+    // Outside the grace window, replaying the old token is the theft signal.
+    await prisma.refreshToken.updateMany({
+      where: { tokenHash: hashToken(a.refreshToken) },
+      data: { revokedAt: new Date(Date.now() - 60_000) },
     });
+
+    const replay = await refreshWith(a.refreshToken);
     expect(replay.status).toBe(401);
     const data = (await replay.json()) as any;
     expect(data.error.code).toBe("REFRESH_TOKEN_REUSE_DETECTED");
@@ -1578,12 +1603,78 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     });
     expect(live).toBe(0);
 
-    const bRefresh = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: b.refreshToken }),
-    });
+    const bRefresh = await refreshWith(b.refreshToken);
     expect(bRefresh.status).toBe(401);
+  });
+
+  test("POST /api/v1/auth/refresh-token - a just-rotated token inside the grace window is refused without revoking sessions", async () => {
+    const user = await createTestUser({
+      email: `grace.${Date.now()}@example.com`,
+      isEmailVerified: true,
+    });
+
+    const a = await loginAs(user.email);
+    const b = await loginAs(user.email);
+
+    const rotated = await refreshWith(a.refreshToken);
+    expect(rotated.status).toBe(200);
+    const next = refreshCookieFrom(rotated)!;
+
+    // e.g. a second tab presenting the cookie it read before the rotation.
+    const replay = await refreshWith(a.refreshToken);
+    expect(replay.status).toBe(401);
+    const data = (await replay.json()) as any;
+    expect(data.error.code).toBe("REFRESH_TOKEN_ROTATED");
+    // The winner's cookie must survive: this response doesn't clear it.
+    expect(replay.headers.getSetCookie()).toHaveLength(0);
+
+    // Nothing was revoked — the rotated token and device B both still work.
+    expect((await refreshWith(next)).status).toBe(200);
+    expect((await refreshWith(b.refreshToken)).status).toBe(200);
+  });
+
+  test("POST /api/v1/auth/refresh-token - two concurrent refreshes with one token rotate it exactly once", async () => {
+    const user = await createTestUser({
+      email: `refreshrace.${Date.now()}@example.com`,
+      isEmailVerified: true,
+    });
+
+    const loginData = await loginAs(user.email);
+
+    const [first, second] = await Promise.all([
+      refreshWith(loginData.refreshToken),
+      refreshWith(loginData.refreshToken),
+    ]);
+
+    expect([first.status, second.status].sort()).toEqual([200, 401]);
+    const loser = first.status === 401 ? first : second;
+    const data = (await loser.json()) as any;
+    expect(data.error.code).toBe("REFRESH_TOKEN_ROTATED");
+
+    // One successor token, not two.
+    const live = await prisma.refreshToken.count({
+      where: { userId: user.id, revokedAt: null },
+    });
+    expect(live).toBe(1);
+  });
+
+  test("POST /api/v1/auth/refresh-token - refuses an untrusted origin without touching the token", async () => {
+    const user = await createTestUser({
+      email: `refreshorigin.${Date.now()}@example.com`,
+      isEmailVerified: true,
+    });
+
+    const loginData = await loginAs(user.email);
+
+    const res = await refreshWith(loginData.refreshToken, {
+      Origin: "https://evil.example",
+    });
+    expect(res.status).toBe(403);
+
+    const stored = await prisma.refreshToken.findFirst({
+      where: { tokenHash: hashToken(loginData.refreshToken) },
+    });
+    expect(stored?.revokedAt).toBeNull();
   });
 
   test("POST /api/v1/auth/refresh-token - should fail with expired refresh token", async () => {
@@ -1601,27 +1692,21 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       },
     });
 
-    const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: token }),
-    });
+    const res = await refreshWith(token);
 
     expect(res.status).toBe(401);
     const data = (await res.json()) as any;
     expect(data.error || data.message).toBeDefined();
   });
 
-  test("POST /api/v1/auth/refresh-token - should fail without body", async () => {
+  test("POST /api/v1/auth/refresh-token - should fail without a refresh cookie", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
     });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
     const data = (await res.json()) as any;
-    expect(data.error.code).toBe("VALIDATION_ERROR");
+    expect(data.error.code).toBe("INVALID_REFRESH_TOKEN");
   });
 
   test("POST /api/v1/auth/refresh-token - new access token should be usable", async () => {
@@ -1632,11 +1717,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
     const loginData = await loginAs(user.email);
 
-    const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: loginData.refreshToken }),
-    });
+    const refreshRes = await refreshWith(loginData.refreshToken);
 
     const refreshData = (await refreshRes.json()) as any;
 
@@ -1680,15 +1761,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(mine?.revokedAt).not.toBeNull();
 
     // â€¦the other session still works.
-    const stillGood = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: elsewhere.refreshToken }),
-    });
+    const stillGood = await refreshWith(elsewhere.refreshToken);
     expect(stillGood.status).toBe(200);
   });
 
-  test("POST /api/v1/auth/logout - revoked refresh token should not be usable", async () => {
+  test("POST /api/v1/auth/logout - clears the cookie and the revoked refresh token is unusable", async () => {
     const user = await createTestUser({
       email: `logoutverify.${Date.now()}@example.com`,
       isEmailVerified: true,
@@ -1696,20 +1773,22 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
 
     const loginData = await loginAs(user.email);
 
-    await fetch(`${baseUrl()}/api/v1/auth/logout`, {
+    const logoutRes = await fetch(`${baseUrl()}/api/v1/auth/logout`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${loginData.accessToken}`,
       },
-      body: JSON.stringify({ refreshToken: loginData.refreshToken }),
+      body: JSON.stringify({}),
     });
+    expect(logoutRes.status).toBe(200);
+    expect(
+      logoutRes.headers
+        .getSetCookie()
+        .some((c) => c.startsWith(`${REFRESH_COOKIE}=;`)),
+    ).toBe(true);
 
-    const refreshRes = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: loginData.refreshToken }),
-    });
+    const refreshRes = await refreshWith(loginData.refreshToken);
 
     expect(refreshRes.status).toBe(401);
   });
@@ -1732,7 +1811,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       headers: { "Content-Type": "application/json", "User-Agent": ua },
       body: JSON.stringify({ identifier, password: "TestPass123!" }),
     });
-    return (await res.json()) as any;
+    const data = (await res.json()) as any;
+    return { ...data, refreshToken: refreshCookieFrom(res) } as any;
   };
 
   test("POST /auth/sessions - lists live sessions and flags the caller's", async () => {
@@ -1749,7 +1829,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${a.accessToken}`,
       },
-      body: JSON.stringify({ refreshToken: a.refreshToken }),
+      body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
     const { sessions } = (await res.json()) as any;
@@ -1774,7 +1854,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${a.accessToken}`,
         },
-        body: JSON.stringify({ refreshToken: a.refreshToken }),
+        body: JSON.stringify({}),
       })
     ).json()) as any;
     const target = list.sessions.find((s: any) => !s.current);
@@ -1790,11 +1870,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(revoke.status).toBe(200);
 
     // b's refresh token is now dead.
-    const refresh = await fetch(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: b.refreshToken }),
-    });
+    const refresh = await refreshWith(b.refreshToken);
     expect(refresh.status).toBe(401);
   });
 
@@ -1813,7 +1889,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${a.accessToken}`,
       },
-      body: JSON.stringify({ refreshToken: a.refreshToken }),
+      body: JSON.stringify({}),
     });
     expect(res.status).toBe(200);
 
@@ -2050,10 +2126,11 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     });
   });
 
-  test("refresh-token - should reject refreshToken over max (256)", async () => {
-    await expectValidationError(`${baseUrl()}/api/v1/auth/refresh-token`, {
-      refreshToken: overMaxRefreshToken,
-    });
+  test("refresh-token - should reject a refresh cookie over max (256)", async () => {
+    const res = await refreshWith(overMaxRefreshToken);
+    expect(res.status).toBe(401);
+    const data = (await res.json()) as any;
+    expect(data.error.code).toBe("INVALID_REFRESH_TOKEN");
   });
 
   test("signup - should reject null byte in username", async () => {
