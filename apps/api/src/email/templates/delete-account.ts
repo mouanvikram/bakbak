@@ -1,4 +1,6 @@
 
+import { escapeHtml } from "./escape";
+
 export const accountDeletionEmail = (
   userName: string,
   deletionTime: string
@@ -59,7 +61,7 @@ Account Deletion Scheduled
 
 <p style="color:#6b7280;font-size:16px;">
 
-Hi ${userName},
+Hi ${escapeHtml(userName)},
 
 </p>
 
@@ -87,7 +89,7 @@ Scheduled deletion time
 
 <p style="margin:0;font-size:18px;color:#991b1b;font-weight:bold;">
 
-${deletionTime}
+${escapeHtml(deletionTime)}
 
 </p>
 

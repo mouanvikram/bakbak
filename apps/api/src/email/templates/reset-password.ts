@@ -1,3 +1,5 @@
+import { escapeHtml } from "./escape";
+
 export const resetPasswordEmail = (userName: string, resetLink: string) => `
 <!DOCTYPE html>
 <html lang="en">
@@ -37,7 +39,7 @@ Reset Your Password
 </h1>
 
 <p style="color:#6b7280;font-size:16px;">
-Hi ${userName},
+Hi ${escapeHtml(userName)},
 </p>
 
 <p style="font-size:16px;color:#374151;line-height:1.7;">
@@ -46,7 +48,7 @@ Click the button below to choose a new password.
 </p>
 
 <div style="margin:35px 0;">
-<a href="${resetLink}"
+<a href="${escapeHtml(resetLink)}"
 style="
 background:#2563eb;
 padding:14px 34px;
@@ -75,8 +77,8 @@ If the button doesn't work, copy and paste this link:
 </p>
 
 <p style="word-break:break-all;">
-<a href="${resetLink}">
-${resetLink}
+<a href="${escapeHtml(resetLink)}">
+${escapeHtml(resetLink)}
 </a>
 </p>
 

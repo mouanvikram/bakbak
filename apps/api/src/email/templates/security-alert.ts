@@ -1,10 +1,12 @@
+import { escapeHtml } from "./escape";
+
 const alertLayout = (title: string, body: string) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title}</title>
+<title>${escapeHtml(title)}</title>
 </head>
 
 <body style="margin:0;padding:0;background:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
@@ -17,7 +19,7 @@ const alertLayout = (title: string, body: string) => `
 <td>
 
 <h1 style="margin:0;color:#111827;">
-${title}
+${escapeHtml(title)}
 </h1>
 
 ${body}
@@ -44,11 +46,11 @@ export const passwordChangedEmail = (userName: string, occurred: string) =>
     "Your password was changed",
     `
 <p style="font-size:16px;color:#374151;line-height:1.6;">
-Hi ${userName},
+Hi ${escapeHtml(userName)},
 </p>
 
 <p style="font-size:16px;color:#374151;line-height:1.6;">
-The password for your account was just changed (${occurred}). If this
+The password for your account was just changed (${escapeHtml(occurred)}). If this
 wasn't you, reset it immediately and revoke your sessions.
 </p>
 `,
@@ -59,7 +61,7 @@ export const newDeviceLoginEmail = (userName: string, userAgent: string) =>
     "New sign-in to your account",
     `
 <p style="font-size:16px;color:#374151;line-height:1.6;">
-Hi ${userName},
+Hi ${escapeHtml(userName)},
 </p>
 
 <p style="font-size:16px;color:#374151;line-height:1.6;">
@@ -67,7 +69,7 @@ Your account was just signed in to from a new session.
 </p>
 
 <p style="font-size:14px;color:#6b7280;line-height:1.6;background:#f9fafb;padding:14px;border-radius:8px;">
-Browser / device: <strong>${userAgent}</strong>
+Browser / device: <strong>${escapeHtml(userAgent)}</strong>
 </p>
 
 <p style="font-size:16px;color:#374151;line-height:1.6;">

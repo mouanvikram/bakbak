@@ -1,3 +1,5 @@
+import { escapeHtml } from "./escape";
+
 export const verificationEmail = (
   userName: string,
   verificationLink: string,
@@ -24,7 +26,7 @@ Verify Your Email
 </h1>
 
 <p style="font-size:16px;color:#374151;line-height:1.6;">
-Hi ${userName},
+Hi ${escapeHtml(userName)},
 </p>
 
 <p style="font-size:16px;color:#374151;line-height:1.6;">
@@ -32,7 +34,7 @@ Thanks for signing up! Please verify your email address by clicking the button b
 </p>
 
 <div style="text-align:center;margin:35px 0;">
-<a href="${verificationLink}"
+<a href="${escapeHtml(verificationLink)}"
 style="
 background:#16a34a;
 color:white;
@@ -51,7 +53,7 @@ If the button doesn't work, use this link:
 </p>
 
 <p style="word-break:break-all;font-size:14px;">
-<a href="${verificationLink}">${verificationLink}</a>
+<a href="${escapeHtml(verificationLink)}">${escapeHtml(verificationLink)}</a>
 </p>
 
 <hr style="margin:35px 0;border:none;border-top:1px solid #e5e7eb;">

@@ -1,3 +1,5 @@
+import { escapeHtml } from "./escape";
+
 export const twoFactorCodeEmail = (
   userName: string,
   code: string,
@@ -28,7 +30,7 @@ Your verification code
 </h1>
 
 <p style="color:#6b7280;font-size:16px;margin:0 0 4px;">
-Hi ${userName},
+Hi ${escapeHtml(userName)},
 </p>
 
 <p style="font-size:16px;color:#374151;line-height:1.7;">
@@ -38,12 +40,12 @@ Use this code to continue. Do not share it with anyone.
 <div style="margin:32px 0;">
 <span style="display:inline-block;background:#f3f4f6;border-radius:10px;padding:16px 28px;
 font-size:32px;font-weight:bold;letter-spacing:10px;color:#111827;">
-${code}
+${escapeHtml(code)}
 </span>
 </div>
 
 <p style="font-size:14px;color:#6b7280;">
-This code expires in <strong>${expiresInMinutes} minutes</strong>.
+This code expires in <strong>${escapeHtml(expiresInMinutes)} minutes</strong>.
 </p>
 
 <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb;">
