@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Spinner } from "@/components/ui/Spinner";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { requestAccountDeletionChallenge } from "@/features/users/api";
 
 export function DeleteAccountDialog({
@@ -112,17 +113,18 @@ export function DeleteAccountDialog({
           className="mt-2 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 font-mono text-sm text-gray-800 transition outline-none focus:border-red-400 focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50"
         />
 
-        <input
-          type="password"
+        <PasswordInput
+          label="Password"
+          name="deletePassword"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) =>
             e.key === "Enter" && canContinue && void handleContinue()
           }
           disabled={busy || twoFactorRequired !== null}
-          placeholder="Password"
           autoComplete="current-password"
-          className="mt-2 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 transition outline-none focus:border-red-400 focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="focus:border-red-400 focus:ring-red-300"
         />
 
         {twoFactorRequired === true && (

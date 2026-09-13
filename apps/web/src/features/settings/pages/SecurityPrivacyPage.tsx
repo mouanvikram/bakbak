@@ -9,6 +9,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { getSettings } from "@/features/settings/api";
 import { Button } from "@/components/ui/Button";
 import { OtpInput } from "@/components/ui/OtpInput";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Toggle } from "@/components/ui/Toggle";
 import { DeleteAccountDialog } from "@/features/settings/components/DeleteAccountDialog";
 
@@ -40,24 +41,7 @@ export function SecurityPrivacyPage() {
   async function handleToggleTwoFactor() {
     setTwoFactorError("");
     if (twoFactor) {
-      // Turning it off proves the password — a session token alone is not enough.
-      if (!disablePassword) {
-        setTwoFactorError("Enter your current password to turn off 2FA.");
-        return;
-      }
-      setTwoFactorSaving(true);
-      try {
-        const res = await disableTwoFactor({ password: disablePassword });
-        setTwoFactor(res.twoFactorEnabled);
-        setTwoFactorSetup(null);
-        setDisablePassword("");
-      } catch (err) {
-        setTwoFactorError(
-          err instanceof Error ? err.message : "Couldn't disable 2FA",
-        );
-      } finally {
-        setTwoFactorSaving(false);
-      }
+      await handleDisableTwoFactor();
       return;
     }
 
@@ -69,6 +53,27 @@ export function SecurityPrivacyPage() {
     } catch (err) {
       setTwoFactorError(
         err instanceof Error ? err.message : "Couldn't start 2FA setup",
+      );
+    } finally {
+      setTwoFactorSaving(false);
+    }
+  }
+
+  async function handleDisableTwoFactor() {
+    setTwoFactorError("");
+    if (!disablePassword) {
+      setTwoFactorError("Enter your current password to turn off 2FA.");
+      return;
+    }
+    setTwoFactorSaving(true);
+    try {
+      const res = await disableTwoFactor({ password: disablePassword });
+      setTwoFactor(res.twoFactorEnabled);
+      setTwoFactorSetup(null);
+      setDisablePassword("");
+    } catch (err) {
+      setTwoFactorError(
+        err instanceof Error ? err.message : "Couldn't disable 2FA",
       );
     } finally {
       setTwoFactorSaving(false);
@@ -144,42 +149,27 @@ export function SecurityPrivacyPage() {
           <h2 className="text-lg font-semibold text-gray-900">
             Change Password
           </h2>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">
-              Current Password
-            </span>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="focus:border-brand-500 focus:ring-brand-500/15 h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
-              placeholder="Enter current password"
-            />
-          </label>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">
-              New Password
-            </span>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="focus:border-brand-500 focus:ring-brand-500/15 h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
-              placeholder="Enter new password"
-            />
-          </label>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-900">
-              Confirm New Password
-            </span>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="focus:border-brand-500 focus:ring-brand-500/15 h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
-              placeholder="Confirm new password"
-            />
-          </label>
+          <PasswordInput
+            label="Current Password"
+            name="currentPassword"
+            placeholder="Enter current password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+          />
+          <PasswordInput
+            label="New Password"
+            name="newPassword"
+            placeholder="Enter new password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <PasswordInput
+            label="Confirm New Password"
+            name="confirmPassword"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex items-center justify-end gap-3">
             {saved && (
@@ -220,18 +210,24 @@ export function SecurityPrivacyPage() {
             </div>
 
             {twoFactor && !twoFactorSetup && (
-              <label className="flex flex-col gap-2 border-t border-gray-100 pt-4">
-                <span className="text-sm font-semibold text-gray-900">
-                  Current password
-                </span>
-                <input
-                  type="password"
+              <div className="flex flex-col gap-4 border-t border-gray-100 pt-4">
+                <PasswordInput
+                  label="Current password"
+                  name="disablePassword"
+                  placeholder="Required to turn off 2FA"
                   value={disablePassword}
                   onChange={(e) => setDisablePassword(e.target.value)}
-                  className="focus:border-brand-500 focus:ring-brand-500/15 h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-800 transition outline-none focus:ring-2"
-                  placeholder="Required to turn off 2FA"
                 />
-              </label>
+                <div className="flex justify-end">
+                  <Button
+                    value="Turn off 2FA"
+                    size="sm"
+                    fullWidth={false}
+                    loading={twoFactorSaving}
+                    onClick={() => void handleDisableTwoFactor()}
+                  />
+                </div>
+              </div>
             )}
 
             {twoFactorSetup && (
