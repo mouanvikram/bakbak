@@ -101,10 +101,19 @@ export function createLogger(destination?: LoggerDestination) {
   if (!destination) {
     if (prettyPrint) {
       // Colors and single-line output for the local dev loop.
-      options.transport = {
+      const prettyTarget = {
         target: "pino-pretty",
         options: { colorize: true },
       };
+      if (lokiOptions) {
+        // Pretty console AND structured shipping at the same time: pino fans
+        // every line out to both via its worker-thread transport pipeline.
+        options.transport = {
+          targets: [prettyTarget, { target: "pino-loki", options: lokiOptions }],
+        };
+      } else {
+        options.transport = prettyTarget;
+      }
     } else if (lokiOptions) {
       options.transport = { target: "pino-loki", options: lokiOptions };
     }

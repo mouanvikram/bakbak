@@ -121,7 +121,7 @@ export class ChatService {
     // Prisma returns the DateTime as a Date object; the response schema needs
     // an ISO string, so convert here — otherwise validateResponse 500s.
     if (profile.lastSeenAt instanceof Date) {
-      profile.lastSeenAt = profile.lastSeenAt.toISOString();
+      profile.lastSeenAt = toIso(profile.lastSeenAt);
     }
     return user;
   }
