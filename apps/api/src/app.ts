@@ -1,10 +1,12 @@
 import express from "express";
 import { type Express } from "express";
 import cors from "cors";
-import helmet from "helmet";
 import compression from "compression";
 import { env } from "@/config";
 import { errorHandler } from "@/middleware/error.middleware";
+import { securityMiddleware } from "@/middleware/security.middleware";
+import { formBodySizeLimit } from "@/middleware/body-size-limit.middleware";
+import { uploadsConfig } from "@/uploads/config";
 import { requestIdMiddleware } from "@/middleware/request-id.middleware";
 import { requestLoggerMiddleware } from "@/middleware/request-logger.middleware";
 import { rateLimitGlobal } from "@/redis/rate-limit";
@@ -23,7 +25,7 @@ const app: Express = express();
 app.set("trust proxy", env.TRUST_PROXY);
 
 // 2. Security headers
-app.use(helmet());
+app.use(securityMiddleware);
 
 // 3. CORS
 app.use(
@@ -41,6 +43,8 @@ app.use(requestLoggerMiddleware);
 
 // 6. Request body parsing
 app.use(express.json({ limit: "32kb" }));
+// Form bodies (multipart / urlencoded) aren't parsed by express.json, so give them their own cap
+app.use(formBodySizeLimit(uploadsConfig.maxFileSize + 2 * 1024 * 1024));
 
 // 7. Global rate limiting
 app.use(rateLimitGlobal());

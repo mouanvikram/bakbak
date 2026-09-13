@@ -32,6 +32,10 @@ export function createFileUpload(options: FileUploadOptions): FileUpload {
     limits: {
       fileSize: maxFileSize,
       files: 1,
+      // Non-file fields: cap each and cap the count, so a multipart body full of fields can't bypass the file cap to balloon memory.
+      fieldSize: 128 * 1024,
+      fields: 16,
+      parts: 18,
     },
     fileFilter: (_req, file, cb) => {
       const reason = rejectReason(file);
