@@ -7,6 +7,8 @@ import app from "@/app";
 import { env } from "@/config";
 import { initializeWebSocket } from "@/websocket";
 import { createHealthzRouter, createReadyzRouter } from "@/system/health";
+import { createMetricsRouter } from "@/system/metrics";
+import { getRedisClient, isRedisReady } from "@/redis/client";
 import { registerShutdownHook } from "@/shutdown/registry";
 import logger from "@/lib/logger";
 
@@ -20,6 +22,9 @@ app.get("/", (_: Request, res: Response) => {
 // liveness probe, /readyz checks DB / Redis / storage / Resend connectivity.
 app.use("/healthz", createHealthzRouter());
 app.use("/readyz", createReadyzRouter());
+
+// Prometheus scrape endpoint, also from the system module.
+app.use("/metrics", createMetricsRouter());
 
 const httpServer = createServer(app);
 
@@ -43,6 +48,18 @@ registerShutdownHook(
     ),
 );
 
-httpServer.listen(env.PORT, () => {
-  logger.info(`Server is listening at http://localhost:${env.PORT}`);
-});
+// Gate the listener on Redis being ready. With `enableOfflineQueue: false`
+// the rate-limiter fails open while the client is still connecting, so
+// listening before "ready" would serve unthrottled traffic. Waiting on the
+// event closes that window; ioredis keeps retrying until Redis is up.
+async function startServerGate() {
+  const redis = getRedisClient();
+  if (!isRedisReady()) {
+    await new Promise<void>((resolve) => redis.once("ready", () => resolve()));
+  }
+  httpServer.listen(env.PORT, () => {
+    logger.info(`Server is listening at http://localhost:${env.PORT}`);
+  });
+}
+
+void startServerGate();

@@ -1,9 +1,9 @@
-import { useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { Check, CheckCheck, Reply, Smile } from "lucide-react";
 import type { MessageResponseType } from "@bakbak/contracts";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
-import { EmojiPopover } from "@/features/chat/components/EmojiPopover";
 import {
   MessageAttachments,
   MessageMedia,
@@ -11,8 +11,20 @@ import {
 
 export type DeliveryStatus = "sent" | "delivered" | "seen";
 
-/** Image and video attachments get the edge-to-edge media treatment. */
+// Image and video attachments get the edge-to-edge media treatment.
 const PREVIEWABLE = new Set(["IMAGE", "VIDEO"]);
+
+// Shortlist shown in the compact reaction picker.
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉"];
+
+const REACTION_PICKER_WIDTH = 8 * 36 + 12;
+const REACTION_PICKER_HEIGHT = 44;
+
+interface PickerAnchor {
+  x: number;
+  y: number;
+  height: number;
+}
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], {
@@ -21,8 +33,7 @@ function formatTime(iso: string) {
   });
 }
 
-/** A message counts as edited once its updatedAt is meaningfully after its
- * createdAt (create-time jitter between the two columns is sub-second). */
+// Edited once updatedAt is meaningfully after createdAt.
 function wasEdited(m: MessageResponseType) {
   return (
     new Date(m.updatedAt).getTime() - new Date(m.createdAt).getTime() > 2000
@@ -56,7 +67,7 @@ function Meta({
   );
 }
 
-/** Text shown for the answered message inside a reply quote. */
+// Text shown for the answered message inside a reply quote.
 function replySummary(m: MessageResponseType) {
   if (m.deleted) return "This message was deleted";
   const text = m.text?.trim();
@@ -75,7 +86,7 @@ function replySummary(m: MessageResponseType) {
   }
 }
 
-/** The compact "answering this" strip pinned to the top of a bubble. */
+// The compact "answering this" strip pinned to the top of a bubble.
 function ReplyPreview({
   message: m,
   mine,
@@ -116,11 +127,7 @@ function ReplyPreview({
   );
 }
 
-/**
- * One message row: optional sender header (groups), then the bubble. Image and
- * video messages render the media edge-to-edge with the time/receipt overlaid;
- * everything else keeps the padded text/attachment bubble.
- */
+// One message row: sender header (groups), bubble, meta, and reactions.
 export function MessageBubble({
   message: m,
   mine,
@@ -137,15 +144,16 @@ export function MessageBubble({
   isGroup: boolean;
   isEditing: boolean;
   status: DeliveryStatus;
-  /** When false, images/videos render as download chips instead of inline. */
+  // When false, images/videos render as download chips instead of inline.
   mediaPreview?: boolean;
   onContextMenu: (e: MouseEvent) => void;
   currentUserId: string;
-  /** Toggles an emoji on this message (add, or remove if already used). */
+  // Toggles an emoji on this message (add, or remove if already used).
   onReaction?: (emoji: string) => void;
 }) {
   const senderName = m.sender.profile?.displayName ?? m.sender.username ?? "";
-  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [picker, setPicker] = useState<PickerAnchor | null>(null);
+  const pickerButtonRef = useRef<HTMLButtonElement>(null);
 
   const media =
     mediaPreview &&
@@ -169,8 +177,15 @@ export function MessageBubble({
   }
 
   const addReaction = (emoji: string) => {
-    setEmojiOpen(false);
+    setPicker(null);
     onReaction?.(emoji);
+  };
+
+  const openPicker = () => {
+    const el = pickerButtonRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPicker({ x: rect.left, y: rect.top, height: rect.height });
   };
 
   return (
@@ -256,25 +271,99 @@ export function MessageBubble({
               <span>{group.count}</span>
             </button>
           ))}
-          <span className="relative">
-            <button
-              type="button"
-              aria-label="Add a reaction"
-              aria-expanded={emojiOpen}
-              onClick={() => setEmojiOpen((v) => !v)}
-              className="flex size-6 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-            >
-              <Smile className="size-3.5" />
-            </button>
-            {emojiOpen && (
-              <EmojiPopover
+          <button
+            ref={pickerButtonRef}
+            type="button"
+            aria-label="Add a reaction"
+            aria-expanded={picker !== null}
+            onClick={openPicker}
+            className="flex size-6 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+          >
+            <Smile className="size-3.5" />
+          </button>
+          {picker &&
+            createPortal(
+              <ReactionPicker
+                anchor={picker}
                 onPick={addReaction}
-                onClose={() => setEmojiOpen(false)}
-              />
+                onClose={() => setPicker(null)}
+              />,
+              document.body,
             )}
-          </span>
         </div>
       )}
+    </div>
+  );
+}
+
+// Compact portal-based reaction picker, clamped to the viewport.
+function ReactionPicker({
+  anchor,
+  onPick,
+  onClose,
+}: {
+  anchor: PickerAnchor;
+  onPick: (emoji: string) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const onOutside = (e: globalThis.MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const settle = setTimeout(
+      () => window.addEventListener("mousedown", onOutside),
+      0,
+    );
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onOutside);
+      clearTimeout(settle);
+    };
+  }, [onClose]);
+
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const above = anchor.y > REACTION_PICKER_HEIGHT + 8;
+  const left = Math.min(
+    Math.max(anchor.x, 8),
+    Math.max(8, viewportWidth - REACTION_PICKER_WIDTH),
+  );
+  const top = above
+    ? undefined
+    : Math.min(
+        anchor.y + anchor.height + 6,
+        viewportHeight - REACTION_PICKER_HEIGHT - 8,
+      );
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl"
+      style={{
+        width: REACTION_PICKER_WIDTH,
+        left,
+        top,
+        bottom: above ? viewportHeight - anchor.y + 6 : undefined,
+      }}
+    >
+      <div className="flex items-center gap-0.5">
+        {QUICK_REACTIONS.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => onPick(emoji)}
+            className="flex size-9 items-center justify-center rounded-lg text-xl transition-colors hover:bg-gray-100"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
