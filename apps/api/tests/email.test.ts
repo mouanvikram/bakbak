@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { escapeHtml } from "@/email/templates/escape";
+import { resolveRecipient } from "@/email/recipient";
 import { verificationEmail } from "@/email/templates/verify-email";
 import { resetPasswordEmail } from "@/email/templates/reset-password";
 import { twoFactorCodeEmail } from "@/email/templates/two-factor-code";
@@ -17,6 +18,34 @@ describe("escapeHtml", () => {
 
   test("coerces numbers", () => {
     expect(escapeHtml(30)).toBe("30");
+  });
+});
+
+describe("resolveRecipient", () => {
+  const devInbox = "dev@example.com";
+
+  test("non-prod always redirects to DEV_INBOX", () => {
+    expect(
+      resolveRecipient({ isProduction: false, to: "user@example.com", devInbox }),
+    ).toEqual({ action: "send", recipient: devInbox });
+  });
+
+  test("non-prod with no DEV_INBOX skips", () => {
+    expect(
+      resolveRecipient({ isProduction: false, to: "user@example.com", devInbox: "" }),
+    ).toEqual({ action: "skip" });
+  });
+
+  test("prod sends to the given recipient", () => {
+    expect(
+      resolveRecipient({ isProduction: true, to: "user@example.com", devInbox }),
+    ).toEqual({ action: "send", recipient: "user@example.com" });
+  });
+
+  test("prod with a null recipient fails loudly instead of falling back to the dev inbox", () => {
+    expect(() =>
+      resolveRecipient({ isProduction: true, to: null, devInbox }),
+    ).toThrow("non-null recipient");
   });
 });
 

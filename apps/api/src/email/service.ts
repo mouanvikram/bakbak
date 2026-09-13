@@ -11,6 +11,7 @@ import {
 } from "@/email/templates/security-alert";
 import { env } from "@/config";
 import { emailConfig } from "./config";
+import { resolveRecipient } from "./recipient";
 
 const resend = new Resend(emailConfig.resendApiKey);
 
@@ -30,19 +31,24 @@ export class EmailService {
       return;
     }
 
-    const recipient =
-      env.NODE_ENV === "production" ? (dto.to ?? DEV_EMAIL) : DEV_EMAIL;
+    const decision = resolveRecipient({
+      isProduction: env.NODE_ENV === "production",
+      to: dto.to,
+      devInbox: DEV_EMAIL,
+    });
 
     // Outside production every mail is redirected to DEV_INBOX. With none
     // configured there is nowhere safe to send it — drop it loudly rather
     // than hand the provider an empty recipient.
-    if (!recipient) {
+    if (decision.action === "skip") {
       logger.warn(
         { subject: dto.subject },
         "sendEmail skipped (no recipient — set DEV_INBOX)",
       );
       return;
     }
+
+    const recipient = decision.recipient;
 
     try {
       const { data, error } = await resend.emails.send({
