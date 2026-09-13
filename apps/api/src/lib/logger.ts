@@ -3,8 +3,24 @@ import { env } from "@/config";
 import { systemConfig } from "@/system/config";
 import { bool } from "@/config/parse";
 
+// Structured log shipping: when LOKI_URL is set, the pino-loki transport sends every line to Loki
+const lokiOptions = process.env.LOKI_URL
+  ? {
+      host: process.env.LOKI_URL,
+      ...(process.env.LOKI_USERNAME && process.env.LOKI_PASSWORD
+        ? {
+            basicAuth: `${process.env.LOKI_USERNAME}:${process.env.LOKI_PASSWORD}`,
+          }
+        : {}),
+      labels: { service: "bakbak-api", env: env.NODE_ENV },
+      batching: true,
+      interval: 5,
+      timeout: 10_000,
+    }
+  : undefined;
+
 // Human-readable logs for local dev: LOG_PRETTY=true wires the pino-pretty
-// transport instead of the default compact JSON lines.
+
 const prettyPrint = bool(process.env.LOG_PRETTY, false);
 
 const LIVE_LOG_LEVELS = new Set([
@@ -62,7 +78,7 @@ export interface LoggerDestination {
 /**
  * Creates a pino logger with the app-wide defaults: env-based level, tagged
  * `base` fields, and the shared redact paths. A custom `destination` is only
- * used in tests — the app itself logs to stdout.
+ * used in tests — the app itself logs to stdout (or the Loki transport).
  */
 export function createLogger(destination?: LoggerDestination) {
   const options: pino.LoggerOptions = {
@@ -82,12 +98,16 @@ export function createLogger(destination?: LoggerDestination) {
     },
   };
 
-  if (!destination && prettyPrint) {
-    // Colors and single-line output for the local dev loop.
-    options.transport = {
-      target: "pino-pretty",
-      options: { colorize: true },
-    };
+  if (!destination) {
+    if (prettyPrint) {
+      // Colors and single-line output for the local dev loop.
+      options.transport = {
+        target: "pino-pretty",
+        options: { colorize: true },
+      };
+    } else if (lokiOptions) {
+      options.transport = { target: "pino-loki", options: lokiOptions };
+    }
   }
 
   return destination ? pino(options, destination) : pino(options);
