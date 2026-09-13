@@ -15,6 +15,11 @@ import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import { addUserToChatRoom, broadcastChatUpdated } from "@/websocket/emitter";
 import { toIso } from "@/lib/dates";
 
+// Hard upper bound on group size — enforced at creation and on every add so a roster can't grow unboundedly over time.
+export const GROUP_MAX_PARTICIPANTS = 1000;
+
+export const GROUP_CREATE_MAX_PARTICIPANTS = 780;
+
 const chatUserSelect = {
   id: true,
   username: true,
@@ -201,9 +206,9 @@ export class ChatService {
 
     if (!participant) {
       throw new AppError(
-        HTTP_STATUS.FORBIDDEN,
-        ERROR_CODES.FORBIDDEN,
-        "You are not a participant in this chat",
+        HTTP_STATUS.NOT_FOUND,
+        ERROR_CODES.CHAT_NOT_FOUND,
+        "Chat not found",
       );
     }
 
@@ -307,6 +312,14 @@ export class ChatService {
         HTTP_STATUS.BAD_REQUEST,
         ERROR_CODES.VALIDATION_ERROR,
         "A group needs at least 3 people, including you",
+      );
+    }
+
+    if (participantIds.length > GROUP_CREATE_MAX_PARTICIPANTS) {
+      throw new AppError(
+        HTTP_STATUS.CONFLICT,
+        ERROR_CODES.GROUP_MAX_SIZE,
+        `A group can have at most ${GROUP_CREATE_MAX_PARTICIPANTS} people at creation`,
       );
     }
 
@@ -497,6 +510,17 @@ export class ChatService {
     }
 
     await this.requireGroupAdmin(dto.chatId, dto.currentUserId);
+
+    const activeCount = await this.chatRepository.countActiveParticipants(
+      dto.chatId,
+    );
+    if (activeCount >= GROUP_MAX_PARTICIPANTS) {
+      throw new AppError(
+        HTTP_STATUS.CONFLICT,
+        ERROR_CODES.GROUP_MAX_SIZE,
+        `This group is full (maximum of ${GROUP_MAX_PARTICIPANTS} people)`,
+      );
+    }
 
     const participant = await this.chatRepository.upsertParticipant({
       where: {

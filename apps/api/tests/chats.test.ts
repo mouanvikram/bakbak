@@ -12,7 +12,10 @@ import {
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import app from "@/app";
-import { prisma } from "@bakbak/db";
+import { prisma, ParticipantRole } from "@bakbak/db";
+import { ChatService, GROUP_CREATE_MAX_PARTICIPANTS } from "@/chats/service";
+import type { ChatRepository } from "@/chats/repository";
+import type { StorageProvider } from "@/uploads/storage.provider";
 import {
   cleanupDatabase,
   createTestUser,
@@ -178,6 +181,34 @@ describe.skipIf(!DB_AVAILABLE)("Chats Endpoints", () => {
     expect(data.error.code).toBe("VALIDATION_ERROR");
   });
 
+  test("POST /chats/ - should reject creating a group over the 780 creation cap (fits the 32 KB body limit)", async () => {
+    // Just over the creation cap but comfortably under the 32 KB JSON body
+    // limit, so this exercises the service check rather than a 413.
+    const ids = Array.from(
+      { length: GROUP_CREATE_MAX_PARTICIPANTS + 1 },
+      () => randomUUID(),
+    );
+
+    const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await authHeader(userA.id, userA.username)),
+      },
+      body: JSON.stringify({
+        type: "GROUP",
+        name: "Too Big",
+        participantIds: ids,
+      }),
+    });
+
+    expect(res.status).toBe(409);
+    const data = (await res.json()) as any;
+    expect(data.error.code).toBe("GROUP_MAX_SIZE");
+    const chat = await prisma.chat.findFirst({ where: { name: "Too Big" } });
+    expect(chat).toBeNull();
+  });
+
   test("POST /chats/ - should fail creating direct chat without participant id", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/chats/`, {
       method: "POST",
@@ -303,7 +334,7 @@ describe.skipIf(!DB_AVAILABLE)("Chats Endpoints", () => {
       headers: await authHeader(userA.id, userA.username),
     });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     const data = (await res.json()) as any;
     expect(data.error || data.message).toBeDefined();
   });
@@ -512,7 +543,7 @@ describe.skipIf(!DB_AVAILABLE)("Chats Endpoints", () => {
       method: "POST",
       headers: await authHeader(userC.id, userC.username),
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   test("POST /chats/:chatId/leave - should fail without auth", async () => {
@@ -538,6 +569,47 @@ describe.skipIf(!DB_AVAILABLE)("Chats Endpoints", () => {
     const data = (await res.json()) as any;
     expect(data).toHaveProperty("userId", userC.id);
     expect(data).toHaveProperty("role", "MEMBER");
+  });
+
+  test("POST /chats/:chatId/members - should reject adding to a group at the 1,000-member cap", async () => {
+    const chat = await createTestGroupChat(userA.id, [userB.id]);
+    // Bulk-fill the roster to exactly the cap with real users (FKs required).
+    const stamp = Date.now();
+    const extras = Array.from({ length: 1000 - 2 }, (_, i) => ({
+      email: `full.${stamp}.${i}@example.com`,
+      username: `full.${stamp}.${i}`,
+      passwordHash: "not-really-used",
+    }));
+    await prisma.user.createMany({ data: extras });
+    const users = await prisma.user.findMany({
+      where: { email: { startsWith: `full.${stamp}.` } },
+      select: { id: true },
+    });
+    await prisma.chatParticipant.createMany({
+      data: users.map((u) => ({
+        chatId: chat.id,
+        userId: u.id,
+        role: ParticipantRole.MEMBER,
+      })),
+    });
+
+    const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/members`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await authHeader(userA.id, userA.username)),
+      },
+      body: JSON.stringify({ participantId: userC.id }),
+    });
+
+    expect(res.status).toBe(409);
+    const data = (await res.json()) as any;
+    expect(data.error.code).toBe("GROUP_MAX_SIZE");
+
+    const active = await prisma.chatParticipant.count({
+      where: { chatId: chat.id, leftAt: null },
+    });
+    expect(active).toBe(1000);
   });
 
   test("POST /chats/:chatId/members - should fail adding member to direct chat", async () => {
@@ -643,5 +715,57 @@ describe.skipIf(!DB_AVAILABLE)("Chats Endpoints", () => {
     );
 
     expect(res.status).toBe(401);
+  });
+});
+
+// Unit-level checks that don't need a database: the group creation cap fires
+// before any repository call, so a stub repo proves the guard itself. (Over
+// HTTP the 32KB JSON body limit would reject a >1,000-id payload first, making
+// this unreachable through the API — the service check stays as defence in
+// depth.)
+describe("ChatService group size cap (creation)", () => {
+  test("rejects a creation payload over the 32 KB-compatible cap before touching the repository", async () => {
+    let createCalled = false;
+    const repo = {
+      create: () => {
+        createCalled = true;
+        throw new Error("repository must not be reached");
+      },
+    } as unknown as ChatRepository;
+    const service = new ChatService(repo, {} as StorageProvider);
+
+    await expect(
+      service.createGroupChat({
+        currentUserId: randomUUID(),
+        name: "Too Big",
+        participantIds: Array.from(
+          { length: GROUP_CREATE_MAX_PARTICIPANTS + 1 },
+          () => randomUUID(),
+        ),
+      }),
+    ).rejects.toMatchObject({ code: "GROUP_MAX_SIZE" });
+    expect(createCalled).toBe(false);
+  });
+
+  test("accepts a group exactly at the creation cap boundary", async () => {
+    const sentinel = new Error("repository reached");
+    const repo = {
+      create: () => {
+        throw sentinel;
+      },
+    } as unknown as ChatRepository;
+    const service = new ChatService(repo, {} as StorageProvider);
+
+    // The guard lets it through; the repository call itself is the next step.
+    await expect(
+      service.createGroupChat({
+        currentUserId: randomUUID(),
+        name: "At Cap",
+        participantIds: Array.from(
+          { length: GROUP_CREATE_MAX_PARTICIPANTS - 1 },
+          () => randomUUID(),
+        ),
+      }),
+    ).rejects.toBe(sentinel);
   });
 });

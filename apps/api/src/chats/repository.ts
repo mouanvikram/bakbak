@@ -66,4 +66,10 @@ export class ChatRepository {
   ) {
     return await prisma.chatParticipant.upsert(args);
   }
+
+  countActiveParticipants(chatId: string) {
+    return prisma.chatParticipant.count({
+      where: { chatId, leftAt: null },
+    });
+  }
 }
