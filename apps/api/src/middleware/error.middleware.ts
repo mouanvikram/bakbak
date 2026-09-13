@@ -5,6 +5,17 @@ import logger from "@/lib/logger";
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err?.type === "entity.too.large") {
+    logger.warn(
+      {
+        code: ERROR_CODES.PAYLOAD_TOO_LARGE,
+        message: "Request payload is too large.",
+        method: req.method,
+        url: req.originalUrl,
+        requestId: req.requestId,
+      },
+      "API error",
+    );
+
     return res.status(HTTP_STATUS.PAYLOAD_TOO_LARGE).json({
       error: {
         code: ERROR_CODES.PAYLOAD_TOO_LARGE,
@@ -14,6 +25,24 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   }
 
   if (err instanceof AppError) {
+    err.requestId = req.requestId;
+
+    const logFields = {
+      code: err.code,
+      message: err.message,
+      statusCode: err.statusCode,
+      method: req.method,
+      url: req.originalUrl,
+      requestId: req.requestId,
+      ...(err.details !== undefined ? { details: err.details } : {}),
+    };
+
+    if (err.statusCode >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
+      logger.error(logFields, "API error");
+    } else {
+      logger.warn(logFields, "API error");
+    }
+
     return res.status(err.statusCode).json({
       error: {
         code: err.code,

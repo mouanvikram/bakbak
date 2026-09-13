@@ -165,9 +165,9 @@ export class MessageService {
 
     if (!participant) {
       throw new AppError(
-        HTTP_STATUS.FORBIDDEN,
-        ERROR_CODES.FORBIDDEN,
-        "You are not a participant in this chat",
+        HTTP_STATUS.NOT_FOUND,
+        ERROR_CODES.CHAT_NOT_FOUND,
+        "Chat not found",
       );
     }
 

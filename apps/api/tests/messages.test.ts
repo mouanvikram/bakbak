@@ -306,7 +306,7 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
       }),
     });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     const data = (await res.json()) as any;
     expect(data.error || data.message).toBeDefined();
   });
@@ -363,7 +363,7 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
       headers: await authHeader(outsideUser.id, outsideUser.username),
     });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     const data = (await res.json()) as any;
     expect(data.error || data.message).toBeDefined();
   });
@@ -566,7 +566,7 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
       headers: await authHeader(outsideUser.id, outsideUser.username),
     });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     const data = (await res.json()) as any;
     expect(data.error || data.message).toBeDefined();
   });
