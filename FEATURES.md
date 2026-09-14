@@ -1,6 +1,6 @@
 # ✅ BakBak — Implemented Features
 
-Everything marked below is **implemented, tested, and wired end-to-end** across the API, the Socket.IO realtime layer, and the web client. Items are grouped by area; each check is one self-contained capability. The per-module engineering checklists (with pending work) live under `apps/api/src/*/checklist.md`. New shipped capabilities are added here under their group heading as they land.
+Everything marked below is **implemented, tested, and wired end-to-end** across the API, the Socket.IO realtime layer, and the web client. Items are grouped by area; each check is one self-contained capability. Remaining work is listed under [What's left](README.md#-whats-left) in the README, with module detail in `apps/api/src/websocket/checklist.md` and `apps/api/src/uploads/checklist.md`. New shipped capabilities are added here under their group heading as they land.
 
 ---
 
@@ -18,7 +18,7 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 ## 🔁 Sessions & Refresh Tokens
 
 - [x] **Session-scoped JWTs** — 15-min access tokens carry a stable `sid` that is verified against a live `Session` row on every request (HTTP + WebSocket); revoked, logged-out, and deleted sessions yield one uniform `401`.
-- [x] **Rotating refresh tokens** — opaque, hashed, 7-day refresh tokens; each use mints a new pair, and replay of a revoked token revokes **all** of the account's sessions (reuse detection).
+- [x] **Rotating refresh tokens** — opaque, hashed, 7-day refresh tokens delivered only as an **httpOnly cookie** (`SameSite=Strict`, scoped to `/api/v1/auth`, `Origin`-checked) — never in a response body or browser storage; the access token lives in memory. Each use atomically claims the token and mints a new pair, so concurrent refreshes rotate it exactly once; a replay inside a 30-second grace window is refused without side effects (multi-tab / lost-response races), and a replay after it revokes **all** of the account's sessions (reuse detection). Web refreshes are serialised across tabs with the Web Locks API.
 - [x] **Full device management** — list active sessions (browser, first-seen, current flag), end one session, end all others, or sign out everywhere; logout ends only the caller's session.
 
 ## ✌️ Two-Factor Authentication (email OTP)
@@ -44,6 +44,7 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 - [x] **Direct chats** — idempotent creation via a unique pair key.
 - [x] **Group chats** — create (3+ members), name/description/avatar, admin controls, add/remove members, self-leave.
+- [x] **Group size cap** — maximum of 1,000 members (up to 780 at creation to fit the 32 KB API request body), enforced at creation and on every add.
 - [x] **Per-member preferences** — mute / pin / archive, and "delete for me" (leave) that hides the chat without destroying it for others.
 - [x] **Authorization in the service layer** — active-participant and group-admin checks on every action, enforced server-side.
 
@@ -53,12 +54,22 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 - [x] **Read state** — cursor pagination (capped), unread counts, mark-as-read with broadcast read receipts; live fan-out of new / edited / deleted / read events.
 - [x] **Edit & soft delete** — own messages only; edits stamped; deletes serialize as `deleted`.
 - [x] **Search** — case-insensitive, paginated, participation-scoped.
+- [x] **Replies** — reply to any message; the quoted original travels with the reply, and the web client jumps to and highlights it on click.
+- [x] **Reactions** — toggle an emoji on a message (add, or remove if already yours) with live `message:reaction` fan-out to the chat.
 
 ## ⚡ Realtime (Socket.IO)
 
 - [x] **Authenticated gateway** — JWT handshake (Bearer or `auth.token`) with live-session verification; auto-joins the user's active chats.
 - [x] **Presence & typing** — per-room presence snapshots on join, online/offline transitions persisted, throttled typing indicators.
-- [x] **Live delivery** — messages, edits, deletes, read receipts, and chat/metadata changes pushed to rooms; sockets are force-disconnected on logout, session revoke, and password change.
+- [x] **Live delivery** — messages, edits, deletes, reactions, read receipts, and chat/metadata changes pushed to rooms; sockets are force-disconnected on logout, session revoke, and password change.
+- [x] **Horizontal scaling** — Socket.IO Redis adapter, so events reach sockets on any API instance; presence is tracked in Redis with per-socket leases refreshed by a heartbeat, falling back to an in-process mirror while Redis is unavailable.
+
+## 🔔 Notifications
+
+- [x] **Web push** — per-device VAPID subscriptions; every new message pushes to the other participants who have Messages on, even with the app or tab closed. Dead endpoints (404/410) are pruned automatically, and no OS popup is shown while a BakBak tab is focused.
+- [x] **Push presentation** — the service worker draws the icon (sender's avatar with a BakBak badge, or their initial) and a click opens the conversation.
+- [x] **In-app toasts** — messages landing in a chat you aren't viewing show a toast with the sender's avatar (group photo as a badge), auto-dismiss after 5 s, and open the chat on click.
+- [x] **Preferences honoured** — the Messages toggle controls both push and in-app toasts (server-side recipient filter + per-browser subscription); the Sounds toggle mutes interface sounds.
 
 ## 🖼 Media & Uploads
 
@@ -74,18 +85,23 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🗄 Settings
 
-- [x] **Per-account preferences** — notifications, appearance (theme, font size), and chat (enter-to-send, media preview) sections; lazily created rows, per-section partial updates.
+- [x] **Per-account preferences** — notifications (messages, sounds), appearance (theme, font size), and chat (enter-to-send, media preview) sections; lazily created rows, per-section partial updates.
+
+## 🖥 Web client
+
+- [x] **Interface sounds** — original, synthesized sounds for sending, receiving, typing, reactions, friend actions, dialogs, and switches, played through the Web Audio API and muted by the Sounds setting.
+- [x] **Motion** — entrance animations for arriving messages, menus, dialogs, and toasts; every animation respects `prefers-reduced-motion`.
 
 ## 🛡 Infrastructure & Security
 
 - [x] **Layered API** — routes → Zod validation → controller → service → repository; shared `@bakbak/contracts` validate every request and every response before it leaves the server.
 - [x] **Typed errors** — `AppError` with stable machine codes; a single error handler leaks no stack traces or Prisma internals.
 - [x] **Request hygiene** — pino structured logs with request/correlation IDs, token redaction, body-size cap, Helmet headers, CORS allowlist, gzip.
-- [x] **Redis token-bucket rate limiting** — a per-IP **global** ceiling (200/4s) in `app.ts` plus dedicated buckets per abuse surface (`login`, `emails`, `uploads`, `messageSend`, `usernameCheck`, `friendRequest`, `chat`, per-user 2FA email), one atomic Lua consume via `EVALSHA`, authoritative Redis-time refills, fail-open when Redis is down, and `RateLimit-Limit`/`Remaining`/`Reset` + `Retry-After` headers. The old in-memory fixed-window limiter (`rate-limiter.middleware.ts`) is archived and unmounted.
-- [x] **Redis readiness + cache module** — `isRedisReady()`-gated, fail-open JSON cache (`getJson`/`setJson`/`invalidate`/`invalidatePattern`/`cacheAside` with a stampede guard) under a `cache:` prefix; implemented and available, not yet wired into routes.
+- [x] **Redis token-bucket rate limiting** — a per-IP **global** ceiling (200/4s) in `app.ts` plus dedicated buckets per abuse surface (`login`, `emails`, `uploads`, `messageSend`, `usernameCheck`, `friendRequest`, `chat`, per-user 2FA email), one atomic Lua consume via `EVALSHA`, authoritative Redis-time refills, fail-open when Redis is down (the HTTP listener waits for Redis to be ready at startup, so boot never serves unthrottled traffic), and `RateLimit-Limit`/`Remaining`/`Reset` + `Retry-After` headers. The old in-memory fixed-window limiter (`rate-limiter.middleware.ts`) is archived and unmounted.
+- [x] **Redis readiness + cache module** — readiness-gated, fail-open JSON cache that clears its namespace after a Redis reconnect so invalidations missed during an outage never serve stale data (`getJson`/`setJson`/`invalidate`/`invalidatePattern`/`cacheAside` with a stampede guard) under a `cache:` prefix; wired into the friends list (5 min) and friend suggestions (60 s), invalidated on friendship changes and on friends' profile edits.
 - [x] **Graceful shutdown** — drains HTTP, closes Socket.IO, stops timers, disconnects Prisma, and quits Redis (`closeRedisClient()` → `quit()` then `disconnect()` fallback).
 - [x] **Soft-delete discipline** — `deletedAt`-filtered lookups across auth, refresh, verification, reset, WebSocket, and search.
 
 ## 🧪 Testing
 
-- [x] **311-test HTTP integration suite** — `bun:test` against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends, chats, messages, uploads, and settings — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion. Contract-level profiles/moderated-field rules are covered by unit tests in `packages/contracts`.
+- [x] **377-test API suite** — `bun:test` HTTP integration tests across 19 files against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends (including cache freshness), chats, messages, uploads, settings, and web push, plus cache behaviour across a Redis reconnect — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion — plus unit tests for config parsing, the logger, pagination/date helpers, health/readiness probes, Prometheus metrics, and the Prisma error mapping. Contract-level profiles/moderated-field rules are covered by 22 unit tests in `packages/contracts`.
