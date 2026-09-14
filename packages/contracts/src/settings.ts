@@ -4,8 +4,6 @@ import type { UserIdType } from "./shared";
 export const notificationSettingsSchema = z.object({
   messages: z.boolean(),
   sounds: z.boolean(),
-  alerts: z.boolean(),
-  emailDigest: z.boolean(),
 });
 
 export const appearanceSettingsSchema = z.object({
