@@ -68,6 +68,10 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
 
   afterAll(async () => {
     if (server) {
+      // Uploads rejected before their multipart body is read (400/403/413)
+      // can leave keep-alive sockets open, and close() waits on every open
+      // socket — drop them first so teardown can't hang on timing.
+      server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
