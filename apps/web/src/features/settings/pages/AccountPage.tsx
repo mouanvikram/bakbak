@@ -9,6 +9,7 @@ import {
 import { ImageCropModal } from "@/components/ImageCropModal";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
+import { playSound } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
 
 type UsernameStatus =
@@ -113,6 +114,7 @@ export function AccountPage() {
         bio: trimmedBio || null,
       });
       await refreshUser();
+      playSound("success");
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {

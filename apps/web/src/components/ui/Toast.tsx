@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { CheckCircle2, Info, TriangleAlert, X } from "lucide-react";
+import { playSound } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
 
 type ToastVariant = "default" | "success" | "error" | "info";
@@ -28,6 +29,8 @@ export interface ToastOptions {
 
 interface ToastItem extends ToastOptions {
   id: number;
+  /** Playing its exit animation; removed once that finishes. */
+  leaving?: boolean;
 }
 
 interface ToastApi {
@@ -52,6 +55,7 @@ export function useToast(): ToastApi {
 }
 
 const MAX_VISIBLE = 4;
+const EXIT_MS = 180;
 let seq = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -59,32 +63,58 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const keyed = useRef(new Map<string, number>());
 
-  const dismiss = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const clearTimer = useCallback((id: number) => {
     const h = timers.current.get(id);
     if (h) clearTimeout(h);
     timers.current.delete(id);
-    for (const [k, v] of keyed.current) if (v === id) keyed.current.delete(k);
   }, []);
+
+  const dismiss = useCallback(
+    (id: number) => {
+      clearTimer(id);
+      for (const [k, v] of keyed.current) if (v === id) keyed.current.delete(k);
+      setToasts((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)),
+      );
+      timers.current.set(
+        id,
+        setTimeout(() => {
+          timers.current.delete(id);
+          setToasts((prev) => prev.filter((t) => t.id !== id));
+        }, EXIT_MS),
+      );
+    },
+    [clearTimer],
+  );
 
   const toast = useCallback(
     (opts: ToastOptions) => {
       const id = ++seq;
       const duration = opts.duration ?? 5000;
+      if (opts.variant === "error") playSound("alert");
+      else if (opts.variant === "success") playSound("success");
+
+      // Timer and dedupe bookkeeping stays out of the state updater: StrictMode
+      // runs updaters twice, and a second pass would find this toast's own id
+      // under the key and cancel its auto-dismiss.
+      let replaced: number | undefined;
+      if (opts.dedupeKey) {
+        replaced = keyed.current.get(opts.dedupeKey);
+        if (replaced != null) clearTimer(replaced);
+        keyed.current.set(opts.dedupeKey, id);
+      }
 
       setToasts((prev) => {
-        let next = prev;
-        if (opts.dedupeKey) {
-          const existing = keyed.current.get(opts.dedupeKey);
-          if (existing != null) {
-            next = next.filter((t) => t.id !== existing);
-            const h = timers.current.get(existing);
-            if (h) clearTimeout(h);
-            timers.current.delete(existing);
-          }
-          keyed.current.set(opts.dedupeKey, id);
+        const item: ToastItem = { ...opts, id };
+        const idx =
+          replaced == null ? -1 : prev.findIndex((t) => t.id === replaced);
+        if (idx !== -1) {
+          // Swap in place so a repeat doesn't jump around the stack.
+          const next = [...prev];
+          next[idx] = item;
+          return next;
         }
-        return [...next, { ...opts, id }].slice(-MAX_VISIBLE);
+        return [...prev, item].slice(-MAX_VISIBLE);
       });
 
       if (duration > 0) {
@@ -95,7 +125,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       }
       return id;
     },
-    [dismiss],
+    [dismiss, clearTimer],
   );
 
   useEffect(() => {
@@ -152,7 +182,7 @@ function Toaster({
                 {t.title}
               </p>
               {t.description && (
-                <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">
+                <p className="mt-0.5 line-clamp-2 text-[13px] text-slate-500">
                   {t.description}
                 </p>
               )}
@@ -165,8 +195,10 @@ function Toaster({
             key={t.id}
             role={t.variant === "error" ? "alert" : "status"}
             className={cn(
-              "pointer-events-auto flex w-full max-w-sm items-start gap-2.5 rounded-lg border border-gray-200 bg-white p-3 shadow-lg",
-              "motion-safe:animate-[toast-in_200ms_ease-out]",
+              "pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl border border-gray-200 bg-white py-3.5 pr-3 pl-4 shadow-lg",
+              t.leaving
+                ? "motion-safe:animate-[toast-out_180ms_ease-in_forwards]"
+                : "motion-safe:animate-[toast-in_220ms_var(--ease-emphasized)]",
             )}
           >
             {t.onAction ? (
@@ -176,12 +208,12 @@ function Toaster({
                   t.onAction?.();
                   onDismiss(t.id);
                 }}
-                className="flex min-w-0 flex-1 items-start gap-2.5 rounded text-left"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded text-left"
               >
                 {body}
               </button>
             ) : (
-              <div className="flex min-w-0 flex-1 items-start gap-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 {body}
               </div>
             )}
@@ -189,7 +221,7 @@ function Toaster({
               type="button"
               aria-label="Dismiss"
               onClick={() => onDismiss(t.id)}
-              className="-m-1 shrink-0 rounded p-1 text-slate-400 transition-colors hover:text-slate-600"
+              className="shrink-0 self-start rounded p-1 text-slate-400 transition-colors hover:text-slate-600"
             >
               <X className="size-4" />
             </button>

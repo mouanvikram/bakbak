@@ -236,7 +236,7 @@ export function ChatSidebar() {
               />
               <div
                 role="menu"
-                className="absolute right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                className="absolute right-0 z-50 mt-1 flex w-52 origin-top-right flex-col gap-0.5 overflow-hidden rounded-xl border border-gray-200 bg-white p-2 shadow-lg motion-safe:animate-[pop-in_140ms_var(--ease-emphasized)]"
               >
                 {[
                   {
@@ -263,7 +263,7 @@ export function ChatSidebar() {
                       setMenuOpen(false);
                       run();
                     }}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                    className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
                   >
                     <Icon className="size-4 text-slate-400" />
                     {label}

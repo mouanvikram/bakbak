@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { playSound } from "@/lib/sounds";
 import { Button } from "./Button";
 
 interface ConfirmDialogProps {
@@ -27,6 +28,11 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  // A cue that this is a decision, not just another panel.
+  useEffect(() => {
+    playSound("confirm");
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCancel();

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Spinner } from "@/components/ui/Spinner";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { requestAccountDeletionChallenge } from "@/features/users/api";
+import { playSound } from "@/lib/sounds";
 
 export function DeleteAccountDialog({
   username,
@@ -28,6 +29,11 @@ export function DeleteAccountDialog({
   const phraseMatches = text.trim() === phrase;
   const canContinue = phraseMatches && password.length > 0 && !busy;
   const canDelete = !busy && (twoFactorRequired ? code.length === 6 : true);
+
+  // Same decision cue as ConfirmDialog.
+  useEffect(() => {
+    playSound("confirm");
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -61,6 +67,7 @@ export function DeleteAccountDialog({
       await onConfirm(password, twoFactorRequired ? code : undefined);
       navigate("/account-deleted", { replace: true });
     } catch (err) {
+      if (twoFactorRequired) playSound("otpError");
       setError(err instanceof Error ? err.message : "Failed to delete account");
       setBusy(false);
     }

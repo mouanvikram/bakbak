@@ -7,6 +7,7 @@ import {
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
 import { Button } from "@/components/ui/Button";
+import { playSound } from "@/lib/sounds";
 
 export function SentRequestsPage() {
   const [requests, setRequests] = useState<FriendRequestResponseType[]>([]);
@@ -38,6 +39,7 @@ export function SentRequestsPage() {
       await cancelFriendRequest(requestId);
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
       setStatus("Request cancelled");
+      playSound("friendDecline");
     } catch {
       setStatus("Failed to cancel request");
     } finally {

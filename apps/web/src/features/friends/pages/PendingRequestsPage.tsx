@@ -8,6 +8,7 @@ import {
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
 import { Button } from "@/components/ui/Button";
+import { playSound } from "@/lib/sounds";
 
 export function PendingRequestsPage() {
   const [requests, setRequests] = useState<FriendRequestResponseType[]>([]);
@@ -42,6 +43,7 @@ export function PendingRequestsPage() {
       await acceptFriendRequest(requestId);
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
       setStatus("Request accepted");
+      playSound("friendAccept");
     } catch {
       setStatus("Failed to accept request");
     } finally {
@@ -56,6 +58,7 @@ export function PendingRequestsPage() {
       await rejectFriendRequest(requestId);
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
       setStatus("Request rejected");
+      playSound("friendDecline");
     } catch {
       setStatus("Failed to reject request");
     } finally {

@@ -42,6 +42,7 @@ import { EmojiPopover } from "@/features/chat/components/EmojiPopover";
 import { EmptyState } from "@/components/ui/States";
 import { MessageThreadSkeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
+import { playSound } from "@/lib/sounds";
 import { cn, formatLastSeen } from "@/lib/utils";
 
 /** Files the composer lets you attach. Anything the API rejects still surfaces
@@ -60,9 +61,12 @@ export function ChatPage() {
   const { user } = useAuth();
   const socket = useSocket();
   const { preferences } = useChatPreferences();
-  const { error: toastError } = useToast();
+  const { toast, error: toastError } = useToast();
   const [chat, setChat] = useState<ChatResponseType | null>(null);
   const [messages, setMessages] = useState<MessageResponseType[]>([]);
+  // Ids that were already in the thread when it opened. Only messages outside
+  // this set play the arrival animation, so opening a chat stays still.
+  const [initialIds, setInitialIds] = useState<Set<string> | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -105,6 +109,11 @@ export function ChatPage() {
   // userId -> ISO timestamp of when they last went offline, from `presence`.
   const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  // The message the thread just jumped to (from a reply quote), outlined
+  // for a moment so the eye can find it.
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // userId -> timer that drops a stale "typing" indicator if no stop arrives.
   const typingExpiry = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
@@ -125,6 +134,7 @@ export function ChatPage() {
     let cancelled = false;
     setLoading(true);
     setError("");
+    setInitialIds(null);
     Promise.all([getChat(id), listMessages(id)])
       .then(([chatRes, msgRes]) => {
         if (cancelled) return;
@@ -142,6 +152,7 @@ export function ChatPage() {
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
         setMessages(sorted);
+        setInitialIds(new Set(sorted.map((m) => m.id)));
       })
       .catch(() => {
         if (!cancelled) setError("Failed to load chat");
@@ -195,6 +206,7 @@ export function ChatPage() {
         );
       });
       if (message.senderId !== currentUserId) {
+        playSound("receive");
         void markChatRead(id ?? "").catch(() => {});
       }
     };
@@ -320,8 +332,15 @@ export function ChatPage() {
   }, [id, currentUserId, socket, navigate]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "auto" });
-  }, [messages, loading]);
+    // Jump straight to the bottom when a thread opens; glide when a new
+    // message arrives in one that's already on screen.
+    const glide =
+      !loading &&
+      initialIds !== null &&
+      messages.length > initialIds.size &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bottomRef.current?.scrollIntoView({ behavior: glide ? "smooth" : "auto" });
+  }, [messages, loading, initialIds]);
 
   useEffect(() => {
     if (!id || !socket) return;
@@ -360,6 +379,11 @@ export function ChatPage() {
 
   async function handleReaction(message: MessageResponseType, emoji: string) {
     if (!id || message.deleted) return;
+    // Sound on adding only, and right away rather than after the round trip.
+    const removing = message.reactions?.some(
+      (r) => r.emoji === emoji && r.userId === currentUserId,
+    );
+    if (!removing) playSound("reaction");
     try {
       const res = await toggleReaction(id, message.id, emoji);
       upsertMessage(res);
@@ -383,6 +407,7 @@ export function ChatPage() {
       try {
         const res = await editMessage(editing.id, { text: content });
         upsertMessage(res);
+        playSound("edit");
         setEditing(null);
         setText("");
       } catch {
@@ -416,6 +441,7 @@ export function ChatPage() {
         ...(replyToId ? { replyToId } : {}),
       });
       pendingSend.current = null;
+      playSound("send");
       setText("");
       setReplyTarget(null);
       // The socket may also deliver it; dedupe on id in onNewMessage.
@@ -448,6 +474,7 @@ export function ChatPage() {
         setText("");
         setReplyTarget(null);
         upsertMessage(res);
+        playSound("upload");
       }
     } catch (err) {
       toastError(
@@ -483,12 +510,45 @@ export function ChatPage() {
     setReplyTarget(null);
   }
 
+  function jumpToMessage(messageId: string) {
+    const el = threadRef.current?.querySelector<HTMLElement>(
+      `[data-message-id="${CSS.escape(messageId)}"]`,
+    );
+    if (!el) {
+      toast({
+        title: "Original message isn't loaded",
+        description: "It's further back than this conversation shows.",
+        variant: "info",
+      });
+      return;
+    }
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    el.scrollIntoView({
+      block: "center",
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+    playSound("jump");
+    setHighlightedId(messageId);
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlightedId(null), 1600);
+  }
+
+  useEffect(
+    () => () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    },
+    [],
+  );
+
   async function confirmDeleteMessage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
       const res = await deleteMessage(deleteTarget);
       upsertMessage(res);
+      playSound("delete");
       if (editing?.id === deleteTarget) cancelEdit();
     } catch {
       toastError("Failed to delete message");
@@ -692,7 +752,10 @@ export function ChatPage() {
       </header>
 
       {/* Messages */}
-      <div className="chat-surface min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={threadRef}
+        className="chat-surface min-h-0 flex-1 overflow-y-auto"
+      >
         {loading ? (
           <MessageThreadSkeleton />
         ) : error && messages.length === 0 ? (
@@ -711,6 +774,11 @@ export function ChatPage() {
                 isEditing={editing?.id === m.id}
                 mediaPreview={preferences.mediaPreview}
                 status={messageStatus(m.id)}
+                animateIn={initialIds !== null && !initialIds.has(m.id)}
+                highlighted={highlightedId === m.id}
+                onJumpToReply={
+                  m.replyToId ? () => jumpToMessage(m.replyToId!) : undefined
+                }
                 onReaction={(emoji) => void handleReaction(m, emoji)}
                 onContextMenu={(e) => {
                   if (m.deleted) return;
@@ -720,8 +788,19 @@ export function ChatPage() {
               />
             ))}
             {typingLabel && (
-              <div className="flex items-center gap-2 px-1 py-1 text-xs text-gray-500">
-                <Spinner className="size-3" />
+              <div className="flex items-center gap-2 px-1 py-1 text-xs text-gray-500 motion-safe:animate-[slide-up-in_180ms_var(--ease-emphasized)]">
+                <span
+                  aria-hidden
+                  className="msg-bubble-in flex items-center gap-0.5 rounded-full px-2 py-1.5 shadow-sm"
+                >
+                  {["0ms", "150ms", "300ms"].map((delay) => (
+                    <span
+                      key={delay}
+                      style={{ animationDelay: delay }}
+                      className="size-1.5 rounded-full bg-slate-400 motion-safe:animate-[typing-dot_1.2s_ease-in-out_infinite]"
+                    />
+                  ))}
+                </span>
                 <span>{typingLabel}</span>
               </div>
             )}
@@ -732,13 +811,13 @@ export function ChatPage() {
 
       {/* Composer */}
       {error && messages.length > 0 && (
-        <div className="shrink-0 bg-red-50 px-4 py-2 text-xs text-red-600">
+        <div className="shrink-0 bg-red-50 px-4 py-2 text-xs text-red-600 motion-safe:animate-[slide-up-in_180ms_var(--ease-emphasized)]">
           {error}
         </div>
       )}
       <div className="shrink-0 border-t border-gray-100 bg-white p-3">
         {editing && (
-          <div className="bg-brand-500/10 text-brand-600 mb-2 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs">
+          <div className="bg-brand-500/10 text-brand-600 mb-2 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs motion-safe:animate-[slide-up-in_160ms_var(--ease-emphasized)]">
             <Pencil className="size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate">Editing message</span>
             <button
@@ -752,13 +831,20 @@ export function ChatPage() {
           </div>
         )}
         {replyTarget && (
-          <div className="bg-brand-500/10 text-brand-600 mb-2 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs">
+          <div
+            key={replyTarget.id}
+            className="bg-brand-500/10 text-brand-600 mb-2 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs motion-safe:animate-[slide-up-in_160ms_var(--ease-emphasized)]"
+          >
             <MessageSquare className="size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">
+            <button
+              type="button"
+              onClick={() => jumpToMessage(replyTarget.id)}
+              className="min-w-0 flex-1 truncate rounded text-left hover:underline"
+            >
               Replying to{" "}
               {replyTarget.sender.profile?.displayName ??
                 replyTarget.sender.username}
-            </span>
+            </button>
             <button
               type="button"
               onClick={cancelReply}
@@ -811,6 +897,9 @@ export function ChatPage() {
             disabled={sending || uploading}
             onChange={(e) => {
               const value = e.target.value;
+              // Key click on every edit. onChange rather than keydown so
+              // phone keyboards, which don't report keys, click too.
+              playSound("typing");
               setText(value);
               if (!editing) handleTyping(value.trim().length > 0);
             }}
@@ -832,7 +921,7 @@ export function ChatPage() {
             aria-label={editing ? "Save changes" : "Send message"}
             disabled={!text.trim() || sending || uploading}
             onClick={handleSend}
-            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-[#805FF8] to-[#4C18EF] text-white shadow-sm transition-all active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-[#805FF8] to-[#4C18EF] text-white shadow-sm transition-all enabled:active:scale-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {sending ? (
               <Spinner className="size-4" />
@@ -878,21 +967,26 @@ export function ChatPage() {
               icon: <Reply />,
               onSelect: () => startReply(msgMenu.message),
             },
-            ...(msgMenu.message.text
+            // Only the sender can change or remove a message.
+            ...(msgMenu.message.senderId === currentUserId
               ? [
+                  ...(msgMenu.message.text
+                    ? [
+                        {
+                          label: "Edit",
+                          icon: <Pencil />,
+                          onSelect: () => startEdit(msgMenu.message),
+                        },
+                      ]
+                    : []),
                   {
-                    label: "Edit",
-                    icon: <Pencil />,
-                    onSelect: () => startEdit(msgMenu.message),
+                    label: "Delete",
+                    icon: <Trash2 />,
+                    destructive: true,
+                    onSelect: () => setDeleteTarget(msgMenu.message.id),
                   },
                 ]
               : []),
-            {
-              label: "Delete",
-              icon: <Trash2 />,
-              destructive: true,
-              onSelect: () => setDeleteTarget(msgMenu.message.id),
-            },
           ]}
         />
       )}

@@ -1,3 +1,4 @@
+import { playSound } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
 
 interface ToggleProps {
@@ -17,7 +18,10 @@ export function Toggle({ checked, onChange, disabled, label }: ToggleProps) {
       aria-checked={checked}
       aria-label={label}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
+      onClick={() => {
+        playSound(checked ? "toggleOff" : "toggleOn");
+        onChange(!checked);
+      }}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-60",
         checked ? "bg-brand-500" : "bg-gray-300",

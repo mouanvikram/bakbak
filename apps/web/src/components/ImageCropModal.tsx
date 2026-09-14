@@ -82,8 +82,8 @@ export function ImageCropModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 motion-safe:animate-[fade-in_120ms_ease-out]">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl motion-safe:animate-[pop-in_150ms_var(--ease-emphasized)]">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           Crop your avatar
         </h2>

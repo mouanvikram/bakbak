@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "start": "vite preview",
     "lint": "oxlint .",
+    "sounds": "node scripts/generate-sounds.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -9,6 +9,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Spinner } from "@/components/ui/Spinner";
+import { playSound } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
 
 const MIN_MEMBERS = 2;
@@ -105,6 +106,7 @@ export function NewGroupModal({ onClose }: { onClose: () => void }) {
         participantIds: [...selected],
         ...(avatarKey ? { avatar: avatarKey } : {}),
       });
+      playSound("groupCreated");
       onClose();
       navigate(`/chats/${chat.id}`);
     } catch (err) {

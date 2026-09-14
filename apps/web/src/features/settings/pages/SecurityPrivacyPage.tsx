@@ -12,6 +12,7 @@ import { OtpInput } from "@/components/ui/OtpInput";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Toggle } from "@/components/ui/Toggle";
 import { DeleteAccountDialog } from "@/features/settings/components/DeleteAccountDialog";
+import { playSound } from "@/lib/sounds";
 
 export function SecurityPrivacyPage() {
   const { deleteAccount, profile } = useAuth();
@@ -71,6 +72,7 @@ export function SecurityPrivacyPage() {
       setTwoFactor(res.twoFactorEnabled);
       setTwoFactorSetup(null);
       setDisablePassword("");
+      playSound("success");
     } catch (err) {
       setTwoFactorError(
         err instanceof Error ? err.message : "Couldn't disable 2FA",
@@ -89,7 +91,9 @@ export function SecurityPrivacyPage() {
       const res = await enableTwoFactor({ code: value });
       setTwoFactor(res.twoFactorEnabled);
       setTwoFactorSetup(null);
+      playSound("success");
     } catch (err) {
+      playSound("otpError");
       setTwoFactorError(
         err instanceof Error ? err.message : "That code didn't work",
       );
@@ -123,6 +127,7 @@ export function SecurityPrivacyPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      playSound("success");
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {

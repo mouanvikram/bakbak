@@ -10,6 +10,7 @@ import { OtpInput } from "@/components/ui/OtpInput";
 import { Branding } from "@/components/ui/Branding";
 import { useAuth } from "@/features/auth/auth-context";
 import { resendTwoFactorLogin } from "@/features/auth/api";
+import { playSound } from "@/lib/sounds";
 
 export function LoginPage() {
   const [identifier, setIdentifier] = useState("");
@@ -60,6 +61,7 @@ export function LoginPage() {
     try {
       await verifyTwoFactorLogin(challengeId, value);
     } catch (err) {
+      playSound("otpError");
       setError(err instanceof Error ? err.message : "Verification failed");
       setCode("");
     } finally {

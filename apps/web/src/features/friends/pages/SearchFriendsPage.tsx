@@ -6,6 +6,7 @@ import { getPendingRequests, sendFriendRequest } from "@/features/friends/api";
 import { UserCard } from "@/features/friends/components/UserCard";
 import { EmptyState, LoadingState } from "@/components/ui/States";
 import { Button } from "@/components/ui/Button";
+import { playSound } from "@/lib/sounds";
 
 export function SearchFriendsPage() {
   const [query, setQuery] = useState("");
@@ -44,6 +45,7 @@ export function SearchFriendsPage() {
       await sendFriendRequest(userId);
       setPendingIds((prev) => new Set(prev).add(userId));
       setStatus("Friend request sent");
+      playSound("friendRequest");
     } catch {
       setStatus("Failed to send request");
     } finally {

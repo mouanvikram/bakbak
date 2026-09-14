@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { useTheme } from "@/features/settings/theme-context";
+import { playSound } from "@/lib/sounds";
 
 const THEME_OPTIONS = ["light", "dark", "system"] as const;
 const FONT_SIZES = ["small", "medium", "large"] as const;
@@ -24,7 +25,10 @@ export function AppearancePage() {
               <button
                 key={option}
                 type="button"
-                onClick={() => setTheme(option)}
+                onClick={() => {
+                  if (option !== theme) playSound("theme");
+                  setTheme(option);
+                }}
                 className={`focus-visible:outline-brand-500 flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-4 py-3 text-sm font-semibold capitalize transition focus-visible:outline-2 focus-visible:outline-offset-2 ${
                   theme === option
                     ? "border-brand-500 text-brand-500 bg-violet-50"

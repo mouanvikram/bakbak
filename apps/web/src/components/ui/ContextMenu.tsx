@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { playSound } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
 
 export interface ContextMenuItem {
@@ -45,6 +46,10 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   }, [x, y]);
 
   useEffect(() => {
+    playSound("menu");
+  }, []);
+
+  useEffect(() => {
     const close = () => onClose();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -73,7 +78,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         role="menu"
         style={{ left: pos.left, top: pos.top }}
         onClick={(e) => e.stopPropagation()}
-        className="fixed min-w-36 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg motion-safe:animate-[pop-in_120ms_var(--ease-emphasized)]"
+        className="fixed flex min-w-40 flex-col gap-0.5 overflow-hidden rounded-xl border border-gray-200 bg-white p-2 shadow-lg motion-safe:animate-[pop-in_120ms_var(--ease-emphasized)]"
       >
         {items.map((item) => (
           <button
@@ -86,7 +91,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
               item.onSelect();
             }}
             className={cn(
-              "flex w-full items-center gap-2.5 px-3.5 py-2 text-sm transition-colors disabled:opacity-40",
+              "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors disabled:opacity-40",
               item.destructive
                 ? "text-red-600 hover:bg-red-50"
                 : "text-slate-700 hover:bg-slate-50",

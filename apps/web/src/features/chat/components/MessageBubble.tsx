@@ -91,25 +91,41 @@ function ReplyPreview({
   message: m,
   mine,
   isMine,
+  onJump,
 }: {
   message: MessageResponseType;
   mine: boolean;
   isMine: boolean;
+  // Scrolls the thread to the answered message.
+  onJump?: () => void;
 }) {
   const name = isMine
     ? "You"
     : m.sender.profile?.displayName ?? m.sender.username ?? "Unknown";
+  // Inset 4px from the bubble edge, so its top corners follow the bubble's
+  // 16px curve (16 - 4 = 12) and the accent bar is clipped by that curve.
   return (
-    <div
+    <button
+      type="button"
+      onClick={onJump}
+      disabled={!onJump}
+      aria-label={`Go to ${name}'s message`}
       className={cn(
-        "rounded-md p-2",
+        "relative block w-full overflow-hidden rounded-t-xl rounded-b-lg py-1.5 pr-3 pl-3.5 text-left transition-opacity enabled:hover:opacity-85 enabled:active:opacity-70",
         mine ? "bg-white/15" : "bg-slate-100",
       )}
     >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0 left-0 w-[3px]",
+          mine ? "bg-white/80" : "bg-brand-500",
+        )}
+      />
       <div
         className={cn(
-          "flex items-center gap-1 text-[11px] font-semibold",
-          mine ? "text-white/90" : "text-slate-500",
+          "flex items-center gap-1 text-xs font-semibold",
+          mine ? "text-white" : "text-brand-600",
         )}
       >
         <Reply className="size-3 shrink-0" />
@@ -117,13 +133,14 @@ function ReplyPreview({
       </div>
       <p
         className={cn(
-          "mt-0.5 truncate text-xs",
-          mine ? "text-white/70" : "text-slate-600",
+          "truncate text-xs",
+          mine ? "text-white/75" : "text-slate-500",
+          m.deleted && "italic",
         )}
       >
         {replySummary(m)}
       </p>
-    </div>
+    </button>
   );
 }
 
@@ -138,12 +155,21 @@ export function MessageBubble({
   onContextMenu,
   currentUserId,
   onReaction,
+  animateIn = false,
+  highlighted = false,
+  onJumpToReply,
 }: {
   message: MessageResponseType;
   mine: boolean;
   isGroup: boolean;
   isEditing: boolean;
   status: DeliveryStatus;
+  // Plays the arrival animation (messages that land while the chat is open).
+  animateIn?: boolean;
+  // Briefly outlined after the thread jumps to this message.
+  highlighted?: boolean;
+  // Clicking the reply quote scrolls to the message it answers.
+  onJumpToReply?: () => void;
   // When false, images/videos render as download chips instead of inline.
   mediaPreview?: boolean;
   onContextMenu: (e: MouseEvent) => void;
@@ -189,7 +215,15 @@ export function MessageBubble({
   };
 
   return (
-    <div className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
+    <div
+      data-message-id={m.id}
+      className={cn(
+        "flex flex-col",
+        mine ? "origin-bottom-right items-end" : "origin-bottom-left items-start",
+        animateIn &&
+          "motion-safe:animate-[msg-in_240ms_var(--ease-emphasized)]",
+      )}
+    >
       {!mine && isGroup && (
         <div className="mb-0.5 flex items-center gap-1.5">
           <Avatar
@@ -207,19 +241,26 @@ export function MessageBubble({
         onContextMenu={onContextMenu}
         className={cn(
           "relative max-w-[78%] overflow-hidden rounded-2xl text-sm leading-relaxed shadow-sm",
+          // Outline, not ring: the dark incoming bubble owns box-shadow.
+          "outline-2 outline-offset-2 transition-[outline-color] duration-500",
+          highlighted ? "outline-brand-500" : "outline-transparent",
           mine
             ? "msg-bubble-out rounded-br-md text-white"
-            : "rounded-bl-md bg-white text-gray-900",
+            : "msg-bubble-in rounded-bl-md text-gray-900",
           isEditing && "ring-brand-500/60 ring-2",
-          media ? "w-72 max-w-[78%]" : "px-3.5 py-2",
+          media && "w-72 max-w-[78%]",
+          m.replyTo && "min-w-48",
         )}
       >
         {m.replyTo && (
-          <ReplyPreview
-            message={m.replyTo}
-            mine={mine}
-            isMine={m.replyTo.senderId === currentUserId}
-          />
+          <div className="p-1">
+            <ReplyPreview
+              message={m.replyTo}
+              mine={mine}
+              isMine={m.replyTo.senderId === currentUserId}
+              onJump={onJumpToReply}
+            />
+          </div>
         )}
         {media ? (
           <>
@@ -231,7 +272,7 @@ export function MessageBubble({
             )}
           </>
         ) : (
-          <>
+          <div className={cn("px-3.5 pb-2", m.replyTo ? "pt-1" : "pt-2")}>
             {otherAttachments.length > 0 && (
               <div className="mb-1">
                 <MessageAttachments
@@ -246,7 +287,7 @@ export function MessageBubble({
                 {m.deleted ? "This message was deleted" : m.text}
               </p>
             )}
-          </>
+          </div>
         )}
       </div>
 
@@ -260,7 +301,7 @@ export function MessageBubble({
               type="button"
               onClick={() => onReaction(emoji)}
               className={cn(
-                "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs leading-none transition-colors",
+                "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs leading-none transition active:scale-90",
                 group.mine
                   ? "border-brand-500 bg-brand-500/10 text-brand-600"
                   : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
@@ -344,7 +385,10 @@ function ReactionPicker({
   return (
     <div
       ref={ref}
-      className="fixed z-50 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl"
+      className={cn(
+        "fixed z-50 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl motion-safe:animate-[pop-in_140ms_var(--ease-emphasized)]",
+        above ? "origin-bottom-left" : "origin-top-left",
+      )}
       style={{
         width: REACTION_PICKER_WIDTH,
         left,
@@ -358,7 +402,7 @@ function ReactionPicker({
             key={emoji}
             type="button"
             onClick={() => onPick(emoji)}
-            className="flex size-9 items-center justify-center rounded-lg text-xl transition-colors hover:bg-gray-100"
+            className="flex size-9 items-center justify-center rounded-lg text-xl transition hover:scale-110 hover:bg-gray-100 active:scale-95"
           >
             {emoji}
           </button>

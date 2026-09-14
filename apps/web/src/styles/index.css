@@ -101,8 +101,43 @@ a[href] {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: scale(0.98);
+    transform: translateY(12px) scale(0.98);
     filter: blur(10px);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(16px) scale(0.98);
+  }
+}
+/* A message landing in the thread: rises from its own corner. */
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+/* Unread badge: a short bump each time the count changes. */
+@keyframes badge-bump {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+}
+/* Typing dots: rise and settle in turn. */
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
   }
 }
 
@@ -337,17 +372,27 @@ a[href] {
 }
 .dark .chat-surface {
   background-color: #10151b;
-  background-image: url("/images/backgrounds/chat_bg_dark.png");
+  background-image: url("/images/backgrounds/chat_bg_dark.webp");
 }
 
 /* ------------------------------------------------------------------ *
- * Outgoing message bubble. Gradient in light; flat violet in dark so
- * it reads as a single fill against the #10151B conversation field.
+ * Outgoing message bubble. A single flat violet fill; dark mode takes a
+ * slightly deeper step so it doesn't glare against the #10151B field.
  * ------------------------------------------------------------------ */
 .msg-bubble-out {
-  background-image: linear-gradient(to bottom right, #805ff8, #4c18ef);
+  background-color: var(--color-brand-500);
 }
 .dark .msg-bubble-out {
-  background-image: none;
   background-color: #5a34d9;
+}
+
+/* Incoming bubble. White in light; in dark it can't use the remapped
+ * `.bg-white` (#10151B is the wallpaper itself), so it rises two steps
+ * above the field with a faint edge to hold its shape over the pattern. */
+.msg-bubble-in {
+  background-color: #ffffff;
+}
+.dark .msg-bubble-in {
+  background-color: #222c38;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }

@@ -104,7 +104,7 @@ export function UserMenu() {
         <div
           ref={menuRef}
           className={cn(
-            "fixed z-50 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg",
+            "fixed z-50 flex w-48 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-2 shadow-lg",
             menuOpen
               ? "blur-0 scale-100 opacity-100"
               : "pointer-events-none scale-[0.95] opacity-0 blur-[10px]",
@@ -122,16 +122,17 @@ export function UserMenu() {
               setMenuOpen(false);
               setProfileOpen(true);
             }}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-violet-50 hover:text-violet-600"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-violet-50 hover:text-violet-600"
           >
             <UserRound className="size-4" />
             Profile
           </button>
+          <div aria-hidden className="mx-1 my-1 h-px bg-gray-200" />
           <button
             type="button"
             disabled={loggingOut}
             onClick={handleLogout}
-            className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loggingOut ? (
               <Spinner className="size-4" />
@@ -144,11 +145,11 @@ export function UserMenu() {
       )}
       {profileOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm motion-safe:animate-[fade-in_120ms_ease-out]"
           onClick={() => setProfileOpen(false)}
         >
           <div
-            className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+            className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl motion-safe:animate-[pop-in_150ms_var(--ease-emphasized)]"
             onClick={(e) => e.stopPropagation()}
           >
             <button

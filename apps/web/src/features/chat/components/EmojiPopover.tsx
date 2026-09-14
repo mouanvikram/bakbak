@@ -44,7 +44,7 @@ export function EmojiPopover({
   return (
     <div
       ref={ref}
-      className="absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"
+      className="absolute bottom-full left-0 z-50 mb-2 origin-bottom-left overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl motion-safe:animate-[pop-in_160ms_var(--ease-emphasized)]"
     >
       <Suspense
         fallback={

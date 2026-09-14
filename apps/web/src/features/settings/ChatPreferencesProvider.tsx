@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ChatPreferencesType } from "@bakbak/contracts";
 import { useAuth } from "@/features/auth/auth-context";
 import { getSettings, updateChatPreferences } from "@/features/settings/api";
+import { setSoundsEnabled } from "@/lib/sounds";
 import { ChatPreferencesContext } from "./chat-preferences-context";
 
 const STORAGE_KEY = "bakbak.chatPreferences";
@@ -48,6 +49,8 @@ export function ChatPreferencesProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setState(res.chat);
         persist(res.chat);
+        // Same response carries the Sounds switch; sync it while we're here.
+        setSoundsEnabled(res.notifications.sounds);
       })
       .catch(() => {});
     return () => {

@@ -145,7 +145,10 @@ export function ChatItem({
             </div>
 
             {hasUnread && (
-              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 px-1.5 text-[11px] font-semibold text-white">
+              <span
+                key={unreadCount}
+                className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 px-1.5 text-[11px] font-semibold text-white motion-safe:animate-[badge-bump_260ms_var(--ease-emphasized)]"
+              >
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
