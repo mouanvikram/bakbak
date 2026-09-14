@@ -21,6 +21,13 @@ import type {
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "@/uploads/storage.provider";
 import { resolveAvatarUrl } from "@/uploads/avatar-url";
+import { cacheAside } from "@/redis/cache";
+import { friendsConfig } from "./config";
+import {
+  friendsCacheKeys,
+  invalidateFriendship,
+  invalidateSuggestions,
+} from "./cache";
 
 export class FriendService {
   constructor(
@@ -103,6 +110,7 @@ export class FriendService {
         },
       });
 
+      await invalidateSuggestions(senderId, receiverId);
       return await this.serializeRequest(request);
     } catch (error) {
       if (
@@ -170,6 +178,7 @@ export class FriendService {
       },
     );
 
+    await invalidateSuggestions(existing.senderId, existing.receiverId);
     return await this.serializeRequest(request);
   }
 
@@ -212,6 +221,7 @@ export class FriendService {
       );
     }
 
+    await invalidateFriendship(existing.senderId, existing.receiverId);
     return await this.serializeRequest(request);
   }
 
@@ -254,40 +264,49 @@ export class FriendService {
       },
     );
 
+    await invalidateSuggestions(existing.senderId, existing.receiverId);
     return await this.serializeRequest(request);
   }
 
   async getFriends(
     dto: UserIdType,
   ): Promise<GetFriendsResponseType["friendships"]> {
-    const friendships = await this.friendRepository.findFriends({
-      OR: [{ user1Id: dto.userId }, { user2Id: dto.userId }],
-    });
-
-    return Promise.all(
-      friendships.map(async (friendship) => {
-        const friend =
-          friendship.user1Id === dto.userId
-            ? friendship.user2
-            : friendship.user1;
-
-        return {
+    // Cached as JSON-safe rows (ISO dates, raw avatar keys); avatar URLs are
+    // signed per response because they expire.
+    const friendships = await cacheAside(
+      friendsCacheKeys.list(dto.userId),
+      friendsConfig.cache.listTtlSec,
+      async () => {
+        const rows = await this.friendRepository.findFriends({
+          OR: [{ user1Id: dto.userId }, { user2Id: dto.userId }],
+        });
+        return rows.map((friendship) => ({
           friendshipId: friendship.id,
           createdAt: friendship.createdAt.toISOString(),
-          friend: {
-            ...friend,
-            profile: friend.profile
-              ? {
-                  ...friend.profile,
-                  avatar: await resolveAvatarUrl(
-                    friend.profile.avatar,
-                    this.storageProvider,
-                  ),
-                }
-              : friend.profile,
-          },
-        };
-      }),
+          friend:
+            friendship.user1Id === dto.userId
+              ? friendship.user2
+              : friendship.user1,
+        }));
+      },
+    );
+
+    return Promise.all(
+      friendships.map(async ({ friend, ...friendship }) => ({
+        ...friendship,
+        friend: {
+          ...friend,
+          profile: friend.profile
+            ? {
+                ...friend.profile,
+                avatar: await resolveAvatarUrl(
+                  friend.profile.avatar,
+                  this.storageProvider,
+                ),
+              }
+            : friend.profile,
+        },
+      })),
     );
   }
 
@@ -318,6 +337,7 @@ export class FriendService {
     await this.friendRepository.deleteFriendship({
       id: requestId,
     });
+    await invalidateFriendship(existing.user1Id, existing.user2Id);
 
     return {
       message: "Friend removed successfully",
@@ -367,7 +387,11 @@ export class FriendService {
   }
 
   async getSuggestions(dto: UserIdType): Promise<GetSuggestionsResponseType> {
-    const suggestions = await this.friendRepository.findSuggestions(dto.userId);
+    const suggestions = await cacheAside(
+      friendsCacheKeys.suggestions(dto.userId),
+      friendsConfig.cache.suggestionsTtlSec,
+      () => this.friendRepository.findSuggestions(dto.userId),
+    );
 
     const resolved = await Promise.all(
       suggestions.map(async (user) => ({

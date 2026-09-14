@@ -4,6 +4,7 @@ import type { User } from "@bakbak/db";
 import { type AccessTokenPayload, JwtService } from "@/auth/jwt.service";
 import { storageProvider } from "@/uploads/storage";
 import { servicesConfig } from "@/services/config";
+import { invalidatePattern } from "@/redis/cache";
 
 export async function authHeader(userId: string, username: string) {
   // The access token must reference a real, live Session: the H2 middleware
@@ -203,6 +204,8 @@ export async function cleanupDatabase() {
   await prisma.pushSubscription.deleteMany({});
   await prisma.userProfile.deleteMany({});
   await prisma.user.deleteMany({});
+  // Cached reads must not outlive the rows they were built from.
+  await invalidatePattern("*");
 }
 
 let warnedNoDatabase = false;

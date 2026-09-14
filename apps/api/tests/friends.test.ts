@@ -511,6 +511,111 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
+  // ── Cache freshness ───────────────────────────────────────────────────
+  // The friends list and suggestions are cached in Redis. Each test reads
+  // first (warming the cache), changes data through the API, and expects the
+  // next read to reflect it — i.e. the write invalidated the cached copy.
+
+  const getFriendIds = async (user: { id: string; username: string }) => {
+    const res = await fetch(`${baseUrl()}/api/v1/friends/`, {
+      headers: await authHeader(user.id, user.username),
+    });
+    const data = (await res.json()) as any;
+    return data.friendships.map((f: any) => f.friend.id) as string[];
+  };
+
+  const getSuggestionIds = async (user: { id: string; username: string }) => {
+    const res = await fetch(`${baseUrl()}/api/v1/friends/suggestions`, {
+      headers: await authHeader(user.id, user.username),
+    });
+    const data = (await res.json()) as any;
+    return data.suggestions.map((u: any) => u.id) as string[];
+  };
+
+  test("GET /friends/ - shows a friendship as soon as the request is accepted", async () => {
+    const request = await sendFriendRequest(userA.id, userB.id);
+    expect(await getFriendIds(userA)).toEqual([]);
+    expect(await getFriendIds(userB)).toEqual([]);
+
+    const accept = await fetch(
+      `${baseUrl()}/api/v1/friends/requests/${request.id}/accept`,
+      {
+        method: "POST",
+        headers: await authHeader(userB.id, userB.username),
+      },
+    );
+    expect(accept.status).toBe(200);
+
+    expect(await getFriendIds(userA)).toEqual([userB.id]);
+    expect(await getFriendIds(userB)).toEqual([userA.id]);
+  });
+
+  test("GET /friends/ - drops a friend as soon as the friendship is removed", async () => {
+    const friendship = await createTestFriendship(userA.id, userB.id);
+    expect(await getFriendIds(userA)).toEqual([userB.id]);
+
+    const res = await fetch(`${baseUrl()}/api/v1/friends/${friendship.id}`, {
+      method: "DELETE",
+      headers: await authHeader(userB.id, userB.username),
+    });
+    expect(res.ok).toBe(true);
+
+    expect(await getFriendIds(userA)).toEqual([]);
+  });
+
+  test("GET /friends/ - shows a friend's new display name right away", async () => {
+    await createTestFriendship(userA.id, userB.id);
+    await getFriendIds(userB);
+
+    const res = await fetch(`${baseUrl()}/api/v1/users/me`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await authHeader(userA.id, userA.username)),
+      },
+      body: JSON.stringify({ displayName: "Renamed Friend" }),
+    });
+    expect(res.status).toBe(200);
+
+    const list = await fetch(`${baseUrl()}/api/v1/friends/`, {
+      headers: await authHeader(userB.id, userB.username),
+    });
+    const data = (await list.json()) as any;
+    expect(data.friendships[0].friend.profile.displayName).toBe(
+      "Renamed Friend",
+    );
+  });
+
+  test("GET /friends/suggestions - drops a user as soon as a request is sent, and brings them back on cancel", async () => {
+    expect(await getSuggestionIds(userA)).toContain(userB.id);
+    expect(await getSuggestionIds(userB)).toContain(userA.id);
+
+    const send = await fetch(
+      `${baseUrl()}/api/v1/friends/requests/${userB.id}`,
+      {
+        method: "POST",
+        headers: await authHeader(userA.id, userA.username),
+      },
+    );
+    expect(send.status).toBe(200);
+    const request = (await send.json()) as any;
+
+    expect(await getSuggestionIds(userA)).not.toContain(userB.id);
+    expect(await getSuggestionIds(userB)).not.toContain(userA.id);
+
+    const cancel = await fetch(
+      `${baseUrl()}/api/v1/friends/requests/${request.id}`,
+      {
+        method: "DELETE",
+        headers: await authHeader(userA.id, userA.username),
+      },
+    );
+    expect(cancel.status).toBe(200);
+
+    expect(await getSuggestionIds(userA)).toContain(userB.id);
+    expect(await getSuggestionIds(userB)).toContain(userA.id);
+  });
+
   test("GET /friends/requests - should return pending requests", async () => {
     const incoming = await sendFriendRequest(userB.id, userA.id);
     const outgoing = await sendFriendRequest(userA.id, userB.id);

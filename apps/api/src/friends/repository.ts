@@ -139,6 +139,17 @@ export class FriendRepository {
     });
   }
 
+  /** Ids of everyone `userId` is friends with (deleted accounts included). */
+  async findFriendIds(userId: string): Promise<string[]> {
+    const rows = await prisma.friendship.findMany({
+      where: { OR: [{ user1Id: userId }, { user2Id: userId }] },
+      select: { user1Id: true, user2Id: true },
+    });
+    return rows.map((row) =>
+      row.user1Id === userId ? row.user2Id : row.user1Id,
+    );
+  }
+
   async findFriendship(where: Prisma.FriendshipWhereInput) {
     return await prisma.friendship.findFirst({
       where,

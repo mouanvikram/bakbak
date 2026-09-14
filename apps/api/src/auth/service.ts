@@ -7,6 +7,7 @@ import type { EmailRepository } from "@/email/repository";
 import type { RefreshTokenRepository } from "./refresh-token.repository";
 import type { SettingsRepository } from "@/settings/repository";
 import { disconnectSockets } from "@/websocket/emitter";
+import { invalidateFriendsOf } from "@/friends/cache";
 import { VerificationTokenType } from "@bakbak/db";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { authConfig } from "./config";
@@ -1082,6 +1083,8 @@ export class AuthService {
     }
 
     await this.userRepository.restoreDeleted(token.userId);
+    // The account reappears in its friends' lists.
+    await invalidateFriendsOf(token.userId);
     await this.emailRepository.deleteAll({
       userId: token.userId,
       type: VerificationTokenType.ACCOUNT_RECOVERY,

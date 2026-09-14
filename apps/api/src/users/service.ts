@@ -34,6 +34,7 @@ import { BIO_MIN_LENGTH } from "@bakbak/contracts";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import { uploadsConfig } from "@/uploads/config";
+import { invalidateFriendsOf } from "@/friends/cache";
 import { titleCaseName } from "@/lib/name-case";
 import { usersConfig } from "./config";
 
@@ -192,6 +193,9 @@ export class UserService {
         throw error;
       });
 
+    // Friends' cached lists show this name, username and bio.
+    await invalidateFriendsOf(dto.userId);
+
     return {
       username: user.username,
       verified: user.isEmailVerified,
@@ -228,6 +232,8 @@ export class UserService {
         },
       },
     });
+
+    await invalidateFriendsOf(dto.userId);
 
     return {
       avatar: await resolveAvatarUrl(
@@ -274,6 +280,7 @@ export class UserService {
         },
       },
     });
+    await invalidateFriendsOf(dto.userId);
 
     // Best-effort removal of the previous avatar object.
     if (previousKey) {
@@ -391,6 +398,8 @@ export class UserService {
     // Soft delete only: nothing is removed, and messages they sent are left
 
     await this.userRepository.markDeleted(dto.userId);
+    // Friends lists hide deleted accounts; drop the copies that still show it.
+    await invalidateFriendsOf(dto.userId);
 
     // Tell the owner the account is scheduled for permanent deletion, and
     // send the recovery link they can use to undo it within the window.
