@@ -14,6 +14,9 @@ import { FriendService } from "@/friends/service";
 import { MessageController } from "@/messages/controller";
 import { MessageRepository } from "@/messages/repository";
 import { MessageService } from "@/messages/service";
+import { PushController } from "@/push/controller";
+import { PushRepository } from "@/push/repository";
+import { PushService } from "@/push/service";
 import { SettingsController } from "@/settings/controller";
 import { SettingsRepository } from "@/settings/repository";
 import { SettingsService } from "@/settings/service";
@@ -73,10 +76,14 @@ export const chatService = new ChatService(chatRepository, storageProvider);
 export const chatController = new ChatController(chatService);
 
 export const messageRepository = new MessageRepository();
+export const pushRepository = new PushRepository();
+export const pushService = new PushService(pushRepository);
+export const pushController = new PushController(pushService);
 export const messageService = new MessageService(
   messageRepository,
   storageProvider,
   uploadRepository,
+  pushService,
 );
 export const messageController = new MessageController(messageService);
 export const settingsService = new SettingsService(settingsRepository);

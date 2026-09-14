@@ -2,6 +2,7 @@ import { MessageType } from "@bakbak/contracts";
 import { Prisma, type AttachmentKind } from "@bakbak/db";
 import type { MessageRepository } from "./repository";
 import type { UploadRepository } from "@/uploads/repository";
+import type { PushService } from "@/push/service";
 import type {
   ChatMessagesDto,
   EditMessageDto,
@@ -101,6 +102,7 @@ export class MessageService {
     private readonly messageRepository: MessageRepository,
     private readonly storageProvider: StorageProvider,
     private readonly uploadRepository: UploadRepository,
+    private readonly pushService: PushService,
   ) {}
 
   private async serializeAttachment(attachment: {
@@ -361,6 +363,12 @@ export class MessageService {
     } catch {
       // WebSocket may not be initialised in test runners.
     }
+
+    // Offline recipients get a web push; online ones already saw the socket
+    // event above. Fire-and-forget so deliverability can never fail the send.
+    void this.pushService
+      .notifyMessage({ chatId: dto.chatId, message: serialized as MessageResponseType })
+      .catch(() => {});
 
     return serialized;
   }
