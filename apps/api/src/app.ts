@@ -9,6 +9,7 @@ import { formBodySizeLimit } from "@/middleware/body-size-limit.middleware";
 import { uploadsConfig } from "@/uploads/config";
 import { requestIdMiddleware } from "@/middleware/request-id.middleware";
 import { requestLoggerMiddleware } from "@/middleware/request-logger.middleware";
+import { httpMetricsMiddleware } from "@/system/metrics";
 import { rateLimitGlobal } from "@/redis/rate-limit";
 import { authRoutes } from "@/auth/routes";
 import { userRoutes } from "@/users/routes";
@@ -53,7 +54,10 @@ app.use(rateLimitGlobal());
 // 8. Response compression
 app.use(compression());
 
-// 9. Routes
+// 9. Metrics instrumentation (Prometheus counter + histogram per request).
+app.use(httpMetricsMiddleware);
+
+// 10. Routes
 app.use("/api/v1/version", systemRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/uploads", uploadRoutes);
