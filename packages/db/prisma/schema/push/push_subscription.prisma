@@ -1,0 +1,19 @@
+// One row per browser PushSubscription (RFC 8030) the user has granted.
+// Keyed by endpoint so re-subscribing on the same device upserts instead of
+// duplicating. The endpoint/keys are what the backing push service needs to
+// encrypt a message; VAPID is configured server-side (see apps/api/src/push).
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

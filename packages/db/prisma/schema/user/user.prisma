@@ -37,8 +37,9 @@ model User {
   friendShips1 Friendship[] @relation("FriendshipUser1")
   friendShips2 Friendship[] @relation("FriendshipUser2")
 
-  chats        ChatParticipant[]
-  createdChats Chat[]            @relation("CreatedChats")
+  chats             ChatParticipant[]
+  createdChats      Chat[]            @relation("CreatedChats")
+  pushSubscriptions PushSubscription[]
 
   messages   Message[]
   reactions  MessageReaction[]
@@ -74,8 +75,6 @@ model UserSettings {
   // NotificationsPage
   notifyMessages Boolean @default(true)
   notifySounds   Boolean @default(true)
-  notifyAlerts   Boolean @default(true)
-  emailDigest    Boolean @default(false)
 
   // AppearancePage
   theme    String @default("light") @db.VarChar(10)
