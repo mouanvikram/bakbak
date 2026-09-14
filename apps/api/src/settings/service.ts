@@ -11,8 +11,6 @@ import type { SettingsRepository } from "./repository";
 type SettingsPatch = Partial<{
   notifyMessages: boolean;
   notifySounds: boolean;
-  notifyAlerts: boolean;
-  emailDigest: boolean;
   theme: string;
   fontSize: string;
   enterToSend: boolean;
@@ -35,8 +33,6 @@ export class SettingsService {
     return this.update(dto.userId, {
       notifyMessages: dto.settings.messages,
       notifySounds: dto.settings.sounds,
-      notifyAlerts: dto.settings.alerts,
-      emailDigest: dto.settings.emailDigest,
     });
   }
 
@@ -72,8 +68,6 @@ export class SettingsService {
       notifications: {
         messages: settings.notifyMessages,
         sounds: settings.notifySounds,
-        alerts: settings.notifyAlerts,
-        emailDigest: settings.emailDigest,
       },
       appearance: {
         theme: settings.theme as "light" | "dark" | "system",

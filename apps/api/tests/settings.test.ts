@@ -99,8 +99,6 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
       notifications: {
         messages: true,
         sounds: true,
-        alerts: true,
-        emailDigest: false,
       },
       appearance: { theme: "light", fontSize: "small" },
       chat: { enterToSend: true, mediaPreview: true },
@@ -120,8 +118,6 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     const res = await patch("/notifications", {
       messages: false,
       sounds: false,
-      alerts: true,
-      emailDigest: true,
     });
 
     expect(res.status).toBe(200);
@@ -129,8 +125,6 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     expect(data.notifications).toEqual({
       messages: false,
       sounds: false,
-      alerts: true,
-      emailDigest: true,
     });
 
     const reread = (await (await getSettings()).json()) as any;
@@ -141,8 +135,6 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     const res = await patch("/notifications", {
       messages: true,
       sounds: true,
-      alerts: true,
-      emailDigest: false,
     });
     const data = (await res.json()) as any;
     expect(data).toHaveProperty("notifications");
@@ -158,8 +150,6 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
       body: JSON.stringify({
         messages: true,
         sounds: true,
-        alerts: true,
-        emailDigest: false,
       }),
     });
     expect(res.status).toBe(401);
@@ -167,9 +157,7 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
 
   test("PATCH /settings/notifications - should reject a missing field", async () => {
     const res = await patch("/notifications", {
-      messages: true,
       sounds: true,
-      alerts: true,
     });
     expect(res.status).toBe(400);
     const data = (await res.json()) as any;
@@ -180,8 +168,6 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     const res = await patch("/notifications", {
       messages: "yes",
       sounds: true,
-      alerts: true,
-      emailDigest: false,
     });
     expect(res.status).toBe(400);
     const data = (await res.json()) as any;
@@ -285,8 +271,6 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     await patch("/notifications", {
       messages: false,
       sounds: false,
-      alerts: false,
-      emailDigest: true,
     });
 
     const data = (await (await getSettings()).json()) as any;
@@ -319,8 +303,6 @@ describe.skipIf(!DB_AVAILABLE)("Settings Endpoints", () => {
     const res = await patch("/notifications", {
       messages: false,
       sounds: true,
-      alerts: true,
-      emailDigest: false,
       isAdmin: true,
       injected: "value",
     });
