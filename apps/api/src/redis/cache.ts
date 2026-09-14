@@ -77,13 +77,17 @@ function markStale(): void {
   if (state !== "clearing") needsClear = true;
 }
 
-/** SCAN + DEL every key matching `pattern`; resolves to how many went. */
+/** SCAN + DEL every key matching `pattern`; resolves to how many went. A plain
+ *  cursor loop rather than `scanStream()` + `for await`, which can stall under
+ *  Bun when a scan page comes back empty. */
 async function deleteMatching(client: Redis, pattern: string): Promise<number> {
   let removed = 0;
-  const stream = client.scanStream({ match: pattern, count: 100 });
-  for await (const keys of stream) {
+  let cursor = "0";
+  do {
+    const [next, keys] = await client.scan(cursor, "MATCH", pattern, "COUNT", 100);
+    cursor = next;
     if (keys.length) removed += await client.del(...keys);
-  }
+  } while (cursor !== "0");
   return removed;
 }
 
