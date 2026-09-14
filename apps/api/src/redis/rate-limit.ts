@@ -95,22 +95,11 @@ function checkAndApplyLimit<R extends Request>(
   };
 }
 
-// Key shape: rl:<dimension>:<bucket>:<identity>. The dimension ("user" or "ip")
-// is part of the key so the same bucket can never collide across identity
-// types even if its keying semantics change later.
-function bucketKey(
-  dimension: "user" | "ip",
-  bucket: string,
-  identity: string,
-): string {
-  return `rl:${dimension}:${bucket}:${identity}`;
-}
-
 // global rate-limiter how many total request can come
 // from a single ip per minute.
 export function rateLimitGlobal() {
   return checkAndApplyLimit((req: Request) => ({
-    key: bucketKey("ip", "global", req.ip ?? "unknown"),
+    key: `rl:global:${req.ip ?? "unknown"}`,
     ...redisConfig.rateLimit.global,
   }));
 }
@@ -118,13 +107,10 @@ export function rateLimitGlobal() {
 // it will rate-limit authorized endpoints
 // like uploads, chat creation, message sending etc.
 export function rateLimitAuthorized(bucket: RateLimitBucketName) {
-  return checkAndApplyLimit((req: Request) => {
-    const userId = req.user?.userId;
-    return {
-      key: bucketKey(userId ? "user" : "ip", bucket, userId ?? req.ip ?? "unknown"),
-      ...redisConfig.rateLimit[bucket],
-    };
-  });
+  return checkAndApplyLimit((req: Request) => ({
+    key: `rl:${bucket}:${req.user?.userId ?? req.ip ?? "unknown"}`,
+    ...redisConfig.rateLimit[bucket],
+  }));
 }
 
 // Per-IP rate limit for a named bucket. Used on public endpoints (login,
@@ -133,7 +119,7 @@ export function rateLimitAuthorized(bucket: RateLimitBucketName) {
 // emails/usernames mint a fresh bucket every attempt.
 export function rateLimitIp(bucket: RateLimitBucketName) {
   return checkAndApplyLimit((req: Request) => ({
-    key: bucketKey("ip", bucket, req.ip || "unknown"),
+    key: `rl:${bucket}:${req.ip || "unknown"}`,
     ...redisConfig.rateLimit[bucket],
   }));
 }
