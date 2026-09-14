@@ -20,7 +20,7 @@ function AppLayout() {
           </aside>
 
           {/* Page content */}
-          <main className="min-w-0 flex-1 overflow-hidden bg-white pb-16 lg:pb-0">
+          <main className="min-w-0 flex-1 overflow-hidden bg-white pb-16 md:pb-0">
             <div className="flex h-full w-full flex-col overflow-y-auto bg-white">
               <Outlet />
             </div>
