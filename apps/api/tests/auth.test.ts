@@ -1472,7 +1472,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       headers: { Cookie: `${REFRESH_COOKIE}=${token}`, ...headers },
     });
 
-  // â”€â”€ Refresh Token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //  Refresh Token 
 
   test("POST /api/v1/auth/login - sets the refresh token as an httpOnly cookie, not in the body", async () => {
     const user = await createTestUser({
@@ -1730,7 +1730,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(meData.profile.id).toBe(user.id);
   });
 
-  // â”€â”€ Logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //  Logout 
 
   test("POST /api/v1/auth/logout - ends only the caller's session, not the others", async () => {
     const user = await createTestUser({
@@ -1803,7 +1803,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // â”€â”€ Active sessions / Devices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //  Active sessions / Devices 
 
   const loginWithUA = async (identifier: string, ua: string) => {
     const res = await fetch(`${baseUrl()}/api/v1/auth/login`, {
@@ -1908,7 +1908,7 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // â”€â”€ Hardcore boundary & injection tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //  Hardcore boundary & injection tests
 
   const maxUsername = "a".repeat(30);
   const overMaxUsername = "a".repeat(31);
