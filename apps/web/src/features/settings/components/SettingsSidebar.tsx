@@ -38,7 +38,7 @@ const navigation: Record<string, SidebarOption[]> = {
     },
     {
       label: "Notifications",
-      desc: "Messages, sounds, and alerts",
+      desc: "Messages and sounds",
       path: "/settings/notifications",
       icon: Bell,
     },

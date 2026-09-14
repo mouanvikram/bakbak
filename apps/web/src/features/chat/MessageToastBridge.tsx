@@ -4,8 +4,10 @@ import type { ChatResponseType, MessageResponseType } from "@bakbak/contracts";
 import { useAuth } from "@/features/auth/auth-context";
 import { useSocket } from "@/features/chat/socket-context";
 import { getChat } from "@/features/chat/api";
+import { useNotifications } from "@/features/settings/notifications-context";
 import { useToast } from "@/components/ui/Toast";
 import { Avatar } from "@/components/ui/Avatar";
+import { playSound } from "@/lib/sounds";
 
 interface ChatInfo {
   type: "DIRECT" | "GROUP";
@@ -36,6 +38,7 @@ export function MessageToastBridge() {
   const socket = useSocket();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { prefs } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -57,24 +60,31 @@ export function MessageToastBridge() {
         msg.sender?.profile?.displayName ||
         msg.sender?.username ||
         "New message";
-      const preview = previewOf(msg);
       const isGroup = info?.type === "GROUP";
-
-      const title = isGroup && info?.name ? info.name : senderName;
-      const description = isGroup ? `${senderName}: ${preview}` : preview;
-      const avatarSrc = isGroup ? info?.avatar : msg.sender?.profile?.avatar;
+      const groupName = info?.name || "Group";
 
       toast({
-        title,
-        description,
+        title: isGroup ? `${senderName} in ${groupName}` : senderName,
+        description: previewOf(msg),
         dedupeKey: `chat:${msg.chatId}`,
         onAction: () => navigate(`/chats/${msg.chatId}`),
+        // The sender is always the face on the left; a group message wears
+        // the group's photo as a small badge so you know where it landed.
         icon: (
-          <Avatar
-            name={isGroup ? info?.name || "Group" : senderName}
-            src={avatarSrc}
-            className="size-9"
-          />
+          <span className="relative block">
+            <Avatar
+              name={senderName}
+              src={msg.sender?.profile?.avatar}
+              className="size-10"
+            />
+            {isGroup && (
+              <Avatar
+                name={groupName}
+                src={info?.avatar}
+                className="absolute -right-1 -bottom-1 size-5 rounded-full text-[10px] ring-2 ring-white dark:ring-[#10151b]"
+              />
+            )}
+          </span>
         ),
       });
     };
@@ -82,6 +92,12 @@ export function MessageToastBridge() {
     const onNewMessage = (msg: MessageResponseType) => {
       if (!msg || msg.senderId === currentUserId) return;
       if (msg.chatId === openChatIdRef.current) return;
+
+      // The chime is the "Sounds" toggle's; it plays even when in-app toasts
+      // are off, so Messages OFF mutes only the visual notifications.
+      playSound("message");
+
+      if (!prefs.messages) return;
 
       const cached = chatInfo.current.get(msg.chatId);
       if (cached) {
@@ -116,7 +132,7 @@ export function MessageToastBridge() {
       socket.off("message:new", onNewMessage);
       socket.off("chat:updated", onChatUpdated);
     };
-  }, [socket, currentUserId, toast, navigate]);
+  }, [socket, currentUserId, toast, navigate, prefs.messages]);
 
   return null;
 }

@@ -31,7 +31,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Why aren't I getting notifications?",
-    a: "Push and email notifications aren't built yet. The toggles in Settings → Notifications are saved for when they land, but for now BakBak only notifies you while the app is open.",
+    a: "BakBak sends browser notifications for new messages even when the app is closed. If you're not seeing them: check that Messages is on in Settings → Notifications, that the browser is allowed to send notifications for this site (look for the bell/lock icon in the address bar), and — on a phone — that the device's OS isn't blocking the browser's notifications. You'll also need browser notifications the very first time you switch Messages on, when the browser asks for permission.",
   },
 ];
 
