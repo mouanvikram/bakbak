@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/features/auth/auth-context";
 import { useChatPreferences } from "@/features/settings/chat-preferences-context";
 import { useSocket } from "@/features/chat/socket-context";
+import { usePresence } from "@/features/chat/presence-context";
 import { getChat } from "@/features/chat/api";
 import {
   listMessages,
@@ -60,6 +61,7 @@ export function ChatPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const socket = useSocket();
+  const { isOnline, lastSeenAt } = usePresence();
   const { preferences } = useChatPreferences();
   const { toast, error: toastError } = useToast();
   const [chat, setChat] = useState<ChatResponseType | null>(null);
@@ -103,11 +105,8 @@ export function ChatPage() {
     replyToId?: string;
   } | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   // participantId -> id of the last message that participant has read.
   const [readState, setReadState] = useState<Record<string, string | null>>({});
-  // userId -> ISO timestamp of when they last went offline, from `presence`.
-  const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   // The message the thread just jumped to (from a reply quote), outlined
@@ -174,7 +173,6 @@ export function ChatPage() {
 
     // Switching chats: drop any state carried over from the previous room.
     setTypingUsers([]);
-    setOnlineUsers(new Set());
 
     const clearTypingUser = (uid: string) => {
       const t = timers.get(uid);
@@ -189,11 +187,6 @@ export function ChatPage() {
       // Auto-join at connect time covers existing chats; re-emit so a chat
       // opened before the socket finished connecting is joined too.
       s.emit("chat:join", id);
-    };
-
-    const onPresenceState = (data: { chatId: string; online: string[] }) => {
-      if (data.chatId !== id) return;
-      setOnlineUsers(new Set(data.online));
     };
 
     const onNewMessage = (message: MessageResponseType) => {
@@ -267,29 +260,6 @@ export function ChatPage() {
       setReadState((prev) => ({ ...prev, [data.userId]: data.messageId }));
     };
 
-    const onPresence = (data: {
-      userId: string;
-      online: boolean;
-      lastSeenAt?: string;
-    }) => {
-      if (!id) return;
-      if (data.userId === currentUserId) return;
-      if (!data.online) {
-        setLastSeen((prev) => {
-          const next = { ...prev };
-          if (data.lastSeenAt) next[data.userId] = data.lastSeenAt;
-          else delete next[data.userId];
-          return next;
-        });
-      }
-      setOnlineUsers((prev) => {
-        const next = new Set(prev);
-        if (data.online) next.add(data.userId);
-        else next.delete(data.userId);
-        return next;
-      });
-    };
-
     const onChatUpdated = (updated: ChatResponseType) => {
       if (updated?.id !== id) return;
       const stillIn = updated.participants?.some(
@@ -305,25 +275,21 @@ export function ChatPage() {
     };
 
     s.on("connect", onConnect);
-    s.on("presence:state", onPresenceState);
     s.on("message:new", onNewMessage);
     s.on("message:edited", onMessageEdited);
     s.on("message:deleted", onMessageDeleted);
     s.on("message:reaction", onMessageReaction);
     s.on("typing", onTyping);
-    s.on("presence", onPresence);
     s.on("read:receipt", onReadReceipt);
     s.on("chat:updated", onChatUpdated);
 
     return () => {
       s.off("connect", onConnect);
-      s.off("presence:state", onPresenceState);
       s.off("message:new", onNewMessage);
       s.off("message:edited", onMessageEdited);
       s.off("message:deleted", onMessageDeleted);
       s.off("message:reaction", onMessageReaction);
       s.off("typing", onTyping);
-      s.off("presence", onPresence);
       s.off("read:receipt", onReadReceipt);
       s.off("chat:updated", onChatUpdated);
       for (const t of timers.values()) clearTimeout(t);
@@ -609,7 +575,7 @@ export function ChatPage() {
     (p) => p.user.id !== currentUserId,
   );
   const otherOnline = otherParticipant
-    ? onlineUsers.has(otherParticipant.user.id)
+    ? isOnline(otherParticipant.user.id)
     : false;
   const displayName =
     chat?.type === "DIRECT"
@@ -627,10 +593,11 @@ export function ChatPage() {
       : otherOnline
         ? "Online"
         : formatLastSeen(
-            otherParticipant?.user.profile?.lastSeenAt ??
-              (otherParticipant
-                ? lastSeen[otherParticipant.user.id]
-                : undefined),
+            // Newer of the live presence value and the one loaded with the chat.
+            lastSeenAt(
+              otherParticipant?.user.id,
+              otherParticipant?.user.profile?.lastSeenAt,
+            ),
           )
     : "";
 

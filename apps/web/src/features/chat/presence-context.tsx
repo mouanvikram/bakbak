@@ -9,21 +9,46 @@ import {
 import { useSocket } from "@/features/chat/socket-context";
 
 /**
- * App-wide presence. The server auto-joins every socket to all of the user's
- * chat rooms on connect and emits `presence:state` (a snapshot per room) plus
- * `presence` (deltas), so a single listener here covers every conversation in
- * the sidebar and the open chat alike.
+ * App-wide presence — the single client-side source for who is online and
+ * when they were last seen. The server auto-joins every socket to all of the
+ * user's chat rooms on connect and emits `presence:state` (a snapshot per
+ * room) plus `presence` (deltas, carrying `lastSeenAt` on the way offline), so
+ * one listener here serves the sidebar, the open chat, and anything else.
  */
 interface PresenceValue {
   onlineUserIds: ReadonlySet<string>;
   isOnline: (userId: string | null | undefined) => boolean;
+  /**
+   * When the user was last seen: the newer of what live `presence` events
+   * reported and `fallback` — typically the `lastSeenAt` loaded with the data
+   * on screen, which can itself be fresher than an event from earlier.
+   */
+  lastSeenAt: (
+    userId: string | null | undefined,
+    fallback?: string | null,
+  ) => string | undefined;
 }
 
 const PresenceContext = createContext<PresenceValue | null>(null);
 
+/** The later of two ISO timestamps; either may be missing. */
+function latestIso(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): string | undefined {
+  if (!a) return b ?? undefined;
+  if (!b) return a;
+  return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
+}
+
 export function PresenceProvider({ children }: { children: ReactNode }) {
   const socket = useSocket();
   const [online, setOnline] = useState<Set<string>>(() => new Set());
+  // userId -> ISO time they went offline, from live `presence` events. Kept
+  // across disconnects: a last-seen time doesn't go stale the way "online" does.
+  const [lastSeen, setLastSeen] = useState<Map<string, string>>(
+    () => new Map(),
+  );
 
   useEffect(() => {
     if (!socket) {
@@ -40,7 +65,11 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    const onDelta = (data: { userId: string; online: boolean }) => {
+    const onDelta = (data: {
+      userId: string;
+      online: boolean;
+      lastSeenAt?: string;
+    }) => {
       setOnline((prev) => {
         if (prev.has(data.userId) === data.online) return prev;
         const next = new Set(prev);
@@ -48,6 +77,13 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
         else next.delete(data.userId);
         return next;
       });
+      if (!data.online && data.lastSeenAt) {
+        const at = data.lastSeenAt;
+        setLastSeen((prev) => {
+          if (latestIso(prev.get(data.userId), at) !== at) return prev;
+          return new Map(prev).set(data.userId, at);
+        });
+      }
     };
 
     // A dropped connection makes every "online" flag stale; the fresh
@@ -69,8 +105,10 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
     () => ({
       onlineUserIds: online,
       isOnline: (userId) => (userId ? online.has(userId) : false),
+      lastSeenAt: (userId, fallback) =>
+        latestIso(userId ? lastSeen.get(userId) : undefined, fallback),
     }),
-    [online],
+    [online, lastSeen],
   );
 
   return (
