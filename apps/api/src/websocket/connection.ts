@@ -1,7 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import { prisma } from "@bakbak/db";
 import logger from "@/lib/logger";
-import { socketAuthMiddleware, type AuthenticatedSocket } from "./auth";
+import { type AuthenticatedSocket } from "./auth";
 import { websocketConfig } from "./config";
 import { presenceConfig } from "@/redis/presence/config";
 import { touchSocket, releaseSocket } from "@/redis/presence";
@@ -10,8 +10,6 @@ const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 // socketId → heartbeat timer refreshing the Redis presence badge
 const heartbeatTimers = new Map<string, ReturnType<typeof setInterval>>();
-// socketId → set of chatIds the socket has joined (for presence broadcasting)
-const socketChatRooms = new Map<string, Set<string>>();
 
 export function registerConnection(io: Server, socket: AuthenticatedSocket) {
   const s = socket;
@@ -21,16 +19,8 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 
   const heartbeatTimer = setInterval(() => {
     void touchSocket(userId, s.id);
-
-    logger.info({
-      msg: "Debugging",
-      heartbeatTimer,
-      rooms: Object.fromEntries(
-        [...socketChatRooms].map(([socketId, chats]) => [socketId, [...chats]]),
-      ),
-      typing: [...typingTimers.keys()],
-    });
   }, presenceConfig.heartbeatMs);
+
   heartbeatTimers.set(s.id, heartbeatTimer);
 
   void (async () => {
@@ -43,7 +33,6 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 
     // Auto-join every chat the user is an active participant of.
     const chatIds = await joinAllChats(s, userId);
-    socketChatRooms.set(s.id, new Set(chatIds));
     for (const chatId of chatIds) {
       if (first) {
         s.to(`chat:${chatId}`).emit("presence", { userId, online: true });
@@ -62,20 +51,12 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     if (typeof chatId !== "string") return;
     if (!(await isParticipant(chatId, userId))) return;
     void s.join(`chat:${chatId}`);
-    socketChatRooms.get(s.id)?.add(chatId);
 
     s.to(`chat:${chatId}`).emit("presence", { userId, online: true });
     s.emit("presence:state", {
       chatId,
       online: await onlineUserIdsInChat(io, chatId, userId),
     });
-  });
-
-  s.on("chat:leave", (chatId: unknown) => {
-    if (typeof chatId !== "string") return;
-    void s.leave(`chat:${chatId}`);
-    const rooms = socketChatRooms.get(s.id);
-    if (rooms) rooms.delete(chatId);
   });
 
   s.on("typing", (data: unknown) => {
@@ -131,6 +112,16 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     });
   });
 
+  // Socket.IO has already emptied `s.rooms` by the time "disconnect" fires, so
+  // capture the chats this socket is really in — including joins and leaves
+  // made from other servers — while they're still there.
+  let chatIdsAtDisconnect: string[] = [];
+  s.on("disconnecting", () => {
+    chatIdsAtDisconnect = [...s.rooms]
+      .filter((room) => room.startsWith("chat:"))
+      .map((room) => room.slice("chat:".length));
+  });
+
   s.on("disconnect", (reason) => {
     logger.info({ socketId: s.id, userId, reason }, "Socket disconnected");
 
@@ -140,23 +131,18 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
       heartbeatTimers.delete(s.id);
     }
 
-    const rooms = socketChatRooms.get(s.id);
-    socketChatRooms.delete(s.id);
-
     // Cluster-wide: `offline` only when the user has no live socket anywhere.
     // `at` is Redis's clock at release — the same instant goes to the DB and
     // to the broadcast, so every client and the profile row agree.
     void releaseSocket(userId, s.id).then(({ offline, at }) => {
       if (offline) {
         void markPresence(userId, false, at);
-        if (rooms) {
-          for (const chatId of rooms) {
-            io.to(`chat:${chatId}`).emit("presence", {
-              userId,
-              online: false,
-              lastSeenAt: at.toISOString(),
-            });
-          }
+        for (const chatId of chatIdsAtDisconnect) {
+          io.to(`chat:${chatId}`).emit("presence", {
+            userId,
+            online: false,
+            lastSeenAt: at.toISOString(),
+          });
         }
       }
     });

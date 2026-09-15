@@ -22,17 +22,39 @@ export function broadcastChatUpdated(chatId: string, chat: unknown) {
   broadcastToChat(chatId, "chat:updated", chat);
 }
 
-/**
- * Join a user's live sockets to a chat room, so a freshly added member
- * starts receiving that chat's events without waiting for a reconnect.
- */
-export async function addUserToChatRoom(userId: string, chatId: string) {
-  if (!ioRef) return;
+/** Live sockets, on any API server, that belong to one of `userIds`. */
+async function socketsOfUsers(userIds: string[]) {
+  if (!ioRef || userIds.length === 0) return [];
+  const wanted = new Set(userIds);
   const sockets = await ioRef.fetchSockets();
-  for (const s of sockets) {
-    if ((s.data as { userId?: string }).userId === userId) {
-      s.join(`chat:${chatId}`);
-    }
+  return sockets.filter((s) =>
+    wanted.has((s.data as SocketIdentity).userId ?? ""),
+  );
+}
+
+/**
+ * Join these users' live sockets to a chat room, so new members — and both
+ * sides of a new or re-opened direct chat — start receiving the chat's events
+ * without waiting for a reconnect.
+ */
+export async function addUsersToChatRoom(userIds: string[], chatId: string) {
+  for (const s of await socketsOfUsers(userIds)) {
+    s.join(`chat:${chatId}`);
+  }
+}
+
+/**
+ * Remove these users' live sockets from a chat room — every tab, device and
+ * server — once they've left or been removed, so they stop receiving its
+ * messages now rather than at their next reconnect. Membership is decided
+ * here on the server; clients can't leave rooms themselves.
+ */
+export async function removeUsersFromChatRoom(
+  userIds: string[],
+  chatId: string,
+) {
+  for (const s of await socketsOfUsers(userIds)) {
+    s.leave(`chat:${chatId}`);
   }
 }
 

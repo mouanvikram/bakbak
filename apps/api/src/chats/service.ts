@@ -12,7 +12,11 @@ import type {
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import type { StorageProvider } from "@/uploads/storage.provider";
 import { resolveAvatarUrl } from "@/uploads/avatar-url";
-import { addUserToChatRoom, broadcastChatUpdated } from "@/websocket/emitter";
+import {
+  addUsersToChatRoom,
+  broadcastChatUpdated,
+  removeUsersFromChatRoom,
+} from "@/websocket/emitter";
 import { toIso } from "@/lib/dates";
 
 // Hard upper bound on group size — enforced at creation and on every add so a roster can't grow unboundedly over time.
@@ -290,6 +294,10 @@ export class ChatService {
       include: getChatInclude(),
     });
 
+    // Both sides' open sockets join the room, so the first message of a new
+    // (or re-opened) conversation arrives live instead of after a reconnect.
+    await addUsersToChatRoom([dto.currentUserId, dto.participantId], chat.id);
+
     return await this.serializeChat(chat);
   }
 
@@ -350,6 +358,8 @@ export class ChatService {
       },
       include: getChatInclude(),
     });
+
+    await addUsersToChatRoom(participantIds, chat.id);
 
     return await this.serializeChat(chat);
   }
@@ -551,7 +561,7 @@ export class ChatService {
 
     // Pull the new member's sockets into the room so they receive the
     // chat:updated below and every message from here on.
-    await addUserToChatRoom(dto.participantId, dto.chatId);
+    await addUsersToChatRoom([dto.participantId], dto.chatId);
     await this.broadcastChatState(dto.chatId);
 
     return await this.serializeParticipant(participant);
@@ -603,6 +613,9 @@ export class ChatService {
     });
 
     await this.broadcastChatState(dto.chatId);
+    // After the broadcast, so the removed member still receives chat:updated
+    // (the client uses it to close the chat) and nothing from the room after.
+    await removeUsersFromChatRoom([dto.participantId], dto.chatId);
 
     return await this.serializeParticipant(participant);
   }
@@ -660,6 +673,10 @@ export class ChatService {
     if (chat?.type === ChatType.GROUP) {
       await this.broadcastChatState(dto.chatId);
     }
+
+    // The caller stops receiving this chat on every tab and device right away
+    // — a direct chat too, since it's gone from their list.
+    await removeUsersFromChatRoom([dto.currentUserId], dto.chatId);
 
     return { message: "Chat removed" };
   }
