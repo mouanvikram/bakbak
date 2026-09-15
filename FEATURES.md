@@ -62,7 +62,7 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 - [x] **Authenticated gateway** — JWT handshake (Bearer or `auth.token`) with live-session verification; auto-joins the user's active chats.
 - [x] **Presence & typing** — per-room presence snapshots on join, online/offline transitions persisted, throttled typing indicators.
 - [x] **Live delivery** — messages, edits, deletes, reactions, read receipts, and chat/metadata changes pushed to rooms; sockets are force-disconnected on logout, session revoke, and password change.
-- [x] **Horizontal scaling** — Socket.IO Redis adapter, so events reach sockets on any API instance; presence is tracked in Redis with per-socket leases refreshed by a heartbeat, falling back to an in-process mirror while Redis is unavailable.
+- [x] **Horizontal scaling** — Socket.IO Redis adapter, so events reach sockets on any API instance; presence is tracked in Redis with per-socket leases refreshed by a heartbeat, falling back to an in-process mirror while Redis is unavailable. A background sweep marks users whose leases expired without a clean disconnect (e.g. their API server crashed) offline — profile `lastSeenAt` set to their last heartbeat, and their chats notified.
 
 ## 🔔 Notifications
 
@@ -104,4 +104,4 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🧪 Testing
 
-- [x] **377-test API suite** — `bun:test` HTTP integration tests across 19 files against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends (including cache freshness), chats, messages, uploads, settings, and web push, plus cache behaviour across a Redis reconnect — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion — plus unit tests for config parsing, the logger, pagination/date helpers, health/readiness probes, Prometheus metrics, and the Prisma error mapping. Contract-level profiles/moderated-field rules are covered by 22 unit tests in `packages/contracts`.
+- [x] **383-test API suite** — `bun:test` HTTP integration tests across 20 files against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends (including cache freshness), chats, messages, uploads, settings, and web push, plus cache behaviour across a Redis reconnect — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion — plus unit tests for config parsing, the logger, pagination/date helpers, health/readiness probes, Prometheus metrics, and the Prisma error mapping. Contract-level profiles/moderated-field rules are covered by 22 unit tests in `packages/contracts`.
