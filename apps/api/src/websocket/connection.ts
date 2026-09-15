@@ -1,7 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import { prisma } from "@bakbak/db";
 import logger from "@/lib/logger";
-import type { AuthenticatedSocket } from "./auth";
+import { socketAuthMiddleware, type AuthenticatedSocket } from "./auth";
 import { websocketConfig } from "./config";
 import { presenceConfig } from "@/redis/presence/config";
 import { touchSocket, releaseSocket } from "@/redis/presence";
@@ -19,10 +19,17 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 
   logger.info({ socketId: s.id, userId, username }, "Socket connected");
 
-  // Heartbeat keeps the user's badge (and TTL) alive so a crashed instance's
-  // stale socket expires via the lease instead of pinning the user "online".
   const heartbeatTimer = setInterval(() => {
     void touchSocket(userId, s.id);
+
+    logger.info({
+      msg: "Debugging",
+      heartbeatTimer,
+      rooms: Object.fromEntries(
+        [...socketChatRooms].map(([socketId, chats]) => [socketId, [...chats]]),
+      ),
+      typing: [...typingTimers.keys()],
+    });
   }, presenceConfig.heartbeatMs);
   heartbeatTimers.set(s.id, heartbeatTimer);
 
@@ -137,15 +144,17 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     socketChatRooms.delete(s.id);
 
     // Cluster-wide: `offline` only when the user has no live socket anywhere.
-    void releaseSocket(userId, s.id).then(({ offline }) => {
+    // `at` is Redis's clock at release — the same instant goes to the DB and
+    // to the broadcast, so every client and the profile row agree.
+    void releaseSocket(userId, s.id).then(({ offline, at }) => {
       if (offline) {
-        void markPresence(userId, false);
+        void markPresence(userId, false, at);
         if (rooms) {
           for (const chatId of rooms) {
             io.to(`chat:${chatId}`).emit("presence", {
               userId,
               online: false,
-              lastSeenAt: new Date().toISOString(),
+              lastSeenAt: at.toISOString(),
             });
           }
         }
@@ -165,13 +174,17 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 // Coarse online/last-seen bookkeeping on the profile row. Fire-and-forget:
 // a failed write must never disrupt the socket lifecycle, and a stale flag
 // self-corrects on the next connect/disconnect.
-async function markPresence(userId: string, online: boolean) {
+// Also used by the presence sweep job for users whose server never
+// disconnected them cleanly.
+export async function markPresence(
+  userId: string,
+  online: boolean,
+  lastSeenAt: Date = new Date(),
+) {
   try {
     await prisma.userProfile.update({
       where: { userId },
-      data: online
-        ? { isOnline: true }
-        : { isOnline: false, lastSeenAt: new Date() },
+      data: online ? { isOnline: true } : { isOnline: false, lastSeenAt },
     });
   } catch (err) {
     logger.warn({ err, userId, online }, "Failed to persist presence flag");
