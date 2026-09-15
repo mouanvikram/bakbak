@@ -3,8 +3,10 @@ import logger from "@/lib/logger";
 import { getRedisClient, isRedisReady } from "@/redis/client";
 import { presenceConfig } from "./config";
 
+const USER_SOCKETS_PREFIX = "presence:user:";
+
 export const presenceKeys = {
-  userSockets: (userId: string) => `presence:user:${userId}`,
+  userSockets: (userId: string) => `${USER_SOCKETS_PREFIX}${userId}`,
   online: "presence:online",
 };
 
@@ -23,6 +25,11 @@ type PresenceCommander = Redis & {
     socketId: string,
     userId: string,
   ) => Promise<[number, number]>;
+  presenceSweep: (
+    onlineKey: string,
+    userSocketsPrefix: string,
+    limit: number,
+  ) => Promise<string[]>;
 };
 
 // Fail-open mirror: keeps today's single-instance behaviour when Redis is down
@@ -102,30 +109,75 @@ export async function releaseSocket(
   }
 }
 
+// Which of `userIds` are online anywhere in the cluster: their lease in
+// `presence:online` hasn't expired (scores are expiry times in Redis ms).
 export async function onlineAmong(userIds: string[]): Promise<Set<string>> {
   if (userIds.length === 0) return new Set();
 
   const redis = readyClient();
-  if (!redis) return new Set();
+  if (redis) {
+    try {
+      const [[sec, micro], scores] = await Promise.all([
+        redis.time(),
+        redis.zmscore(presenceKeys.online, ...userIds),
+      ]);
 
-  try {
-    const [[sec, micro], scores] = await Promise.all([
-      redis.time(),
-      redis.zmscore(presenceKeys.online, ...userIds),
-    ]);
+      const nowMs = Number(sec) * 1000 + Math.floor(Number(micro) / 1000);
 
-    const nowMs = Number(sec) * 1000 + Math.floor(Number(micro) / 1000);
-
-    return new Set(
-      userIds.filter((_, i) => {
-        scores[i] !== null && Number(scores[i]) > nowMs;
-      }),
-    );
-  } catch (err) {
-    logger.warn({ err }, "Presence lookup failed; using local fallback");
+      return new Set(
+        userIds.filter(
+          (_, i) => scores[i] !== null && Number(scores[i]) > nowMs,
+        ),
+      );
+    } catch (err) {
+      logger.warn({ err }, "Presence lookup failed; using local fallback");
+    }
   }
+
+  // Redis down or erroring: this instance's own sockets, like touch/release.
   return new Set(userIds.filter((id) => (localSockets.get(id)?.size ?? 0) > 0));
 }
+export interface ExpiredPresence {
+  userId: string;
+  /** Their last heartbeat: the final lease expiry minus the lease length. */
+  lastSeenAt: Date;
+}
+
+/**
+ * Takes users whose presence lease ran out without a clean disconnect (a
+ * crashed API server, a frozen process) out of the online index. Atomic, so
+ * with several servers sweeping each expired user is returned exactly once —
+ * the caller that gets it owns marking them offline.
+ */
+export async function sweepExpiredPresence(
+  limit = 500,
+): Promise<ExpiredPresence[]> {
+  const redis = readyClient();
+  if (!redis) return [];
+
+  try {
+    const flat = await redis.presenceSweep(
+      presenceKeys.online,
+      USER_SOCKETS_PREFIX,
+      limit,
+    );
+    const expired: ExpiredPresence[] = [];
+    for (let i = 0; i + 1 < flat.length; i += 2) {
+      const userId = flat[i];
+      const leaseExpiry = flat[i + 1];
+      if (userId === undefined || leaseExpiry === undefined) continue;
+      expired.push({
+        userId,
+        lastSeenAt: new Date(Number(leaseExpiry) - presenceConfig.socketTtlMs),
+      });
+    }
+    return expired;
+  } catch (err) {
+    logger.warn({ err }, "Presence sweep failed");
+    return [];
+  }
+}
+
 function readyClient(): PresenceCommander | null {
   const redis = getRedisClient() as PresenceCommander;
   return isRedisReady() ? redis : null;

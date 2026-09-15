@@ -3,8 +3,11 @@ import logger from "@/lib/logger";
 import { registerShutdownHook } from "@/shutdown/registry";
 import { getRedisConnectionOptions } from "./config";
 import { TOKEN_BUCKET_SCRIPT } from "./lua.scripts";
-import { PRESENCE_TOUCH_SCRIPT } from "./presence/lua.scripts";
-import { PRESENCE_RELEASE_SCRIPT } from "./presence/lua.scripts";
+import {
+  PRESENCE_RELEASE_SCRIPT,
+  PRESENCE_SWEEP_SCRIPT,
+  PRESENCE_TOUCH_SCRIPT,
+} from "./presence/lua.scripts";
 
 let redis: Redis | null = null;
 
@@ -37,6 +40,10 @@ export function getRedisClient(): Redis {
   redis.defineCommand("presenceRelease", {
     numberOfKeys: 2,
     lua: PRESENCE_RELEASE_SCRIPT,
+  });
+  redis.defineCommand("presenceSweep", {
+    numberOfKeys: 1,
+    lua: PRESENCE_SWEEP_SCRIPT,
   });
 
   redis.on("connect", () => {
