@@ -102,7 +102,7 @@ Logging is controlled by `LOG_LEVEL`, `LOG_PRETTY=true` (pretty terminal output 
   - A socket stays authenticated after its access token expires (auth runs once at the handshake; revoked sessions are still force-disconnected).
   - The `typing` event broadcasts without checking chat membership.
   - No per-user connection limits, no rate limit on `chat:join`, no backpressure handling, no delivery receipts (read receipts only).
-  - No WebSocket tests.
+  - WebSocket tests cover chat-room membership only (join on create/re-open, leave on remove/leave); typing, presence events and receipts are untested.
 - **Upload hardening**
   - MIME type is trusted from the client (no magic-byte sniffing); `image/svg+xml` and `text/*` are accepted.
   - Original file names are stored and returned verbatim.
