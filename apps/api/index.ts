@@ -37,6 +37,7 @@ const io = new Server(httpServer, {
 
 initializeWebSocket(io);
 
+// start background jobs.
 startJobs();
 
 // Registered last so it runs first on shutdown (LIFO registry): drain the
