@@ -1,4 +1,9 @@
-import { Counter, Histogram, collectDefaultMetrics, register } from "prom-client";
+import {
+  Counter,
+  Histogram,
+  collectDefaultMetrics,
+  register,
+} from "prom-client";
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 
