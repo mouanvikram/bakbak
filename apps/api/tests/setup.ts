@@ -27,6 +27,7 @@ for (const bucket of [
   "USERNAME_CHECK",
   "FRIEND_REQUEST",
   "CHAT",
+  "SETTINGS",
 ]) {
   process.env[`RATE_LIMIT_${bucket}_CAPACITY`] = "500";
   process.env[`RATE_LIMIT_${bucket}_REFILL_PER_SEC`] = "50";

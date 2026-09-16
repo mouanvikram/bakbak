@@ -69,6 +69,16 @@ export const redisConfig = {
         1 / 8,
       ),
     },
+
+    // Preference writes: a burst covers a settings page where every toggle
+    // saves on change, but not a loop hammering the row.
+    settings: {
+      capacity: positiveNum(process.env.RATE_LIMIT_SETTINGS_CAPACITY, 30),
+      refillRate: positiveNum(
+        process.env.RATE_LIMIT_SETTINGS_REFILL_PER_SEC,
+        1 / 4,
+      ),
+    },
   },
   cache: {
     defaultTtlSec: positiveNum(process.env.CACHE_DEFAULT_TTL_SEC, 300),

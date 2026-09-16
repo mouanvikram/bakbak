@@ -7,6 +7,7 @@ import {
   updateChatPreferencesRequestSchema,
   updateNotificationSettingsRequestSchema,
 } from "@bakbak/contracts";
+import { rateLimitAuthorized } from "@/redis/rate-limit";
 
 export const settingsRoutes = Router();
 
@@ -16,16 +17,19 @@ settingsRoutes.get("/", settingsController.getSettings);
 settingsRoutes.patch(
   "/notifications",
   validate(updateNotificationSettingsRequestSchema),
+  rateLimitAuthorized("settings"),
   settingsController.updateNotifications,
 );
 settingsRoutes.patch(
   "/appearance",
   validate(updateAppearanceSettingsRequestSchema),
+  rateLimitAuthorized("settings"),
   settingsController.updateAppearance,
 );
 settingsRoutes.patch(
   "/chat",
   validate(updateChatPreferencesRequestSchema),
+  rateLimitAuthorized("settings"),
   settingsController.updateChatPreferences,
 );
 
