@@ -3,6 +3,7 @@ import type { ChatPreferencesType } from "@bakbak/contracts";
 import { useAuth } from "@/features/auth/auth-context";
 import { getSettings, updateChatPreferences } from "@/features/settings/api";
 import { setSoundsEnabled } from "@/lib/sounds";
+import { reportError } from "@/lib/report";
 import { ChatPreferencesContext } from "./chat-preferences-context";
 
 const STORAGE_KEY = "bakbak.chatPreferences";
@@ -52,7 +53,7 @@ export function ChatPreferencesProvider({ children }: { children: ReactNode }) {
         // Same response carries the Sounds switch; sync it while we're here.
         setSoundsEnabled(res.notifications.sounds);
       })
-      .catch(() => {});
+      .catch((err: unknown) => reportError("settings:load", err));
     return () => {
       cancelled = true;
     };
@@ -63,7 +64,11 @@ export function ChatPreferencesProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         const merged = { ...prev, ...next };
         persist(merged);
-        if (isAuthenticated) void updateChatPreferences(merged).catch(() => {});
+        if (isAuthenticated) {
+          void updateChatPreferences(merged).catch((err: unknown) =>
+            reportError("settings:chat:save", err),
+          );
+        }
         return merged;
       });
     },

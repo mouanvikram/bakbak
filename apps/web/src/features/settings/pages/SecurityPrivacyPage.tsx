@@ -13,6 +13,7 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Toggle } from "@/components/ui/Toggle";
 import { DeleteAccountDialog } from "@/features/settings/components/DeleteAccountDialog";
 import { playSound } from "@/lib/sounds";
+import { reportError } from "@/lib/report";
 
 export function SecurityPrivacyPage() {
   const { deleteAccount, profile } = useAuth();
@@ -36,7 +37,7 @@ export function SecurityPrivacyPage() {
   useEffect(() => {
     getSettings()
       .then((res) => setTwoFactor(res.privacy.twoFactorEnabled))
-      .catch(() => {});
+      .catch((err: unknown) => reportError("settings:load", err));
   }, []);
 
   async function handleToggleTwoFactor() {

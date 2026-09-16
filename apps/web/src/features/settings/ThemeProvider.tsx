@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/features/auth/auth-context";
 import { getSettings, updateAppearance } from "@/features/settings/api";
+import { reportError } from "@/lib/report";
 import {
   ThemeContext,
   type FontSizePreference,
@@ -82,7 +83,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         persist(THEME_KEY, res.appearance.theme);
         persist(FONT_SIZE_KEY, res.appearance.fontSize);
       })
-      .catch(() => {});
+      .catch((err: unknown) => reportError("settings:load", err));
     return () => {
       cancelled = true;
     };
@@ -91,7 +92,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const save = useCallback(
     (next: { theme: ThemePreference; fontSize: FontSizePreference }) => {
       if (!isAuthenticated) return;
-      void updateAppearance(next).catch(() => {});
+      void updateAppearance(next).catch((err: unknown) =>
+        reportError("settings:appearance:save", err),
+      );
     },
     [isAuthenticated],
   );

@@ -11,6 +11,7 @@ import { ChatItem } from "@/features/chat/components/ChatItem";
 import { EmptyState } from "@/components/ui/States";
 import { ChatListSkeleton } from "@/components/ui/Skeleton";
 import { IconButton } from "@/components/ui/IconButton";
+import { reportError } from "@/lib/report";
 
 export function ChatSidebar() {
   const socket = useSocket();
@@ -59,7 +60,7 @@ export function ChatSidebar() {
         setChats(res.chats);
         seedUnread(res.chats);
       })
-      .catch(() => {})
+      .catch((err: unknown) => reportError("chats:list", err))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -98,7 +99,7 @@ export function ChatSidebar() {
             setChats(res.chats);
             seedUnread(res.chats);
           })
-          .catch(() => {});
+          .catch((err: unknown) => reportError("chats:list", err));
         return;
       }
 

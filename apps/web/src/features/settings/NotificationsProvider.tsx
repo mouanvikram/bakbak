@@ -14,6 +14,7 @@ import {
   type PushSetupStatus,
 } from "@/lib/push";
 import { setSoundsEnabled } from "@/lib/sounds";
+import { reportError } from "@/lib/report";
 import {
   NotificationsContext,
   type NotificationPrefs,
@@ -105,7 +106,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         persist(synced);
         setSoundsEnabled(synced.sounds);
       })
-      .catch(() => {});
+      .catch((err: unknown) => reportError("settings:load", err));
     return () => {
       cancelled = true;
     };
@@ -159,7 +160,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           void updateNotifications({
             messages: merged.messages,
             sounds: merged.sounds,
-          }).catch(() => {});
+          }).catch((err: unknown) =>
+            reportError("settings:notifications:save", err),
+          );
         }
         return merged;
       });
