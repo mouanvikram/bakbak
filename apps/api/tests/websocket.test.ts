@@ -298,4 +298,68 @@ describe.skipIf(!DB_AVAILABLE)("WebSocket chat rooms", () => {
     await connect(bob);
     await waitFor(() => inRoom(bob.id, group.id));
   });
+
+  // ── Membership re-checks ────────────────────────────────────────────────
+
+  test("typing from a non-member never reaches the chat room", async () => {
+    const chatId = await createChat(alice, { type: "DIRECT", participantId: bob.id });
+    const bobSocket = await connect(bob);
+    await waitFor(() => inRoom(bob.id, chatId));
+    const typings = record(bobSocket, "typing");
+
+    const carolSocket = await connect(carol);
+    carolSocket.emit("typing", { chatId, isTyping: true });
+
+    await sleep(300);
+    expect(typings).toHaveLength(0);
+    expect(await inRoom(carol.id, chatId)).toBe(false);
+  });
+
+  test("read:receipt from a non-member persists nothing and reaches nobody", async () => {
+    const chatId = await createChat(alice, { type: "DIRECT", participantId: bob.id });
+    const bobSocket = await connect(bob);
+    await waitFor(() => inRoom(bob.id, chatId));
+    const receipts = record(bobSocket, "read:receipt");
+
+    const carolSocket = await connect(carol);
+    carolSocket.emit("read:receipt", { chatId, messageId: randomUUID() });
+
+    await sleep(300);
+    expect(receipts).toHaveLength(0);
+  });
+
+  test("chat:join from a non-member is ignored — no room, no presence", async () => {
+    const chatId = await createChat(alice, { type: "DIRECT", participantId: bob.id });
+    const bobSocket = await connect(bob);
+    await waitFor(() => inRoom(bob.id, chatId));
+    const presence = record(bobSocket, "presence");
+
+    const carolSocket = await connect(carol);
+    carolSocket.emit("chat:join", chatId);
+
+    await sleep(300);
+    expect(await inRoom(carol.id, chatId)).toBe(false);
+    expect(presence).toHaveLength(0);
+  });
+
+  test("a member removed from a chat can no longer broadcast typing", async () => {
+    const groupId = await createChat(alice, {
+      type: "GROUP",
+      name: "Member recheck",
+      participantIds: [bob.id, carol.id],
+    });
+    const carolSocket = await connect(carol);
+    await waitFor(() => inRoom(carol.id, groupId));
+    const typings = record(carolSocket, "typing");
+
+    const res = await api(alice, "DELETE", `/chats/${groupId}/members/${bob.id}`);
+    expect(res.ok).toBe(true);
+
+    const bobSocket = await connect(bob);
+    bobSocket.emit("typing", { chatId: groupId, isTyping: true });
+
+    await sleep(300);
+    expect(typings).toHaveLength(0);
+    expect(await inRoom(bob.id, groupId)).toBe(false);
+  });
 });
