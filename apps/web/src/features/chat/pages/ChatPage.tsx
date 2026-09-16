@@ -19,6 +19,11 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useChatPreferences } from "@/features/settings/chat-preferences-context";
 import { useSocket } from "@/features/chat/socket-context";
 import { usePresence } from "@/features/chat/presence-context";
+import { useSocketEvent } from "@/features/chat/hooks/use-socket-event";
+import {
+  useChatRoom,
+  useTypingIndicator,
+} from "@/features/chat/hooks/use-typing-indicator";
 import { getChat } from "@/features/chat/api";
 import {
   listMessages,
@@ -44,6 +49,7 @@ import { EmptyState } from "@/components/ui/States";
 import { MessageThreadSkeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
 import { playSound } from "@/lib/sounds";
+import { reportError } from "@/lib/report";
 import { cn, formatLastSeen } from "@/lib/utils";
 
 /** Files the composer lets you attach. Anything the API rejects still surfaces
@@ -51,9 +57,10 @@ import { cn, formatLastSeen } from "@/lib/utils";
 const ATTACHMENT_ACCEPT =
   "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip";
 
-interface TypingUser {
-  userId: string;
-  username: string;
+/** Threads read oldest-first, and both the API and the socket can hand us a
+ *  message that belongs earlier than the last one we have. */
+function byCreatedAt(a: MessageResponseType, b: MessageResponseType) {
+  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 }
 
 export function ChatPage() {
@@ -104,7 +111,6 @@ export function ChatPage() {
     content: string;
     replyToId?: string;
   } | null>(null);
-  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   // participantId -> id of the last message that participant has read.
   const [readState, setReadState] = useState<Record<string, string | null>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -113,24 +119,19 @@ export function ChatPage() {
   // for a moment so the eye can find it.
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // userId -> timer that drops a stale "typing" indicator if no stop arrives.
-  const typingExpiry = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map(),
-  );
 
   const currentUserId = user?.id;
+  const typingUsers = useTypingIndicator(socket, id, currentUserId);
 
-  useEffect(() => {
-    // A pending clientId is scoped to the chat it was sent in — switching
-    // chats must never let it get reused (and possibly matched) elsewhere.
-    pendingSend.current = null;
-    // A reply target is scoped to its chat too.
-    setReplyTarget(null);
-  }, [id]);
-
+  // Everything that has to start over when the open chat changes.
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
+    // A pending clientId is scoped to the chat it was sent in — switching
+    // chats must never let it get reused (and possibly matched) elsewhere.
+    // A reply target is scoped to its chat too.
+    pendingSend.current = null;
+    setReplyTarget(null);
     setLoading(true);
     setError("");
     setInitialIds(null);
@@ -146,10 +147,7 @@ export function ChatPage() {
             ]),
           ),
         );
-        const sorted = [...msgRes.messages].sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        );
+        const sorted = [...msgRes.messages].sort(byCreatedAt);
         setMessages(sorted);
         setInitialIds(new Set(sorted.map((m) => m.id)));
       })
@@ -159,143 +157,74 @@ export function ChatPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    // The server broadcasts the read receipt to the other participants as a
+    // side effect of this call, so there's nothing to emit over the socket.
+    void markChatRead(id).catch((err: unknown) =>
+      reportError("messages:markRead", err),
+    );
     return () => {
       cancelled = true;
     };
   }, [id]);
 
-  // Real-time events from Socket.IO
-  useEffect(() => {
-    if (!socket || !id) return;
+  // Real-time events from Socket.IO. Each handler is re-read through a ref on
+  // every event, so none of them resubscribe as this component's state moves.
+  useChatRoom(socket, id);
 
-    const s = socket;
-    const timers = typingExpiry.current;
+  const replaceMessage = (message: MessageResponseType) => {
+    if (message.chatId !== id) return;
+    setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
+  };
 
-    // Switching chats: drop any state carried over from the previous room.
-    setTypingUsers([]);
-
-    const clearTypingUser = (uid: string) => {
-      const t = timers.get(uid);
-      if (t) {
-        clearTimeout(t);
-        timers.delete(uid);
-      }
-      setTypingUsers((prev) => prev.filter((u) => u.userId !== uid));
-    };
-
-    const onConnect = () => {
-      // Auto-join at connect time covers existing chats; re-emit so a chat
-      // opened before the socket finished connecting is joined too.
-      s.emit("chat:join", id);
-    };
-
-    const onNewMessage = (message: MessageResponseType) => {
-      if (message.chatId !== id) return;
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === message.id)) return prev;
-        return [...prev, message].sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        );
-      });
-      if (message.senderId !== currentUserId) {
-        playSound("receive");
-        void markChatRead(id ?? "").catch(() => {});
-      }
-    };
-
-    const onMessageEdited = (message: MessageResponseType) => {
-      if (message.chatId !== id) return;
-      setMessages((prev) =>
-        prev.map((m) => (m.id === message.id ? message : m)),
+  useSocketEvent<MessageResponseType>(socket, "message:new", (message) => {
+    if (message.chatId !== id) return;
+    setMessages((prev) =>
+      prev.some((m) => m.id === message.id)
+        ? prev
+        : [...prev, message].sort(byCreatedAt),
+    );
+    if (message.senderId !== currentUserId) {
+      playSound("receive");
+      void markChatRead(message.chatId).catch((err: unknown) =>
+        reportError("messages:markRead", err),
       );
-    };
+    }
+  });
 
-    const onMessageDeleted = (message: MessageResponseType) => {
-      if (message.chatId !== id) return;
-      setMessages((prev) =>
-        prev.map((m) => (m.id === message.id ? message : m)),
-      );
-    };
+  useSocketEvent<MessageResponseType>(socket, "message:edited", replaceMessage);
+  useSocketEvent<MessageResponseType>(
+    socket,
+    "message:deleted",
+    replaceMessage,
+  );
+  useSocketEvent<MessageResponseType>(
+    socket,
+    "message:reaction",
+    replaceMessage,
+  );
 
-    const onMessageReaction = (message: MessageResponseType) => {
-      if (message.chatId !== id) return;
-      setMessages((prev) =>
-        prev.map((m) => (m.id === message.id ? message : m)),
-      );
-    };
-
-    const onTyping = (data: {
-      chatId: string;
-      userId: string;
-      username: string;
-      isTyping: boolean;
-    }) => {
-      if (data.chatId !== id) return;
-      if (data.userId === currentUserId) return;
-      if (!data.isTyping) {
-        clearTypingUser(data.userId);
-        return;
-      }
-      setTypingUsers((prev) =>
-        prev.some((u) => u.userId === data.userId)
-          ? prev
-          : [...prev, { userId: data.userId, username: data.username }],
-      );
-      // Safety net in case the matching "stopped typing" event is missed.
-      const existing = timers.get(data.userId);
-      if (existing) clearTimeout(existing);
-      timers.set(
-        data.userId,
-        setTimeout(() => clearTypingUser(data.userId), 6_000),
-      );
-    };
-
-    const onReadReceipt = (data: {
-      chatId: string;
-      userId: string;
-      messageId: string;
-    }) => {
+  useSocketEvent<{ chatId: string; userId: string; messageId: string }>(
+    socket,
+    "read:receipt",
+    (data) => {
       if (data.chatId !== id) return;
       setReadState((prev) => ({ ...prev, [data.userId]: data.messageId }));
-    };
+    },
+  );
 
-    const onChatUpdated = (updated: ChatResponseType) => {
-      if (updated?.id !== id) return;
-      const stillIn = updated.participants?.some(
-        (p) => p.userId === currentUserId,
-      );
-      if (!stillIn) {
-        navigate("/chats", { replace: true });
-        return;
-      }
-      setChat((prev) =>
-        prev ? { ...prev, ...updated, messages: prev.messages } : updated,
-      );
-    };
-
-    s.on("connect", onConnect);
-    s.on("message:new", onNewMessage);
-    s.on("message:edited", onMessageEdited);
-    s.on("message:deleted", onMessageDeleted);
-    s.on("message:reaction", onMessageReaction);
-    s.on("typing", onTyping);
-    s.on("read:receipt", onReadReceipt);
-    s.on("chat:updated", onChatUpdated);
-
-    return () => {
-      s.off("connect", onConnect);
-      s.off("message:new", onNewMessage);
-      s.off("message:edited", onMessageEdited);
-      s.off("message:deleted", onMessageDeleted);
-      s.off("message:reaction", onMessageReaction);
-      s.off("typing", onTyping);
-      s.off("read:receipt", onReadReceipt);
-      s.off("chat:updated", onChatUpdated);
-      for (const t of timers.values()) clearTimeout(t);
-      timers.clear();
-    };
-  }, [id, currentUserId, socket, navigate]);
+  useSocketEvent<ChatResponseType>(socket, "chat:updated", (updated) => {
+    if (updated?.id !== id) return;
+    const stillIn = updated.participants?.some(
+      (p) => p.userId === currentUserId,
+    );
+    if (!stillIn) {
+      navigate("/chats", { replace: true });
+      return;
+    }
+    setChat((prev) =>
+      prev ? { ...prev, ...updated, messages: prev.messages } : updated,
+    );
+  });
 
   useEffect(() => {
     // Jump straight to the bottom when a thread opens; glide when a new
@@ -308,38 +237,12 @@ export function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: glide ? "smooth" : "auto" });
   }, [messages, loading, initialIds]);
 
-  useEffect(() => {
-    if (!id || !socket) return;
-    // Ensure this socket is in the chat's room. This matters for chats that
-    // were created *after* the socket initially connected (e.g. starting a
-    // new conversation) — auto-join at connect time won't have covered them.
-    if (socket.connected) {
-      socket.emit("chat:join", id);
-    }
-    // Tell the room we've stopped typing when navigating away.
-    return () => {
-      if (socket.connected) {
-        socket.emit("typing", { chatId: id, isTyping: false });
-      }
-    };
-  }, [id, socket]);
-
-  useEffect(() => {
-    if (!id) return;
-    // The server broadcasts the read receipt to the other participants as a
-    // side effect of this call, so there's nothing to emit over the socket.
-    void markChatRead(id).catch(() => {});
-  }, [id]);
-
   function upsertMessage(next: MessageResponseType) {
     setMessages((prev) => {
       if (prev.some((m) => m.id === next.id)) {
         return prev.map((m) => (m.id === next.id ? next : m));
       }
-      return [...prev, next].sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      );
+      return [...prev, next].sort(byCreatedAt);
     });
   }
 
