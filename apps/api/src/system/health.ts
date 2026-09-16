@@ -53,7 +53,7 @@ function emailPing() {
   return resend.domains.list().then(() => true).catch(() => false);
 }
 
-export function createDefaultCheckers(): ReadinessCheckers {
+function createDefaultCheckers(): ReadinessCheckers {
   const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T | null> =>
     Promise.race([
       promise,

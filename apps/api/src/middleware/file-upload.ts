@@ -24,7 +24,7 @@ function formatLimit(bytes: number): string {
 
 // Builds a memory-backed single-file upload and its paired error handler.
 
-export function createFileUpload(options: FileUploadOptions): FileUpload {
+function createFileUpload(options: FileUploadOptions): FileUpload {
   const { field = "file", label, maxFileSize, rejectReason } = options;
 
   const instance = multer({

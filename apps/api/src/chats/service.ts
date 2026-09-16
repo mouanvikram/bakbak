@@ -21,7 +21,7 @@ import {
 import { toIso } from "@/lib/dates";
 
 // Hard upper bound on group size — enforced at creation and on every add so a roster can't grow unboundedly over time.
-export const GROUP_MAX_PARTICIPANTS = 1000;
+const GROUP_MAX_PARTICIPANTS = 1000;
 
 export const GROUP_CREATE_MAX_PARTICIPANTS = 780;
 

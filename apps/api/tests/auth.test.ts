@@ -1920,11 +1920,8 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
   const overMaxBio = "b".repeat(501);
   const maxDisplayName = "d".repeat(100);
   const overMaxDisplayName = "d".repeat(101);
-  const maxIdentifier = "i".repeat(100);
   const overMaxIdentifier = "i".repeat(101);
-  const maxToken = "t".repeat(100);
   const overMaxToken = "t".repeat(101);
-  const maxRefreshToken = "r".repeat(255);
   const overMaxRefreshToken = "r".repeat(256);
 
   const nullBytePayload = "test\x00admin";
