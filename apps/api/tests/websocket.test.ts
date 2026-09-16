@@ -224,6 +224,29 @@ describe.skipIf(!DB_AVAILABLE)("WebSocket chat rooms", () => {
     await waitFor(() => messages.length === 1);
   });
 
+  test("deleting a group tells its members and empties the room", async () => {
+    const groupId = await createChat(alice, {
+      type: "GROUP",
+      name: "Room delete",
+      participantIds: [bob.id, carol.id],
+    });
+    const bobSocket = await connect(bob);
+    await waitFor(() => inRoom(bob.id, groupId));
+    const updates = record(bobSocket, "chat:updated");
+
+    const res = await api(alice, "DELETE", `/chats/${groupId}`);
+    expect(res.ok).toBe(true);
+
+    // The client reads "no participants" as "this chat is gone for me".
+    await waitFor(() => updates.length > 0);
+    expect(updates[0].id).toBe(groupId);
+    expect(updates[0].participants).toEqual([]);
+
+    await waitFor(
+      async () => (await io.in(`chat:${groupId}`).fetchSockets()).length === 0,
+    );
+  });
+
   // ── Joining a room ──────────────────────────────────────────────────────
 
   test("a new direct chat delivers its first message live, without a reconnect", async () => {

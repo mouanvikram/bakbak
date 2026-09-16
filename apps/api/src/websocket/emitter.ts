@@ -44,6 +44,15 @@ export async function addUsersToChatRoom(userIds: string[], chatId: string) {
 }
 
 /**
+ * Empty a chat room on every server — for a chat that no longer exists, so no
+ * socket is left holding a room nothing will ever publish to again.
+ */
+export function clearChatRoom(chatId: string) {
+  const room = `chat:${chatId}`;
+  ioRef?.in(room).socketsLeave(room);
+}
+
+/**
  * Remove these users' live sockets from a chat room — every tab, device and
  * server — once they've left or been removed, so they stop receiving its
  * messages now rather than at their next reconnect. Membership is decided

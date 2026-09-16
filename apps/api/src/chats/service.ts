@@ -15,6 +15,7 @@ import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import {
   addUsersToChatRoom,
   broadcastChatUpdated,
+  clearChatRoom,
   removeUsersFromChatRoom,
 } from "@/websocket/emitter";
 import { toIso } from "@/lib/dates";
@@ -729,6 +730,15 @@ export class ChatService {
       },
     });
 
-    return await this.serializeChat(chatDeleted);
+    const serialized = await this.serializeChat(chatDeleted);
+
+    // Members learn through the usual `chat:updated`: an empty participant
+    // list is what the client already treats as "you're not in this chat any
+    // more", so it closes the conversation and drops it from the list. Sent
+    // before the room is emptied, or nobody would receive it.
+    broadcastChatUpdated(dto.chatId, { ...serialized, participants: [] });
+    clearChatRoom(dto.chatId);
+
+    return serialized;
   }
 }
