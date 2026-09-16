@@ -6,8 +6,19 @@ import type {
 } from "@bakbak/contracts";
 import { apiClient } from "@/lib/api/client";
 
+// The theme, chat-preference and notification providers each need this row the
+// moment a session starts, and the security page asks again. Callers that ask
+// while a request is already in flight share it, instead of firing one each.
+let inFlight: Promise<UserSettingsResponseType> | null = null;
+
 export function getSettings(): Promise<UserSettingsResponseType> {
-  return apiClient("/api/v1/settings");
+  if (inFlight) return inFlight;
+  inFlight = apiClient<UserSettingsResponseType>("/api/v1/settings").finally(
+    () => {
+      inFlight = null;
+    },
+  );
+  return inFlight;
 }
 
 export function updateNotifications(
