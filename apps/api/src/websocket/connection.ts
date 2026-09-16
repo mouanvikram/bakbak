@@ -4,7 +4,7 @@ import logger from "@/lib/logger";
 import { type AuthenticatedSocket } from "./auth";
 import { websocketConfig } from "./config";
 import { presenceConfig } from "@/redis/presence/config";
-import { touchSocket, releaseSocket } from "@/redis/presence";
+import { touchSocket, releaseSocket, onlineAmong } from "@/redis/presence";
 
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -30,16 +30,25 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 
     // Auto-join every chat the user is an active participant of.
     const chatIds = await joinAllChats(s, userId);
+
+    // Snapshots of who is already online, so a freshly opened chat shows the
+    // right dots instead of waiting for the next connect/disconnect. One
+    // membership query + one Redis lookup for every chat, rather than a
+    // cluster-wide socket search per chat.
+    const membersByChat = await participantsOf(chatIds, userId);
+    const online = await onlineAmong([
+      ...new Set([...membersByChat.values()].flat()),
+    ]);
+
     for (const chatId of chatIds) {
       if (first) {
         s.to(`chat:${chatId}`).emit("presence", { userId, online: true });
       }
-      // Hand this socket a snapshot of who is already online in the room,
-      // so a freshly opened chat shows the correct online/offline state
-      // instead of waiting for the next connect/disconnect transition.
       s.emit("presence:state", {
         chatId,
-        online: await onlineUserIdsInChat(io, chatId, userId),
+        online: (membersByChat.get(chatId) ?? []).filter((id) =>
+          online.has(id),
+        ),
       });
     }
   })();
@@ -50,9 +59,11 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     void s.join(`chat:${chatId}`);
 
     s.to(`chat:${chatId}`).emit("presence", { userId, online: true });
+    const members = (await participantsOf([chatId], userId)).get(chatId) ?? [];
+    const online = await onlineAmong(members);
     s.emit("presence:state", {
       chatId,
-      online: await onlineUserIdsInChat(io, chatId, userId),
+      online: members.filter((id) => online.has(id)),
     });
   });
 
@@ -176,20 +187,32 @@ export async function recordLastSeen(
   }
 }
 
-// Distinct userIds currently connected to a chat room, derived from the live
-// socket set rather than a hand-maintained map so it can't drift out of sync.
-async function onlineUserIdsInChat(
-  io: Server,
-  chatId: string,
-  exceptUserId?: string,
-): Promise<string[]> {
-  const sockets = await io.in(`chat:${chatId}`).fetchSockets();
-  const ids = new Set<string>();
-  for (const sk of sockets) {
-    const uid = (sk.data as { userId?: string }).userId;
-    if (uid && uid !== exceptUserId) ids.add(uid);
+// chatId → the other active members, in one query for however many chats.
+async function participantsOf(
+  chatIds: string[],
+  exceptUserId: string,
+): Promise<Map<string, string[]>> {
+  const byChat = new Map<string, string[]>();
+  if (chatIds.length === 0) return byChat;
+
+  try {
+    const rows = await prisma.chatParticipant.findMany({
+      where: {
+        chatId: { in: chatIds },
+        leftAt: null,
+        userId: { not: exceptUserId },
+      },
+      select: { chatId: true, userId: true },
+    });
+    for (const { chatId, userId } of rows) {
+      const members = byChat.get(chatId);
+      if (members) members.push(userId);
+      else byChat.set(chatId, [userId]);
+    }
+  } catch (err) {
+    logger.error({ err, exceptUserId }, "Failed to load chat participants");
   }
-  return [...ids];
+  return byChat;
 }
 
 async function joinAllChats(s: Socket, userId: string): Promise<string[]> {
@@ -218,7 +241,13 @@ async function isParticipant(chatId: string, userId: string): Promise<boolean> {
       select: { leftAt: true },
     });
     return p !== null && p.leftAt === null;
-  } catch {
+  } catch (err) {
+    // Fail closed, but say so: every inbound event that needs membership
+    // silently stops working while this is throwing.
+    logger.warn(
+      { err, chatId, userId },
+      "Membership check failed; treating as not a participant",
+    );
     return false;
   }
 }
