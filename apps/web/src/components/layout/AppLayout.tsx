@@ -1,8 +1,13 @@
 import { Outlet } from "react-router";
 import PrimaryNav from "./PrimaryNav";
 import { SectionSidebar } from "./SectionSidebar";
+import { useIsDesktop } from "@/lib/use-media-query";
 
 function AppLayout() {
+  // Mounted only on desktop: below `lg` the section list is a route of its
+  // own, and a CSS-hidden copy here would still fetch and subscribe.
+  const isDesktop = useIsDesktop();
+
   return (
     <div className="h-screen w-full overflow-hidden bg-white">
       {/* Desktop / Tablet layout */}
@@ -15,9 +20,11 @@ function AppLayout() {
         {/* Secondary navigation + content */}
         <div className="flex min-w-0 flex-1">
           {/* Current section navigation */}
-          <aside className="hidden h-full w-80 shrink-0 border-r border-gray-200 bg-white lg:flex">
-            <SectionSidebar />
-          </aside>
+          {isDesktop && (
+            <aside className="flex h-full w-80 shrink-0 border-r border-gray-200 bg-white">
+              <SectionSidebar />
+            </aside>
+          )}
 
           {/* Page content */}
           <main className="min-w-0 flex-1 overflow-hidden bg-white pb-16 md:pb-0">
