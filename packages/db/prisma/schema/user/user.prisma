@@ -62,8 +62,10 @@ model UserProfile {
   dob    String?
   gender GenderType @default(MALE)
 
-  isOnline   Boolean   @default(false)
-  lastSeenAt DateTime?
+  // Live online state comes from Redis presence + socket events, never from a
+  // column; only "last seen" is persisted. Set at signup so a brand-new
+  // account has one before its first disconnect.
+  lastSeenAt DateTime? @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

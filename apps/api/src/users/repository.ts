@@ -254,7 +254,6 @@ export class UserRepository {
                 avatar: null,
                 bio: null,
                 dob: null,
-                isOnline: false,
                 lastSeenAt: null,
               },
             },

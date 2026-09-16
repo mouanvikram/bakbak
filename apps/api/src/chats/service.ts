@@ -33,7 +33,6 @@ const chatUserSelect = {
       firstName: true,
       lastName: true,
       avatar: true,
-      isOnline: true,
       lastSeenAt: true,
     },
   },

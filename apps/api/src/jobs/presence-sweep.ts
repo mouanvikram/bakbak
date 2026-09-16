@@ -2,14 +2,14 @@ import { prisma } from "@bakbak/db";
 import logger from "@/lib/logger";
 import { presenceConfig } from "@/redis/presence/config";
 import { sweepExpiredPresence } from "@/redis/presence";
-import { markPresence } from "@/websocket/connection";
+import { recordLastSeen } from "@/websocket/connection";
 import { broadcastToChat } from "@/websocket/emitter";
 import { registerJob } from "./registry";
 
 // Users whose presence lease expired without a clean disconnect — typically
-// every user of an API server that crashed — are marked offline here: the
-// profile gets isOnline=false + lastSeenAt (their last heartbeat), and their
-// chats are told, so nobody is left showing a stale green dot.
+// every user of an API server that crashed — are handled here: their profile
+// gets lastSeenAt (their last heartbeat), and their chats are told they went
+// offline, so nobody is left showing a stale green dot.
 registerJob({
   name: "presence-sweep",
   intervalMs: presenceConfig.sweepMs,
@@ -19,7 +19,7 @@ registerJob({
 
     await Promise.all(
       expired.map(({ userId, lastSeenAt }) =>
-        markPresence(userId, false, lastSeenAt),
+        recordLastSeen(userId, lastSeenAt),
       ),
     );
 

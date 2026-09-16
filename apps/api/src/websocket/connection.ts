@@ -27,9 +27,6 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     // Cluster-wide: `first` only when this is the user's first live socket
     // anywhere, so multi-instance connects don't thrash the presence flags.
     const { first } = await touchSocket(userId, s.id);
-    if (first) {
-      void markPresence(userId, true);
-    }
 
     // Auto-join every chat the user is an active participant of.
     const chatIds = await joinAllChats(s, userId);
@@ -136,7 +133,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     // to the broadcast, so every client and the profile row agree.
     void releaseSocket(userId, s.id).then(({ offline, at }) => {
       if (offline) {
-        void markPresence(userId, false, at);
+        void recordLastSeen(userId, at);
         for (const chatId of chatIdsAtDisconnect) {
           io.to(`chat:${chatId}`).emit("presence", {
             userId,
@@ -157,23 +154,22 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
   });
 }
 
-// Coarse online/last-seen bookkeeping on the profile row. Fire-and-forget:
-// a failed write must never disrupt the socket lifecycle, and a stale flag
-// self-corrects on the next connect/disconnect.
-// Also used by the presence sweep job for users whose server never
-// disconnected them cleanly.
-export async function markPresence(
+// "Last seen" bookkeeping on the profile row — written when a user's last
+// socket goes away. Whether they're online *now* is Redis presence, never a
+// column. Fire-and-forget: a failed write must never disrupt the socket
+// lifecycle, and the next disconnect (or the presence sweep, which also calls
+// this for users whose server died) corrects it.
+export async function recordLastSeen(
   userId: string,
-  online: boolean,
   lastSeenAt: Date = new Date(),
 ) {
   try {
     await prisma.userProfile.update({
       where: { userId },
-      data: online ? { isOnline: true } : { isOnline: false, lastSeenAt },
+      data: { lastSeenAt },
     });
   } catch (err) {
-    logger.warn({ err, userId, online }, "Failed to persist presence flag");
+    logger.warn({ err, userId }, "Failed to persist last-seen time");
   }
 }
 
