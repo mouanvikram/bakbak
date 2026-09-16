@@ -56,7 +56,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     });
   });
 
-  s.on("typing", (data: unknown) => {
+  s.on("typing", async (data: unknown) => {
     const d = data as { chatId?: string; isTyping?: boolean } | undefined;
     if (!d?.chatId) return;
 
@@ -80,6 +80,9 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
       }
     }
 
+    const isMember = await isParticipant(d.chatId, userId);
+
+    if (!isMember) return;
     s.to(`chat:${d.chatId}`).emit("typing", {
       chatId: d.chatId,
       userId,
