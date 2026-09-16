@@ -25,14 +25,6 @@ export function useSocket() {
   return ctx.socket ?? undefined;
 }
 
-export function useSocketConnected() {
-  const ctx = useContext(SocketContext);
-  if (!ctx) {
-    throw new Error("useSocketConnected must be used within a SocketProvider");
-  }
-  return ctx.connected;
-}
-
 export function SocketProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [socket, setSocket] = useState<Socket | undefined>(undefined);

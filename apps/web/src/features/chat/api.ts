@@ -5,7 +5,6 @@ import type {
   GetChatResponseType,
   UpdateChatRequestType,
   UpdateChatResponseType,
-  DeleteChatResponseType,
   LeaveChatResponseType,
   AddParticipantRequestType,
   AddParticipantResponseType,
@@ -59,12 +58,6 @@ export function updateChat(
   return apiClient(`/api/v1/chats/${chatId}`, {
     method: "PATCH",
     body: JSON.stringify(data),
-  });
-}
-
-export function deleteChat(chatId: string): Promise<DeleteChatResponseType> {
-  return apiClient(`/api/v1/chats/${chatId}`, {
-    method: "DELETE",
   });
 }
 

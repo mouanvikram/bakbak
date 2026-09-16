@@ -2,7 +2,6 @@ import type { VersionResponseType } from "@bakbak/contracts";
 
 // CI stamps VITE_APP_VERSION (git tag or short SHA); "dev" for a local build.
 export const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || "dev";
-export const GIT_COMMIT = import.meta.env.VITE_GIT_COMMIT?.trim() || "";
 
 export type UpdateStatus =
   | { state: "checking" }

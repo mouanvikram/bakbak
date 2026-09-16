@@ -81,10 +81,6 @@ function readStored(): boolean {
   }
 }
 
-export function soundsEnabled(): boolean {
-  return enabled;
-}
-
 export function setSoundsEnabled(next: boolean) {
   enabled = next;
   try {

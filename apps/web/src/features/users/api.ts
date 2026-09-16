@@ -2,7 +2,6 @@ import type {
   GetMeResponseType,
   UpdateProfileRequestType,
   UpdateProfileResponseType,
-  UpdateAvatarRequestType,
   UpdateAvatarResponseType,
   CheckUsernameResponseType,
   SearchUsersResponseType,
@@ -18,15 +17,6 @@ export function updateProfile(
   data: Omit<UpdateProfileRequestType, "userId">,
 ): Promise<UpdateProfileResponseType> {
   return apiClient("/api/v1/users/me", {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-}
-
-export function updateAvatar(
-  data: Omit<UpdateAvatarRequestType, "userId">,
-): Promise<UpdateAvatarResponseType> {
-  return apiClient("/api/v1/users/me/avatar", {
     method: "PATCH",
     body: JSON.stringify(data),
   });

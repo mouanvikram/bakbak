@@ -70,7 +70,7 @@ async function getVapidPublicKey(): Promise<string | null> {
 }
 
 /** Register the service worker if needed and resolve when it's active. */
-export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!browserSupportsPush()) return null;
   try {
     await navigator.serviceWorker.register(SW_PATH);

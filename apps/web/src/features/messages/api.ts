@@ -2,13 +2,11 @@ import type {
   SendMessageRequestType,
   SendMessageResponseType,
   ListMessagesResponseType,
-  GetMessageResponseType,
   EditMessageRequestType,
   EditMessageResponseType,
   DeleteMessageResponseType,
   MarkChatReadRequestType,
   MarkChatReadResponseType,
-  SearchMessagesResponseType,
   GetUnreadCountResponseType,
   MessageResponseType,
 } from "@bakbak/contracts";
@@ -47,10 +45,6 @@ export function listMessages(
   return apiClient(`/api/v1/chats/${chatId}/messages${qs ? `?${qs}` : ""}`);
 }
 
-export function getMessage(messageId: string): Promise<GetMessageResponseType> {
-  return apiClient(`/api/v1/messages/${messageId}`);
-}
-
 export function editMessage(
   messageId: string,
   data: EditMessageRequestType,
@@ -77,16 +71,6 @@ export function markChatRead(
     method: "POST",
     body: JSON.stringify(data ?? {}),
   });
-}
-
-export function searchMessages(
-  chatId: string,
-  query: string,
-): Promise<SearchMessagesResponseType> {
-  // The API reads the query string from `q` (see messages controller).
-  return apiClient(
-    `/api/v1/chats/${chatId}/messages/search?q=${encodeURIComponent(query)}`,
-  );
 }
 
 export function getUnreadCount(
