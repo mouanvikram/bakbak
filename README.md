@@ -100,9 +100,8 @@ Logging is controlled by `LOG_LEVEL`, `LOG_PRETTY=true` (pretty terminal output 
 - **Missed-message recovery** — a client that disconnects doesn't catch up on events sent while it was away; there are no event ids, ordering guarantees, or ack + retry.
 - **WebSocket hardening**
   - A socket stays authenticated after its access token expires (auth runs once at the handshake; revoked sessions are still force-disconnected).
-  - The `typing` event broadcasts without checking chat membership.
   - No per-user connection limits, no rate limit on `chat:join`, no backpressure handling, no delivery receipts (read receipts only).
-  - WebSocket tests cover chat-room membership only (join on create/re-open, leave on remove/leave); typing, presence events and receipts are untested.
+  - Socket tests cover room membership (join on create/re-open, leave on remove/leave/delete) and the membership checks on `typing`, `read:receipt` and `chat:join`; presence is covered at the lease/sweep level only. The happy paths — typing reaching members, receipt fan-out, `presence:state` and heartbeats — are still untested.
 - **Upload hardening**
   - MIME type is trusted from the client (no magic-byte sniffing); `image/svg+xml` and `text/*` are accepted.
   - Original file names are stored and returned verbatim.
