@@ -99,9 +99,11 @@ export class UserController {
       },
     });
 
+    // A stored object, like POST /uploads — the PATCH variant below only sets
+    // a URL on the profile and stays 200.
     return validateResponse(
       res,
-      HTTP_STATUS.OK,
+      HTTP_STATUS.CREATED,
       updateAvatarResponseSchema,
       response,
     );

@@ -33,7 +33,7 @@ export class FriendController {
 
     return validateResponse(
       res,
-      HTTP_STATUS.OK,
+      HTTP_STATUS.CREATED,
       sendFriendRequestResponseSchema,
       response,
     );

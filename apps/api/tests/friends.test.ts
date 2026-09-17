@@ -75,7 +75,7 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
       },
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     const data = (await res.json()) as any;
     expect(data.sender.id).toBe(userA.id);
     expect(data.receiver.id).toBe(userB.id);
@@ -586,7 +586,7 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
         headers: await authHeader(userA.id, userA.username),
       },
     );
-    expect(send.status).toBe(200);
+    expect(send.status).toBe(201);
     const request = (await send.json()) as any;
 
     expect(await getSuggestionIds(userA)).not.toContain(userB.id);
@@ -703,7 +703,7 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
 
     // Exactly one send wins; the second hits the unique index / pre-check -> 409.
     const statuses = [first.status, second.status].sort();
-    expect(statuses).toEqual([200, 409]);
+    expect(statuses).toEqual([201, 409]);
 
     const rows = await prisma.friendRequest.count({
       where: { senderId: userA.id, receiverId: target.id },
