@@ -72,4 +72,51 @@ export class ChatRepository {
       where: { chatId, leftAt: null },
     });
   }
+
+  /** True when the user is still a member of the chat. */
+  async isActiveParticipant(chatId: string, userId: string): Promise<boolean> {
+    const participant = await prisma.chatParticipant.findUnique({
+      where: { chatId_userId: { chatId, userId } },
+      select: { leftAt: true },
+    });
+    return participant !== null && participant.leftAt === null;
+  }
+
+  /** Every chat the user is still in. */
+  findActiveChatIds(userId: string) {
+    return prisma.chatParticipant.findMany({
+      where: { userId, leftAt: null },
+      select: { chatId: true },
+    });
+  }
+
+  /** Active members of these chats, minus one user — one query however many
+   *  chats are passed. */
+  findActiveParticipants(chatIds: string[], exceptUserId: string) {
+    return prisma.chatParticipant.findMany({
+      where: {
+        chatId: { in: chatIds },
+        leftAt: null,
+        userId: { not: exceptUserId },
+      },
+      select: { chatId: true, userId: true },
+    });
+  }
+
+  /** Every active membership held by any of these users. */
+  findActiveMemberships(userIds: string[]) {
+    return prisma.chatParticipant.findMany({
+      where: { userId: { in: userIds }, leftAt: null },
+      select: { chatId: true, userId: true },
+    });
+  }
+
+  /** Moves a member's read pointer. `updateMany` so a user who has since left
+   *  the chat is a no-op rather than an error. */
+  setLastReadMessage(chatId: string, userId: string, messageId: string) {
+    return prisma.chatParticipant.updateMany({
+      where: { chatId, userId, leftAt: null },
+      data: { lastReadMessageId: messageId },
+    });
+  }
 }

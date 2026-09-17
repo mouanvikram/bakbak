@@ -1,6 +1,6 @@
 import type { Server, Socket } from "socket.io";
-import { prisma } from "@bakbak/db";
 import logger from "@/lib/logger";
+import { chatRepository, userRepository } from "@/services/service.container";
 import { type AuthenticatedSocket } from "./auth";
 import { websocketConfig } from "./config";
 import { rooms } from "./rooms";
@@ -108,11 +108,8 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     if (!d?.chatId || !d?.messageId) return;
     if (!(await isParticipant(d.chatId, userId))) return;
 
-    await prisma.chatParticipant
-      .updateMany({
-        where: { chatId: d.chatId, userId, leftAt: null },
-        data: { lastReadMessageId: d.messageId },
-      })
+    await chatRepository
+      .setLastReadMessage(d.chatId, userId, d.messageId)
       .catch((err: unknown) =>
         logger.error({ err }, "Failed to persist read receipt"),
       );
@@ -177,10 +174,7 @@ export async function recordLastSeen(
   lastSeenAt: Date = new Date(),
 ) {
   try {
-    await prisma.userProfile.update({
-      where: { userId },
-      data: { lastSeenAt },
-    });
+    await userRepository.updateLastSeen(userId, lastSeenAt);
   } catch (err) {
     logger.warn({ err, userId }, "Failed to persist last-seen time");
   }
@@ -195,14 +189,10 @@ async function participantsOf(
   if (chatIds.length === 0) return byChat;
 
   try {
-    const rows = await prisma.chatParticipant.findMany({
-      where: {
-        chatId: { in: chatIds },
-        leftAt: null,
-        userId: { not: exceptUserId },
-      },
-      select: { chatId: true, userId: true },
-    });
+    const rows = await chatRepository.findActiveParticipants(
+      chatIds,
+      exceptUserId,
+    );
     for (const { chatId, userId } of rows) {
       const members = byChat.get(chatId);
       if (members) members.push(userId);
@@ -216,10 +206,7 @@ async function participantsOf(
 
 async function joinAllChats(s: Socket, userId: string): Promise<string[]> {
   try {
-    const rows = await prisma.chatParticipant.findMany({
-      where: { userId, leftAt: null },
-      select: { chatId: true },
-    });
+    const rows = await chatRepository.findActiveChatIds(userId);
 
     const chatIds: string[] = [];
     for (const { chatId } of rows) {
@@ -235,11 +222,7 @@ async function joinAllChats(s: Socket, userId: string): Promise<string[]> {
 
 async function isParticipant(chatId: string, userId: string): Promise<boolean> {
   try {
-    const p = await prisma.chatParticipant.findUnique({
-      where: { chatId_userId: { chatId, userId } },
-      select: { leftAt: true },
-    });
-    return p !== null && p.leftAt === null;
+    return await chatRepository.isActiveParticipant(chatId, userId);
   } catch (err) {
     // Fail closed, but say so: every inbound event that needs membership
     // silently stops working while this is throwing.

@@ -197,6 +197,15 @@ export class UserRepository {
     return prisma.user.update(args);
   }
 
+  /** "Last seen" on the profile, written when a user's last socket goes away.
+   * Whether they're online *now* is Redis presence, never a column. */
+  async updateLastSeen(userId: string, lastSeenAt: Date) {
+    return prisma.userProfile.update({
+      where: { userId },
+      data: { lastSeenAt },
+    });
+  }
+
   /** Marks the account deleted without removing the row — nothing about the
    * user, or the messages they sent, is actually erased. */
   async markDeleted(id: string) {

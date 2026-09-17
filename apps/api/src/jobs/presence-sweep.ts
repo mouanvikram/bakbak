@@ -1,5 +1,5 @@
-import { prisma } from "@bakbak/db";
 import logger from "@/lib/logger";
+import { chatRepository } from "@/services/service.container";
 import { presenceConfig } from "@/redis/presence/config";
 import { sweepExpiredPresence } from "@/redis/presence";
 import { recordLastSeen } from "@/websocket/connection";
@@ -26,10 +26,9 @@ registerJob({
     const lastSeenByUser = new Map(
       expired.map(({ userId, lastSeenAt }) => [userId, lastSeenAt]),
     );
-    const memberships = await prisma.chatParticipant.findMany({
-      where: { userId: { in: [...lastSeenByUser.keys()] }, leftAt: null },
-      select: { chatId: true, userId: true },
-    });
+    const memberships = await chatRepository.findActiveMemberships([
+      ...lastSeenByUser.keys(),
+    ]);
     for (const { chatId, userId } of memberships) {
       broadcastToChat(chatId, "presence", {
         userId,
