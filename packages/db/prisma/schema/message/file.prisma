@@ -18,7 +18,6 @@ model Attachment {
   fileSize Int
   width    Int?
   height   Int?
-  duration Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -82,7 +82,6 @@ type SerializedMessage = {
     fileSize: number;
     width: number | null;
     height: number | null;
-    duration: number | null;
     url: string;
     createdAt: string;
   }>;
@@ -114,7 +113,6 @@ export class MessageService {
     fileSize: number;
     width: number | null;
     height: number | null;
-    duration: number | null;
     createdAt: Date;
   }) {
     return {
@@ -126,7 +124,6 @@ export class MessageService {
       fileSize: attachment.fileSize,
       width: attachment.width,
       height: attachment.height,
-      duration: attachment.duration,
       url: await this.storageProvider.getSignedUrl(
         attachment.filePath,
         messagesConfig.attachmentUrlTtlSeconds,
@@ -150,7 +147,6 @@ export class MessageService {
         fileSize: number;
         width: number | null;
         height: number | null;
-        duration: number | null;
         createdAt: Date;
       }>;
       replyTo?: {
@@ -167,7 +163,6 @@ export class MessageService {
           fileSize: number;
           width: number | null;
           height: number | null;
-          duration: number | null;
           createdAt: Date;
         }>;
       } | null;

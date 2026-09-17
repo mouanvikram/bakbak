@@ -20,7 +20,6 @@ export const attachmentResponseSchema = z.object({
   fileSize: z.number().int().nonnegative(),
   width: z.number().int().positive().nullable(),
   height: z.number().int().positive().nullable(),
-  duration: z.number().int().positive().nullable(),
   url: z.string(),
   createdAt: z.string(),
 });

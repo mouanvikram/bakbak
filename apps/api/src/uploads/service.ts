@@ -155,7 +155,6 @@ export class UploadService {
       fileSize: number;
       width: number | null;
       height: number | null;
-      duration: number | null;
       createdAt: Date;
     },
     url: string,
@@ -169,7 +168,6 @@ export class UploadService {
       fileSize: attachment.fileSize,
       width: attachment.width,
       height: attachment.height,
-      duration: attachment.duration,
       url,
       createdAt: attachment.createdAt.toISOString(),
     };
