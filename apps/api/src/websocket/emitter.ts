@@ -1,5 +1,6 @@
 import type { Server } from "socket.io";
 import type { MessageResponseType } from "@bakbak/contracts";
+import { rooms } from "./rooms";
 
 let ioRef: Server | null = null;
 
@@ -13,7 +14,7 @@ export function broadcastToChat(
   payload: unknown,
 ) {
   if (!ioRef) return;
-  ioRef.to(`chat:${chatId}`).emit(event, payload);
+  ioRef.to(rooms.chat(chatId)).emit(event, payload);
 }
 
 /** Metadata change to a chat (name, photo, members). Payload is a
@@ -39,7 +40,7 @@ async function socketsOfUsers(userIds: string[]) {
  */
 export async function addUsersToChatRoom(userIds: string[], chatId: string) {
   for (const s of await socketsOfUsers(userIds)) {
-    s.join(`chat:${chatId}`);
+    s.join(rooms.chat(chatId));
   }
 }
 
@@ -48,7 +49,7 @@ export async function addUsersToChatRoom(userIds: string[], chatId: string) {
  * socket is left holding a room nothing will ever publish to again.
  */
 export function clearChatRoom(chatId: string) {
-  const room = `chat:${chatId}`;
+  const room = rooms.chat(chatId);
   ioRef?.in(room).socketsLeave(room);
 }
 
@@ -63,7 +64,7 @@ export async function removeUsersFromChatRoom(
   chatId: string,
 ) {
   for (const s of await socketsOfUsers(userIds)) {
-    s.leave(`chat:${chatId}`);
+    s.leave(rooms.chat(chatId));
   }
 }
 

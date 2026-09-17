@@ -3,6 +3,7 @@ import { prisma } from "@bakbak/db";
 import logger from "@/lib/logger";
 import { type AuthenticatedSocket } from "./auth";
 import { websocketConfig } from "./config";
+import { rooms } from "./rooms";
 import { presenceConfig } from "@/redis/presence/config";
 import { touchSocket, releaseSocket, onlineAmong } from "@/redis/presence";
 
@@ -42,7 +43,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
 
     for (const chatId of chatIds) {
       if (first) {
-        s.to(`chat:${chatId}`).emit("presence", { userId, online: true });
+        s.to(rooms.chat(chatId)).emit("presence", { userId, online: true });
       }
       s.emit("presence:state", {
         chatId,
@@ -56,9 +57,9 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
   s.on("chat:join", async (chatId: unknown) => {
     if (typeof chatId !== "string") return;
     if (!(await isParticipant(chatId, userId))) return;
-    void s.join(`chat:${chatId}`);
+    void s.join(rooms.chat(chatId));
 
-    s.to(`chat:${chatId}`).emit("presence", { userId, online: true });
+    s.to(rooms.chat(chatId)).emit("presence", { userId, online: true });
     const members = (await participantsOf([chatId], userId)).get(chatId) ?? [];
     const online = await onlineAmong(members);
     s.emit("presence:state", {
@@ -94,7 +95,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
     const isMember = await isParticipant(d.chatId, userId);
 
     if (!isMember) return;
-    s.to(`chat:${d.chatId}`).emit("typing", {
+    s.to(rooms.chat(d.chatId)).emit("typing", {
       chatId: d.chatId,
       userId,
       username,
@@ -116,7 +117,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
         logger.error({ err }, "Failed to persist read receipt"),
       );
 
-    s.to(`chat:${d.chatId}`).emit("read:receipt", {
+    s.to(rooms.chat(d.chatId)).emit("read:receipt", {
       chatId: d.chatId,
       userId,
       messageId: d.messageId,
@@ -128,9 +129,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
   // made from other servers — while they're still there.
   let chatIdsAtDisconnect: string[] = [];
   s.on("disconnecting", () => {
-    chatIdsAtDisconnect = [...s.rooms]
-      .filter((room) => room.startsWith("chat:"))
-      .map((room) => room.slice("chat:".length));
+    chatIdsAtDisconnect = rooms.chatIdsIn(s.rooms);
   });
 
   s.on("disconnect", (reason) => {
@@ -149,7 +148,7 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
       if (offline) {
         void recordLastSeen(userId, at);
         for (const chatId of chatIdsAtDisconnect) {
-          io.to(`chat:${chatId}`).emit("presence", {
+          io.to(rooms.chat(chatId)).emit("presence", {
             userId,
             online: false,
             lastSeenAt: at.toISOString(),
@@ -224,7 +223,7 @@ async function joinAllChats(s: Socket, userId: string): Promise<string[]> {
 
     const chatIds: string[] = [];
     for (const { chatId } of rows) {
-      void s.join(`chat:${chatId}`);
+      void s.join(rooms.chat(chatId));
       chatIds.push(chatId);
     }
     return chatIds;
