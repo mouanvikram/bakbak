@@ -1,5 +1,4 @@
 import "./setup";
-import { mock } from "bun:test";
 import {
   beforeAll,
   afterAll,
@@ -26,16 +25,6 @@ import {
 // intent obvious but static imports would work too.
 const app = (await import("@/app")).default;
 const { prisma } = await import("@bakbak/db");
-
-mock.module("resend", () => ({
-  Resend: class {
-    emails = {
-      send: mock(() =>
-        Promise.resolve({ data: { id: "test-email-id" }, error: null }),
-      ),
-    };
-  },
-}));
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 

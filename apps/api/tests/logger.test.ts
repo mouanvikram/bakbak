@@ -1,3 +1,4 @@
+import "./setup";
 import { describe, expect, test } from "bun:test";
 import { createLogger, LOG_REDACT_PATHS } from "@/lib/logger";
 

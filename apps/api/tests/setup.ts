@@ -37,3 +37,4 @@ process.env.RESEND_API_KEY = "re_test_fake";
 
 import "./mocks/email-service";
 import "./mocks/web-push";
+import "./mocks/resend";

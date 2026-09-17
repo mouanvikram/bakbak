@@ -1,3 +1,4 @@
+import "./setup";
 import { describe, expect, test } from "bun:test";
 import { cursorPaginationArgs, DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 

@@ -1,6 +1,5 @@
 ﻿import "./setup";
 import crypto from "node:crypto";
-import { mock } from "bun:test";
 import {
   beforeAll,
   afterAll,
@@ -21,16 +20,6 @@ import {
   authHeader,
   isDatabaseAvailable,
 } from "./helpers";
-
-mock.module("resend", () => ({
-  Resend: class {
-    emails = {
-      send: mock(() =>
-        Promise.resolve({ data: { id: "test-email-id" }, error: null }),
-      ),
-    };
-  },
-}));
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 

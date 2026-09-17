@@ -1,5 +1,4 @@
 import "./setup";
-import { mock } from "bun:test";
 import {
   afterAll,
   afterEach,
@@ -25,16 +24,6 @@ import {
   createTestUser,
   isDatabaseAvailable,
 } from "./helpers";
-
-mock.module("resend", () => ({
-  Resend: class {
-    emails = {
-      send: mock(() =>
-        Promise.resolve({ data: { id: "test-email-id" }, error: null }),
-      ),
-    };
-  },
-}));
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 

@@ -1,7 +1,4 @@
 ﻿import "./setup";
-// Must precede `../src/app` so the resend mock is in place before EmailService
-// instantiates its client.
-import "./mocks/resend";
 import {
   beforeAll,
   afterAll,

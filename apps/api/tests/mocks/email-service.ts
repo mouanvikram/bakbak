@@ -5,12 +5,12 @@ import { mock } from "bun:test";
  *
  * The real one builds a Resend client at module load and its `sendEmail()`
  * actually delivers mail (to `DEV_EMAIL` even outside production) — every
- * signup / reset / 2FA test would send a real, billed email. The per-file
- * `mock.module("resend", …)` calls don't help: most test files `import "../src/app"`
- * *before* mocking, so `email/service.ts` has already captured the real client
- * by the time the mock registers.
+ * signup / reset / 2FA test would send a real, billed email. Mocking `resend`
+ * from inside a test file can't prevent that: most files `import "../src/app"`
+ * first, so `email/service.ts` has already captured the real client by the time
+ * such a mock registers.
  *
- * This file is imported from `tests/setup.ts`, which `bun test --preload` runs
+ * This file is imported from `tests/setup.ts`, which `bunfig.toml` preloads
  * before any test file, so no import order can leak a real send.
  *
  * `sendTwoFactorCode` is a real (no-op) method so `spyOn(emailService,

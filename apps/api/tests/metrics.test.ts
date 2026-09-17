@@ -1,3 +1,4 @@
+import "./setup";
 import { afterEach, describe, expect, test } from "bun:test";
 import { createServer } from "node:http";
 import express from "express";

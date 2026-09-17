@@ -1,3 +1,4 @@
+import "./setup";
 import { describe, expect, test } from "bun:test";
 import { escapeHtml } from "@/email/templates/escape";
 import { resolveRecipient } from "@/email/recipient";

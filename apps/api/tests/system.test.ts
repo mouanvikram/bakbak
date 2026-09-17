@@ -1,15 +1,8 @@
 import "./setup";
-import { mock } from "bun:test";
 import { beforeAll, afterAll, describe, test, expect } from "bun:test";
 import { createServer } from "node:http";
 import app from "@/app";
 import { isDatabaseAvailable } from "./helpers";
-
-mock.module("resend", () => ({
-  Resend: class {
-    emails = { send: mock(() => Promise.resolve({ data: {}, error: null })) };
-  },
-}));
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 

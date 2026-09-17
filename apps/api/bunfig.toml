@@ -1,2 +1,6 @@
 [test]
 timeout = 20000
+# Env vars and the email / web-push mocks, loaded before any test file. Declared
+# here rather than as a `--preload` flag so an ad-hoc `bun test <file>` run gets
+# them too, not just the `test` script.
+preload = ["./tests/setup.ts"]
