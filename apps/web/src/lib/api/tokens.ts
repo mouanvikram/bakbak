@@ -1,12 +1,15 @@
+import {
+  STORAGE_KEYS,
+  readString,
+  removeKey,
+  writeString,
+} from "@/lib/storage";
+
 // The access token lives only in memory and the refresh token in an httpOnly
 // cookie the browser attaches to /api/v1/auth/refresh-token — neither can be
 // read from storage, so an XSS can't lift a long-lived credential.
 let accessToken: string | null = null;
 let refreshPromise: Promise<string> | null = null;
-
-// Non-secret hint that a refresh cookie probably exists (scripts can't see it),
-// so a signed-out visitor doesn't fire a doomed refresh on every page load.
-const SESSION_HINT_KEY = "bakbak.hasSession";
 
 // Earlier builds persisted both tokens in localStorage; drop any leftovers.
 try {
@@ -22,28 +25,18 @@ export function getAccessToken(): string | null {
 
 export function storeAccessToken(token: string) {
   accessToken = token;
-  try {
-    localStorage.setItem(SESSION_HINT_KEY, "1");
-  } catch {
-    // The hint is best-effort.
-  }
+  // Non-secret hint that a refresh cookie probably exists (scripts can't see
+  // it), so a signed-out visitor doesn't fire a doomed refresh on every load.
+  writeString(STORAGE_KEYS.sessionHint, "1");
 }
 
 export function clearTokens() {
   accessToken = null;
-  try {
-    localStorage.removeItem(SESSION_HINT_KEY);
-  } catch {
-    // The hint is best-effort.
-  }
+  removeKey(STORAGE_KEYS.sessionHint);
 }
 
 export function hasSession(): boolean {
-  try {
-    return localStorage.getItem(SESSION_HINT_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return readString(STORAGE_KEYS.sessionHint, "") === "1";
 }
 
 function postRefresh(): Promise<Response> {

@@ -4,43 +4,21 @@ import { useAuth } from "@/features/auth/auth-context";
 import { getSettings, updateChatPreferences } from "@/features/settings/api";
 import { setSoundsEnabled } from "@/lib/sounds";
 import { reportError } from "@/lib/report";
+import { STORAGE_KEYS, readJson, writeJson } from "@/lib/storage";
 import { ChatPreferencesContext } from "./chat-preferences-context";
 
-const STORAGE_KEY = "bakbak.chatPreferences";
 const DEFAULTS: ChatPreferencesType = {
   enterToSend: true,
   mediaPreview: true,
 };
 
-function readStored(): ChatPreferencesType {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULTS;
-    const parsed = JSON.parse(raw) as Partial<ChatPreferencesType>;
-    return {
-      enterToSend:
-        typeof parsed.enterToSend === "boolean" ? parsed.enterToSend : true,
-      mediaPreview:
-        typeof parsed.mediaPreview === "boolean" ? parsed.mediaPreview : true,
-    };
-  } catch {
-    return DEFAULTS;
-  }
-}
-
-function persist(prefs: ChatPreferencesType) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    /* ignore */
-  }
-}
-
 // Chat preferences, mirroring ThemeProvider: localStorage for an instant value,
 // reconciled with the API once signed in.
 export function ChatPreferencesProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const [preferences, setState] = useState<ChatPreferencesType>(readStored);
+  const [preferences, setState] = useState<ChatPreferencesType>(() =>
+    readJson(STORAGE_KEYS.chatPreferences, DEFAULTS),
+  );
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -49,7 +27,7 @@ export function ChatPreferencesProvider({ children }: { children: ReactNode }) {
       .then((res) => {
         if (cancelled) return;
         setState(res.chat);
-        persist(res.chat);
+        writeJson(STORAGE_KEYS.chatPreferences, res.chat);
         // Same response carries the Sounds switch; sync it while we're here.
         setSoundsEnabled(res.notifications.sounds);
       })
@@ -63,7 +41,7 @@ export function ChatPreferencesProvider({ children }: { children: ReactNode }) {
     (next: Partial<ChatPreferencesType>) => {
       setState((prev) => {
         const merged = { ...prev, ...next };
-        persist(merged);
+        writeJson(STORAGE_KEYS.chatPreferences, merged);
         if (isAuthenticated) {
           void updateChatPreferences(merged).catch((err: unknown) =>
             reportError("settings:chat:save", err),

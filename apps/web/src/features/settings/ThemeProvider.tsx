@@ -2,22 +2,12 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/features/auth/auth-context";
 import { getSettings, updateAppearance } from "@/features/settings/api";
 import { reportError } from "@/lib/report";
+import { STORAGE_KEYS, readString, writeString } from "@/lib/storage";
 import {
   ThemeContext,
   type FontSizePreference,
   type ThemePreference,
 } from "./theme-context";
-
-const THEME_KEY = "bakbak.theme";
-const FONT_SIZE_KEY = "bakbak.fontSize";
-
-function readStored<T extends string>(key: string, fallback: T): T {
-  try {
-    return (localStorage.getItem(key) as T | null) ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 function prefersDark() {
   return (
@@ -42,10 +32,10 @@ function applyFontSize(size: FontSizePreference) {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [theme, setThemeState] = useState<ThemePreference>(() =>
-    readStored<ThemePreference>(THEME_KEY, "light"),
+    readString<ThemePreference>(STORAGE_KEYS.theme, "light"),
   );
   const [fontSize, setFontSizeState] = useState<FontSizePreference>(() =>
-    readStored<FontSizePreference>(FONT_SIZE_KEY, "small"),
+    readString<FontSizePreference>(STORAGE_KEYS.fontSize, "small"),
   );
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
     resolve(theme),
@@ -80,8 +70,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setThemeState(res.appearance.theme);
         setFontSizeState(res.appearance.fontSize);
-        persist(THEME_KEY, res.appearance.theme);
-        persist(FONT_SIZE_KEY, res.appearance.fontSize);
+        writeString(STORAGE_KEYS.theme, res.appearance.theme);
+        writeString(STORAGE_KEYS.fontSize, res.appearance.fontSize);
       })
       .catch((err: unknown) => reportError("settings:load", err));
     return () => {
@@ -102,7 +92,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback(
     (next: ThemePreference) => {
       setThemeState(next);
-      persist(THEME_KEY, next);
+      writeString(STORAGE_KEYS.theme, next);
       save({ theme: next, fontSize });
     },
     [fontSize, save],
@@ -111,7 +101,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setFontSize = useCallback(
     (next: FontSizePreference) => {
       setFontSizeState(next);
-      persist(FONT_SIZE_KEY, next);
+      writeString(STORAGE_KEYS.fontSize, next);
       save({ theme, fontSize: next });
     },
     [theme, save],
@@ -124,12 +114,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-function persist(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* ignore */
-  }
 }

@@ -15,13 +15,13 @@ import {
 } from "@/lib/push";
 import { setSoundsEnabled } from "@/lib/sounds";
 import { reportError } from "@/lib/report";
+import { STORAGE_KEYS, readJson, writeJson } from "@/lib/storage";
 import {
   NotificationsContext,
   type NotificationPrefs,
   type PushDeviceStatus,
 } from "./notifications-context";
 
-const STORAGE_KEY = "bakbak.notifications";
 const DEFAULTS: NotificationPrefs = {
   messages: true,
   sounds: true,
@@ -36,29 +36,6 @@ const DEVICE_STATUS: Record<PushSetupStatus, PushDeviceStatus> = {
   error: "error",
 };
 
-function readStored(): NotificationPrefs {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULTS;
-    const parsed = JSON.parse(raw) as Partial<NotificationPrefs>;
-    return {
-      messages:
-        typeof parsed.messages === "boolean" ? parsed.messages : true,
-      sounds: typeof parsed.sounds === "boolean" ? parsed.sounds : true,
-    };
-  } catch {
-    return DEFAULTS;
-  }
-}
-
-function persist(prefs: NotificationPrefs) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    /* ignore */
-  }
-}
-
 /**
  * Notification preferences, mirroring ThemeProvider/ChatPreferencesProvider:
  * localStorage for an instant value, reconciled with the API once signed in.
@@ -70,7 +47,9 @@ function persist(prefs: NotificationPrefs) {
  */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [prefs, setState] = useState<NotificationPrefs>(readStored);
+  const [prefs, setState] = useState<NotificationPrefs>(() =>
+    readJson(STORAGE_KEYS.notifications, DEFAULTS),
+  );
   const [deviceStatus, setDeviceStatus] =
     useState<PushDeviceStatus>("idle");
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -103,7 +82,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           sounds: res.notifications.sounds,
         };
         setState(synced);
-        persist(synced);
+        writeJson(STORAGE_KEYS.notifications, synced);
         setSoundsEnabled(synced.sounds);
       })
       .catch((err: unknown) => reportError("settings:load", err));
@@ -154,7 +133,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     (next: Partial<NotificationPrefs>) => {
       setState((prev) => {
         const merged = { ...prev, ...next };
-        persist(merged);
+        writeJson(STORAGE_KEYS.notifications, merged);
         setSoundsEnabled(merged.sounds);
         if (isAuthenticated) {
           void updateNotifications({

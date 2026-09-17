@@ -12,6 +12,8 @@
  * settings load (ChatPreferencesProvider) or are saved (NotificationsPage).
  */
 
+import { STORAGE_KEYS, readString, writeString } from "@/lib/storage";
+
 interface SoundSpec {
   src: string;
   volume: number;
@@ -61,33 +63,20 @@ const SOUNDS = {
 export type SoundName = keyof typeof SOUNDS;
 
 const NAMES = Object.keys(SOUNDS) as SoundName[];
-const STORAGE_KEY = "bakbak.sounds";
 const DEFAULT_MIN_GAP_MS = 80;
 // A sound that can't start within this window (still decoding, context
 // waking up) is dropped — a late blip is worse than none.
 const MAX_LATENCY_MS = 250;
 
-let enabled = readStored();
+let enabled = readString(STORAGE_KEYS.sounds, "on") !== "off";
 let ctx: AudioContext | null = null;
 const files = new Map<SoundName, Promise<ArrayBuffer | null>>();
 const buffers = new Map<SoundName, Promise<AudioBuffer | null>>();
 const lastPlayed = new Map<SoundName, number>();
 
-function readStored(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) !== "off";
-  } catch {
-    return true;
-  }
-}
-
 export function setSoundsEnabled(next: boolean) {
   enabled = next;
-  try {
-    localStorage.setItem(STORAGE_KEY, next ? "on" : "off");
-  } catch {
-    /* ignore */
-  }
+  writeString(STORAGE_KEYS.sounds, next ? "on" : "off");
 }
 
 function file(name: SoundName): Promise<ArrayBuffer | null> {

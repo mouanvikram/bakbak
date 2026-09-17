@@ -3,6 +3,9 @@
 // Content-Security-Policy can forbid inline scripts.
 (function () {
   try {
+    // These two keys are the ones declared in src/lib/storage.ts. This script
+    // runs before the bundle to avoid a flash of the wrong theme, so it can't
+    // import them — renaming either one means editing both files.
     var stored = localStorage.getItem("bakbak.theme") || "light";
     var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     var dark = stored === "dark" || (stored === "system" && prefersDark);
