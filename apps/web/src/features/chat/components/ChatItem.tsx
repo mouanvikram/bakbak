@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router";
 import type { ChatResponseType } from "@bakbak/contracts";
 import { Check, CheckCheck, Trash2 } from "lucide-react";
+import { formatTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { ContextMenu } from "@/components/ui/ContextMenu";
@@ -114,12 +115,7 @@ export function ChatItem({
                 hasUnread ? "font-semibold text-violet-600" : "text-slate-400",
               )}
             >
-              {lastMessage?.createdAt
-                ? new Date(lastMessage.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : ""}
+              {formatTime(lastMessage?.createdAt)}
             </span>
           </div>
 

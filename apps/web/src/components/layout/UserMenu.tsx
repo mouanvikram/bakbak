@@ -9,18 +9,14 @@ import {
   Mail,
   BadgeCheck,
 } from "lucide-react";
+import { formatFullDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth/auth-context";
 import { Avatar } from "@/components/ui/Avatar";
 import { Spinner } from "@/components/ui/Spinner";
 
 function formatJoinDate(iso?: string | null) {
-  if (!iso) return "Unknown";
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  return formatFullDate(iso) || "Unknown";
 }
 
 export function UserMenu() {

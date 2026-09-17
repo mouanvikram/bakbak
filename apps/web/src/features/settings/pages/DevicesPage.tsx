@@ -7,6 +7,7 @@ import {
   revokeSession,
 } from "@/features/auth/api";
 import { Spinner } from "@/components/ui/Spinner";
+import { daysSince, formatDate, relativeSince } from "@/lib/date";
 
 function isMobile(ua: string | null | undefined) {
   return !!ua && /Mobi|Android|iPhone|iPad|iPod/.test(ua);
@@ -40,15 +41,13 @@ function deviceLabel(ua: string | null | undefined): string {
 }
 
 function signedInLabel(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diff / 60000);
-  if (mins < 1) return "Signed in just now";
-  if (mins < 60) return `Signed in ${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `Signed in ${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `Signed in ${days} day${days === 1 ? "" : "s"} ago`;
-  return `Signed in ${new Date(iso).toLocaleDateString()}`;
+  const recent = relativeSince(iso);
+  if (recent) return `Signed in ${recent}`;
+  const days = daysSince(iso);
+  if (days !== null && days < 30) {
+    return `Signed in ${days} day${days === 1 ? "" : "s"} ago`;
+  }
+  return `Signed in ${formatDate(iso)}`;
 }
 
 export function DevicesPage() {

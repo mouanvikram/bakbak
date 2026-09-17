@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, CheckCheck, Reply, Smile } from "lucide-react";
 import type { MessageResponseType } from "@bakbak/contracts";
+import { formatTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import {
@@ -24,13 +25,6 @@ interface PickerAnchor {
   x: number;
   y: number;
   height: number;
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 // Edited once updatedAt is meaningfully after createdAt.

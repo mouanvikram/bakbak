@@ -50,7 +50,8 @@ import { MessageThreadSkeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
 import { playSound } from "@/lib/sounds";
 import { reportError } from "@/lib/report";
-import { cn, formatLastSeen } from "@/lib/utils";
+import { formatLastSeen } from "@/lib/date";
+import { cn } from "@/lib/utils";
 
 /** Files the composer lets you attach. Anything the API rejects still surfaces
  * an error toast. */

@@ -7,13 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Spinner } from "@/components/ui/Spinner";
-
-function joinedLabel(iso: string) {
-  return new Date(iso).toLocaleDateString([], {
-    month: "long",
-    year: "numeric",
-  });
-}
+import { formatMonthYear } from "@/lib/date";
 
 /**
  * Contact info for the other person in a direct chat: photo, name, bio, their
@@ -147,7 +141,7 @@ export function DirectInfoModal({
                     {profile?.friendsCount === 1 ? "friend" : "friends"}
                   </span>
                   {profile?.joinedAt && (
-                    <span>Joined {joinedLabel(profile.joinedAt)}</span>
+                    <span>Joined {formatMonthYear(profile.joinedAt)}</span>
                   )}
                 </div>
               </div>
