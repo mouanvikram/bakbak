@@ -9,6 +9,11 @@ const SIGNED_URL_TTL_SECONDS = positiveNum(
 
 const useSsl = bool(process.env.STORAGE_USE_SSL, false);
 
+// Per-kind upload caps. Video gets its own, larger allowance: a few seconds of
+// phone video clears the general cap on its own.
+const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+
 warnInProduction(
   !useSsl,
   "STORAGE_USE_SSL is false — object-storage traffic, including the request signature, is unencrypted.",
@@ -46,10 +51,19 @@ export const uploadsConfig = {
   signedUrlTtlSeconds: SIGNED_URL_TTL_SECONDS,
   // Signed-URL lifetime for avatars.
   avatarUrlTtlSeconds: SIGNED_URL_TTL_SECONDS,
-  // Hard cap for message attachments.
-  maxFileSize: 25 * 1024 * 1024,
+  // Hard cap for message attachments other than video.
+  maxFileSize: MAX_ATTACHMENT_BYTES,
+  // Hard cap for video attachments.
+  maxVideoSize: MAX_VIDEO_BYTES,
+  // The largest any single upload can be. Multer and the multipart body limit
+  // are sized against this; the per-kind check then narrows it once the file
+  // is buffered and its kind is known.
+  maxUploadSize: Math.max(MAX_ATTACHMENT_BYTES, MAX_VIDEO_BYTES),
   // Hard cap for avatars (signup + profile).
-  maxAvatarSize: 4 * 1024 * 1024,
+  maxAvatarSize: 1024 * 1024,
+  // Total attachment bytes one user may store. Past this, uploads are refused
+  // and everything else — sending messages included — carries on working.
+  userQuotaBytes: 100 * 1024 * 1024,
   allowedAvatarMime: [
     "image/jpeg",
     "image/png",

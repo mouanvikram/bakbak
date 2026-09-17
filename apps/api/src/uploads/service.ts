@@ -22,12 +22,25 @@ export class UploadService {
       kindFromMime(file.mimetype) ??
       kindFromExtension(extensionFrom(file.originalname));
 
+    // Checked before anything is stored, so a refused upload leaves no object
+    // behind. Only uploads are gated — messaging is unaffected.
+    const usedBytes = await this.uploadRepository.totalBytesForOwner(userId);
+    if (usedBytes + file.size > uploadsConfig.userQuotaBytes) {
+      const quotaMb = Math.round(uploadsConfig.userQuotaBytes / (1024 * 1024));
+      throw new AppError(
+        HTTP_STATUS.PAYLOAD_TOO_LARGE,
+        ERROR_CODES.STORAGE_QUOTA_EXCEEDED,
+        `You've used all ${quotaMb} MB of your upload space. Delete an attachment to make room — you can still send messages.`,
+      );
+    }
+
     const key = this.buildKey(userId, file.originalname);
 
     await this.storageProvider.upload(key, file.buffer, file.mimetype);
 
     const attachment = await this.uploadRepository.create({
       kind,
+      ownerId: userId,
       fileName: file.originalname,
       filePath: key,
       mimeType: file.mimetype,

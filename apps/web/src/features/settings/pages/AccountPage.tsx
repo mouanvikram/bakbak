@@ -219,7 +219,7 @@ export function AccountPage() {
                 </span>
               )}
               <p className="text-xs text-gray-400">
-                JPG, PNG, WebP, AVIF, GIF or BMP, up to 10 MB.
+                JPG, PNG, WebP, AVIF, GIF or BMP, up to 1 MB.
               </p>
             </div>
           </div>

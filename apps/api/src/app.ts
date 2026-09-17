@@ -46,7 +46,7 @@ app.use(requestLoggerMiddleware);
 // 6. Request body parsing
 app.use(express.json({ limit: "32kb" }));
 // Form bodies (multipart / urlencoded) aren't parsed by express.json, so give them their own cap
-app.use(formBodySizeLimit(uploadsConfig.maxFileSize + 2 * 1024 * 1024));
+app.use(formBodySizeLimit(uploadsConfig.maxUploadSize + 2 * 1024 * 1024));
 
 // 7. Global rate limiting
 app.use(rateLimitGlobal());

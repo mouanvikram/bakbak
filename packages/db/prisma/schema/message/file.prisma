@@ -11,7 +11,10 @@ model Attachment {
   messageId String?  @db.Uuid
   message   Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
-  kind     AttachmentKind
+  kind AttachmentKind
+  // Who uploaded this. Null for signup avatars, which are stored before the
+  // account row exists and so belong to nobody.
+  ownerId  String? @db.Uuid
   fileName String
   filePath String
   mimeType String
@@ -23,4 +26,5 @@ model Attachment {
   updatedAt DateTime @updatedAt
 
   @@index([messageId])
+  @@index([ownerId])
 }

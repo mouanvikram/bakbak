@@ -14,6 +14,9 @@ interface FileUploadOptions {
   label: string;
   maxFileSize: number;
   rejectReason: (file: Express.Multer.File) => string | null;
+  /** Narrows `maxFileSize` once the file is buffered and its kind is known —
+   *  multer only accepts one limit, so per-kind caps are applied after. */
+  sizeLimitFor?: (file: Express.Multer.File) => number;
 }
 
 interface FileUpload {
@@ -46,7 +49,13 @@ function contentMismatch(file: Express.Multer.File): string | null {
 // Builds a memory-backed single-file upload and its paired error handler.
 
 function createFileUpload(options: FileUploadOptions): FileUpload {
-  const { field = "file", label, maxFileSize, rejectReason } = options;
+  const {
+    field = "file",
+    label,
+    maxFileSize,
+    rejectReason,
+    sizeLimitFor,
+  } = options;
 
   const instance = multer({
     storage: multer.memoryStorage(),
@@ -91,6 +100,19 @@ function createFileUpload(options: FileUploadOptions): FileUpload {
           ),
         );
       }
+
+      // Multer admitted the file against the largest allowance; hold it to the
+      // one that actually applies to its kind.
+      const limit = sizeLimitFor?.(req.file) ?? maxFileSize;
+      if (req.file.size > limit) {
+        return next(
+          new AppError(
+            HTTP_STATUS.BAD_REQUEST,
+            ERROR_CODES.FILE_TOO_LARGE,
+            `${label} exceeds the ${formatLimit(limit)} limit`,
+          ),
+        );
+      }
       next();
     });
   };
@@ -130,10 +152,17 @@ export const avatarUpload = createFileUpload({
       : "Avatar must be a JPEG, PNG, WebP, AVIF, GIF or BMP image",
 });
 
-// Chat attachments — any MIME that maps to a known AttachmentKind.
+// Chat attachments — any MIME that maps to a known AttachmentKind. Video is
+// allowed more room than everything else, so multer admits up to the video cap
+// and `sizeLimitFor` holds non-video files to the smaller one.
 export const attachmentUpload = createFileUpload({
   label: "File",
-  maxFileSize: uploadsConfig.maxFileSize,
+  maxFileSize: uploadsConfig.maxUploadSize,
+  sizeLimitFor: (file) =>
+    (kindFromMime(file.mimetype) ??
+      kindFromExtension(extensionFrom(file.originalname))) === "VIDEO"
+      ? uploadsConfig.maxVideoSize
+      : uploadsConfig.maxFileSize,
   rejectReason: (file) =>
     kindFromMime(file.mimetype)
       ? null

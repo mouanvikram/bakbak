@@ -1,10 +1,19 @@
-import { prisma, type Prisma, type AttachmentKind } from "@bakbak/db";
+import { prisma, type Prisma } from "@bakbak/db";
 
 export class UploadRepository {
   async create(data: Prisma.AttachmentUncheckedCreateInput) {
     return await prisma.attachment.create({
       data,
     });
+  }
+
+  /** Attachment bytes this user is currently storing, for the quota check. */
+  async totalBytesForOwner(ownerId: string): Promise<number> {
+    const { _sum } = await prisma.attachment.aggregate({
+      _sum: { fileSize: true },
+      where: { ownerId },
+    });
+    return _sum.fileSize ?? 0;
   }
 
   async findById(id: string) {
