@@ -131,10 +131,57 @@ export class UploadService {
   }
 
   /**
+   * Remove attachments nothing references any more:
+   *  - uploads that were never attached to a message and predate `cutoff`
+   *  - avatar bookkeeping rows whose object the profile no longer points at
+   *  - files belonging to soft-deleted messages
+   *
+   * The object is deleted before its row, so a storage failure leaves the row
+   * for the next run instead of leaking the object forever.
+   */
+  async cleanupOrphans(
+    cutoff: Date,
+  ): Promise<{ deleted: number; failed: number }> {
+    // Queried one at a time: the driver holds a single connection, so issuing
+    // them concurrently only interleaves on one socket.
+    const unlinked = await this.uploadRepository.findUnlinkedUploads(cutoff);
+    const avatars = await this.uploadRepository.findAvatarAttachments(cutoff);
+    const liveAvatarKeys = await this.uploadRepository.findLiveAvatarKeys();
+    const deletedMessages =
+      await this.uploadRepository.findDeletedMessageAttachments();
+
+    const liveKeys = new Set(liveAvatarKeys);
+    const candidates = [
+      ...unlinked,
+      ...avatars.filter((avatar) => !liveKeys.has(avatar.filePath)),
+      ...deletedMessages,
+    ];
+
+    let deleted = 0;
+    let failed = 0;
+    for (const candidate of candidates) {
+      try {
+        await this.storageProvider.delete(candidate.filePath);
+      } catch (error) {
+        failed += 1;
+        logger.warn(
+          { err: error, attachmentId: candidate.id },
+          "Could not delete orphaned object; keeping its row for the next run",
+        );
+        continue;
+      }
+
+      await this.uploadRepository.deleteById(candidate.id);
+      deleted += 1;
+    }
+
+    return { deleted, failed };
+  }
+
+  /**
    * Pixel size of an image, read from the file's own header — clients use it
    * to reserve the right space before the image loads. Best effort: an
-   * unreadable or unsupported header simply leaves the columns null, and
-   * video/audio duration still needs a media probe we don't run.
+   * unreadable or unsupported header simply leaves the columns null.
    */
   private imageDimensions(
     kind: AttachmentKind,

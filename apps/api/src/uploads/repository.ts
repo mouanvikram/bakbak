@@ -64,6 +64,53 @@ export class UploadRepository {
     });
   }
 
+  /**
+   * Uploads that were never attached to a message and predate `cutoff`.
+   * Avatar bookkeeping rows are excluded by key prefix — they live under
+   * `avatars/` and are handled separately, since only the current one is live.
+   */
+  async findUnlinkedUploads(cutoff: Date) {
+    return await prisma.attachment.findMany({
+      where: {
+        messageId: null,
+        createdAt: { lt: cutoff },
+        filePath: { not: { startsWith: "avatars/" } },
+      },
+      select: { id: true, filePath: true },
+    });
+  }
+
+  /** Avatar bookkeeping rows old enough to have been replaced. */
+  async findAvatarAttachments(cutoff: Date) {
+    return await prisma.attachment.findMany({
+      where: {
+        messageId: null,
+        createdAt: { lt: cutoff },
+        filePath: { startsWith: "avatars/" },
+      },
+      select: { id: true, filePath: true },
+    });
+  }
+
+  /** Storage keys still referenced as some profile's avatar. */
+  async findLiveAvatarKeys(): Promise<string[]> {
+    const profiles = await prisma.userProfile.findMany({
+      where: { avatar: { startsWith: "avatars/" } },
+      select: { avatar: true },
+    });
+    return profiles
+      .map((profile) => profile.avatar)
+      .filter((key): key is string => key !== null);
+  }
+
+  /** Attachments belonging to messages that were soft-deleted. */
+  async findDeletedMessageAttachments() {
+    return await prisma.attachment.findMany({
+      where: { message: { deletedAt: { not: null } } },
+      select: { id: true, filePath: true },
+    });
+  }
+
   async updateMessageId(id: string, messageId: string) {
     return await prisma.attachment.update({
       where: { id },
