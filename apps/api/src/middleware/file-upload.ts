@@ -1,7 +1,12 @@
 import multer from "multer";
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
-import { kindFromMime } from "@/uploads/file-type";
+import {
+  contentMatchesKind,
+  extensionFrom,
+  kindFromExtension,
+  kindFromMime,
+} from "@/uploads/file-type";
 import { uploadsConfig } from "@/uploads/config";
 
 interface FileUploadOptions {
@@ -20,6 +25,22 @@ interface FileUpload {
 function formatLimit(bytes: number): string {
   const mb = bytes / (1024 * 1024);
   return `${Number.isInteger(mb) ? mb : mb.toFixed(1)} MB`;
+}
+
+/**
+ * Rejects a buffered file whose bytes don't identify it as the kind its
+ * declared MIME (or failing that, its extension) claims — an executable posted
+ * as `image/png`, say. The declared type is only a hint; this is the check that
+ * the content agrees with it.
+ */
+function contentMismatch(file: Express.Multer.File): string | null {
+  const claimed =
+    kindFromMime(file.mimetype) ??
+    kindFromExtension(extensionFrom(file.originalname));
+
+  return contentMatchesKind(file.buffer, claimed)
+    ? null
+    : `File content does not match its declared type (${file.mimetype})`;
 }
 
 // Builds a memory-backed single-file upload and its paired error handler.
@@ -52,6 +73,28 @@ function createFileUpload(options: FileUploadOptions): FileUpload {
     },
   });
 
+  // The filter above only sees the declared MIME, which the client controls.
+  // Sniffing needs the whole buffer, so it runs once multer has it.
+  const single = instance.single(field);
+  const middleware: RequestHandler = (req, res, next) => {
+    single(req, res, (err: unknown) => {
+      if (err) return next(err);
+      if (!req.file) return next();
+
+      const reason = contentMismatch(req.file);
+      if (reason) {
+        return next(
+          new AppError(
+            HTTP_STATUS.BAD_REQUEST,
+            ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
+            reason,
+          ),
+        );
+      }
+      next();
+    });
+  };
+
   const errorHandler: ErrorRequestHandler = (err, _req, _res, next) => {
     if (err instanceof multer.MulterError) {
       if (err.code === "LIMIT_FILE_SIZE") {
@@ -74,7 +117,7 @@ function createFileUpload(options: FileUploadOptions): FileUpload {
     return next(err);
   };
 
-  return { middleware: instance.single(field), errorHandler };
+  return { middleware, errorHandler };
 }
 
 // Profile and signup avatars — images only, tighter cap.

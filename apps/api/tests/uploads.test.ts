@@ -126,6 +126,36 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
     expect(res.status).toBe(400);
   });
 
+  test("POST /uploads - rejects content that doesn't match the declared image type", async () => {
+    // A Windows executable body sent as image/png: the declared MIME passes the
+    // filter, but the magic bytes must too.
+    const res = await fetch(`${baseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers: await authHeader(userA.id, userA.username),
+      body: form("photo.png", Buffer.from("MZ\x90\x00\x03"), "image/png"),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("POST /uploads - rejects an SVG (script-bearing XML)", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+    const res = await fetch(`${baseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers: await authHeader(userA.id, userA.username),
+      body: form("image.svg", Buffer.from(svg), "image/svg+xml"),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("POST /uploads - rejects HTML sent as text/html", async () => {
+    const res = await fetch(`${baseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers: await authHeader(userA.id, userA.username),
+      body: form("page.html", Buffer.from("<script>alert(1)</script>"), "text/html"),
+    });
+    expect(res.status).toBe(400);
+  });
+
   test("GET /uploads/:attachmentId - should 400 for a malformed id", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/uploads/not-a-uuid`, {
       headers: await authHeader(userA.id, userA.username),

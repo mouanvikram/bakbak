@@ -1338,9 +1338,14 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     form.append("displayname", "John Doe");
     form.append(
       "file",
-      new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], {
-        type: "image/png",
-      }),
+      new Blob(
+        [
+          // A real PNG signature — the upload now checks the bytes, not just
+          // the declared MIME.
+          new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        ],
+        { type: "image/png" },
+      ),
       "avatar.png",
     );
 
