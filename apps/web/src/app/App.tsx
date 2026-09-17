@@ -39,7 +39,7 @@ import { CallsSidebar } from "@/features/calls/components/CallsSidebar";
 import { ResponsivePage } from "@/components/layout/ResponsivePage";
 import { MobilePage } from "@/components/layout/MobilePage";
 import { EmptyState } from "@/components/ui/States";
-import AppLayout from "@/components/layout/AppLayout";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { useIsDesktop } from "@/lib/use-media-query";
 
 /**
@@ -85,7 +85,7 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function App() {
+export function App() {
   return (
     <BrowserRouter>
       <Routes>
@@ -322,5 +322,3 @@ function App() {
     </BrowserRouter>
   );
 }
-
-export default App;

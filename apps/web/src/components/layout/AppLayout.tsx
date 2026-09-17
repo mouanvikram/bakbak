@@ -1,9 +1,9 @@
 import { Outlet } from "react-router";
-import PrimaryNav from "./PrimaryNav";
+import { PrimaryNav } from "./PrimaryNav";
 import { SectionSidebar } from "./SectionSidebar";
 import { useIsDesktop } from "@/lib/use-media-query";
 
-function AppLayout() {
+export function AppLayout() {
   // Mounted only on desktop: below `lg` the section list is a route of its
   // own, and a CSS-hidden copy here would still fetch and subscribe.
   const isDesktop = useIsDesktop();
@@ -42,5 +42,3 @@ function AppLayout() {
     </div>
   );
 }
-
-export default AppLayout;

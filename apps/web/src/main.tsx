@@ -5,7 +5,7 @@ import { ThemeProvider } from "@/features/settings/ThemeProvider";
 import { ChatPreferencesProvider } from "@/features/settings/ChatPreferencesProvider";
 import { NotificationsProvider } from "@/features/settings/NotificationsProvider";
 import { ToastProvider } from "@/components/ui/Toast";
-import App from "./app/App";
+import { App } from "./app/App";
 import "./styles/index.css";
 
 createRoot(document.getElementById("root")!).render(

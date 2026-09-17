@@ -26,7 +26,7 @@ const sideOptions = [
   },
 ];
 
-function PrimaryNav() {
+export function PrimaryNav() {
   return (
     <nav className="flex h-full w-full flex-col items-center bg-white">
       <div className="flex w-full flex-1 flex-row items-center justify-around gap-1 px-1 py-1 md:flex-col md:justify-start md:gap-1 md:p-2">
@@ -60,5 +60,3 @@ function PrimaryNav() {
     </nav>
   );
 }
-
-export default PrimaryNav;
