@@ -1,12 +1,11 @@
 import logger from "@/lib/logger";
 import { emailRepository } from "@/services/service.container";
+import { jobsConfig } from "./config";
 import { registerJob } from "./registry";
-
-const EXPIRED_VERIFICATION_TOKEN_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 registerJob({
   name: "expired-verification-tokens",
-  intervalMs: EXPIRED_VERIFICATION_TOKEN_CLEANUP_INTERVAL_MS,
+  intervalMs: jobsConfig.intervals.expiredVerificationTokensMs,
   runImmediately: true,
   run: async () => {
     try {

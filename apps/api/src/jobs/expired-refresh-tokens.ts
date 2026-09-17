@@ -1,12 +1,11 @@
 import logger from "@/lib/logger";
 import { refreshTokenRepository } from "@/services/service.container";
+import { jobsConfig } from "./config";
 import { registerJob } from "./registry";
-
-const EXPIRED_REFRESH_TOKEN_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 registerJob({
   name: "expired-refresh-tokens",
-  intervalMs: EXPIRED_REFRESH_TOKEN_CLEANUP_INTERVAL_MS,
+  intervalMs: jobsConfig.intervals.expiredRefreshTokensMs,
   runImmediately: true,
   run: async () => {
     try {

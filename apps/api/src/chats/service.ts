@@ -19,11 +19,7 @@ import {
   removeUsersFromChatRoom,
 } from "@/websocket/emitter";
 import { toIso } from "@/lib/dates";
-
-// Hard upper bound on group size — enforced at creation and on every add so a roster can't grow unboundedly over time.
-const GROUP_MAX_PARTICIPANTS = 1000;
-
-export const GROUP_CREATE_MAX_PARTICIPANTS = 780;
+import { chatsConfig } from "./config";
 
 const chatUserSelect = {
   id: true,
@@ -323,11 +319,11 @@ export class ChatService {
       );
     }
 
-    if (participantIds.length > GROUP_CREATE_MAX_PARTICIPANTS) {
+    if (participantIds.length > chatsConfig.group.createMaxParticipants) {
       throw new AppError(
         HTTP_STATUS.CONFLICT,
         ERROR_CODES.GROUP_MAX_SIZE,
-        `A group can have at most ${GROUP_CREATE_MAX_PARTICIPANTS} people at creation`,
+        `A group can have at most ${chatsConfig.group.createMaxParticipants} people at creation`,
       );
     }
 
@@ -524,11 +520,11 @@ export class ChatService {
     const activeCount = await this.chatRepository.countActiveParticipants(
       dto.chatId,
     );
-    if (activeCount >= GROUP_MAX_PARTICIPANTS) {
+    if (activeCount >= chatsConfig.group.maxParticipants) {
       throw new AppError(
         HTTP_STATUS.CONFLICT,
         ERROR_CODES.GROUP_MAX_SIZE,
-        `This group is full (maximum of ${GROUP_MAX_PARTICIPANTS} people)`,
+        `This group is full (maximum of ${chatsConfig.group.maxParticipants} people)`,
       );
     }
 

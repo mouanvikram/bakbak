@@ -1,13 +1,12 @@
 import logger from "@/lib/logger";
 import { authConfig } from "@/auth/config";
 import { userRepository } from "@/services/service.container";
+import { jobsConfig } from "./config";
 import { registerJob } from "./registry";
-
-const ANONYMIZE_DELETED_USERS_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 registerJob({
   name: "anonymize-deleted-users",
-  intervalMs: ANONYMIZE_DELETED_USERS_INTERVAL_MS,
+  intervalMs: jobsConfig.intervals.anonymizeDeletedUsersMs,
   runImmediately: true,
   run: async () => {
     try {

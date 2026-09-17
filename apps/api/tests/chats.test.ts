@@ -13,7 +13,8 @@ import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import app from "@/app";
 import { prisma, ParticipantRole } from "@bakbak/db";
-import { ChatService, GROUP_CREATE_MAX_PARTICIPANTS } from "@/chats/service";
+import { ChatService } from "@/chats/service";
+import { chatsConfig } from "@/chats/config";
 import type { ChatRepository } from "@/chats/repository";
 import type { StorageProvider } from "@/uploads/storage.provider";
 import {
@@ -185,7 +186,7 @@ describe.skipIf(!DB_AVAILABLE)("Chats Endpoints", () => {
     // Just over the creation cap but comfortably under the 32 KB JSON body
     // limit, so this exercises the service check rather than a 413.
     const ids = Array.from(
-      { length: GROUP_CREATE_MAX_PARTICIPANTS + 1 },
+      { length: chatsConfig.group.createMaxParticipants + 1 },
       () => randomUUID(),
     );
 
@@ -739,7 +740,7 @@ describe("ChatService group size cap (creation)", () => {
         currentUserId: randomUUID(),
         name: "Too Big",
         participantIds: Array.from(
-          { length: GROUP_CREATE_MAX_PARTICIPANTS + 1 },
+          { length: chatsConfig.group.createMaxParticipants + 1 },
           () => randomUUID(),
         ),
       }),
@@ -762,7 +763,7 @@ describe("ChatService group size cap (creation)", () => {
         currentUserId: randomUUID(),
         name: "At Cap",
         participantIds: Array.from(
-          { length: GROUP_CREATE_MAX_PARTICIPANTS - 1 },
+          { length: chatsConfig.group.createMaxParticipants - 1 },
           () => randomUUID(),
         ),
       }),
