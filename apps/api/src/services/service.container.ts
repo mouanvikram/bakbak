@@ -5,6 +5,9 @@ import { JwtService } from "@/auth/jwt.service";
 import { PasswordService } from "@/auth/password.service";
 import { RefreshTokenRepository } from "@/auth/refresh-token.repository";
 import { AuthService } from "@/auth/service";
+import { CallsController } from "@/calls/controller";
+import { CallsRepository } from "@/calls/repository";
+import { CallsService } from "@/calls/service";
 import { ChatController } from "@/chats/controller";
 import { ChatService } from "@/chats/service";
 import { ChatRepository } from "@/chats/repository";
@@ -94,3 +97,7 @@ export const uploadService = new UploadService(
   storageProvider,
 );
 export const uploadController = new UploadController(uploadService);
+
+export const callsRepository = new CallsRepository();
+export const callsService = new CallsService(callsRepository);
+export const callsController = new CallsController(callsService);

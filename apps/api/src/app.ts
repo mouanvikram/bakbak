@@ -19,6 +19,7 @@ import { messageRoutes } from "@/messages/routes";
 import { settingsRoutes } from "@/settings/routes";
 import { uploadRoutes } from "@/uploads/routes";
 import { pushRoutes } from "@/push/routes";
+import { callsRoutes } from "@/calls/routes";
 import { systemRoutes } from "@/system/routes";
 
 const app: Express = express();
@@ -62,6 +63,7 @@ app.use("/api/v1/version", systemRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/uploads", uploadRoutes);
 app.use("/api/v1/push", pushRoutes);
+app.use("/api/v1/calls", callsRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/friends", friendRoutes);
 app.use("/api/v1/settings", settingsRoutes);

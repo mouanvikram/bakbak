@@ -48,6 +48,7 @@ import { EmojiPopover } from "@/features/chat/components/EmojiPopover";
 import { EmptyState } from "@/components/ui/States";
 import { MessageThreadSkeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
+import { useCall } from "@/features/calls/call-context";
 import { playSound } from "@/lib/sounds";
 import { reportError } from "@/lib/report";
 import { formatLastSeen } from "@/lib/date";
@@ -123,6 +124,7 @@ export function ChatPage() {
 
   const currentUserId = user?.id;
   const typingUsers = useTypingIndicator(socket, id, currentUserId);
+  const { startCall, phase: callPhase } = useCall();
 
   // Everything that has to start over when the open chat changes.
   useEffect(() => {
@@ -521,6 +523,23 @@ export function ChatPage() {
   const otherReadId = otherParticipant
     ? (readState[otherParticipant.user.id] ?? null)
     : null;
+  // The two header buttons ring the same person; only the media differs, and
+  // startCall opens the camera for a VIDEO call only. Disabled while another
+  // call is up — one at a time.
+  const canCall = isDirect && !!otherParticipant && callPhase === "idle";
+  const startDirectCall = (callType: "AUDIO" | "VIDEO") => {
+    if (!id || !otherParticipant) return;
+    void startCall(
+      id,
+      {
+        id: otherParticipant.user.id,
+        name: displayName,
+        avatar: avatarSrc ?? null,
+      },
+      callType,
+    );
+  };
+
   const orderIndex = new Map(messages.map((m, i) => [m.id, i] as const));
   const messageStatus = (messageId: string): "sent" | "delivered" | "seen" => {
     if (!isDirect || !otherParticipant) return "sent";
@@ -601,10 +620,20 @@ export function ChatPage() {
         <div className="flex items-center gap-0.5">
           {isDirect && (
             <>
-              <IconButton label="Voice call" className="hover:text-violet-600">
+              <IconButton
+                label="Voice call"
+                className="hover:text-violet-600"
+                disabled={!canCall}
+                onClick={() => startDirectCall("AUDIO")}
+              >
                 <Phone className="size-5" />
               </IconButton>
-              <IconButton label="Video call" className="hover:text-violet-600">
+              <IconButton
+                label="Video call"
+                className="hover:text-violet-600"
+                disabled={!canCall}
+                onClick={() => startDirectCall("VIDEO")}
+              >
                 <Video className="size-5" />
               </IconButton>
             </>

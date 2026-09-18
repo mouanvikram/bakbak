@@ -97,6 +97,21 @@ export function daysSince(iso: string | null | undefined): number | null {
  * Presence label, e.g. "Last seen 5m ago", "Last seen yesterday", or
  * "Last seen Sep 12". "Offline" stands in when we've never seen them.
  */
+export function formatDuration(seconds: number | null | undefined): string {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) {
+    return "";
+  }
+  const whole = Math.floor(seconds);
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const secs = whole % 60;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${pad(minutes)}:${pad(secs)}`
+    : `${minutes}:${pad(secs)}`;
+}
+
 export function formatLastSeen(iso: string | null | undefined): string {
   if (!parse(iso)) return "Offline";
   return `Last seen ${relativeSince(iso) ?? formatDay(iso)}`;

@@ -15,6 +15,7 @@ model Chat {
     lastMessageAt DateTime?
     participants  ChatParticipant[]
     messages      Message[]
+    calls         Call[]
     createdAt     DateTime          @default(now())
     updatedAt     DateTime          @updatedAt
 }

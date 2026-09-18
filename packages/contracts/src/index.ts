@@ -7,4 +7,5 @@ export * from "./chat";
 export * from "./settings";
 export * from "./upload";
 export * from "./push";
+export * from "./calls";
 export * from "./system";

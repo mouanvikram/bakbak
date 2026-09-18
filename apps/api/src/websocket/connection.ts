@@ -6,6 +6,7 @@ import { websocketConfig } from "./config";
 import { rooms } from "./rooms";
 import { presenceConfig } from "@/redis/presence/config";
 import { touchSocket, releaseSocket, onlineAmong } from "@/redis/presence";
+import { registerCallSignaling } from "@/calls/signaling";
 
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -120,6 +121,10 @@ export function registerConnection(io: Server, socket: AuthenticatedSocket) {
       messageId: d.messageId,
     });
   });
+
+  // WebRTC offer/answer/ICE relay. Lives in @/calls so the signalling rules
+  // sit next to the ICE config they serve, rather than growing this file.
+  registerCallSignaling(s);
 
   // Socket.IO has already emptied `s.rooms` by the time "disconnect" fires, so
   // capture the chats this socket is really in — including joins and leaves

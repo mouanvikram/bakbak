@@ -79,6 +79,15 @@ export function setSoundsEnabled(next: boolean) {
   writeString(STORAGE_KEYS.sounds, next ? "on" : "off");
 }
 
+/**
+ * Whether interface sounds are on. Exported for the call ringer, which can't
+ * go through `playSound`: these clips are one-shots that get dropped after
+ * 250ms of latency, whereas a ring has to loop until it's answered.
+ */
+export function areSoundsEnabled(): boolean {
+  return enabled;
+}
+
 function file(name: SoundName): Promise<ArrayBuffer | null> {
   let p = files.get(name);
   if (!p) {

@@ -2,10 +2,14 @@ import "./setup";
 import { afterAll, describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 
-// A short lease so the expiry path can be tested without waiting 90 s. Set
-// before the presence module (and its config) is first imported.
-const LEASE_MS = 300;
-process.env.PRESENCE_SOCKET_TTL_MS = String(LEASE_MS);
+// The expiry tests below seed a lapsed lease straight into Redis rather than
+// shortening PRESENCE_SOCKET_TTL_MS and sleeping through it.
+//
+// That used to be the approach, and it was load-order dependent: presenceConfig
+// is frozen the first time anything imports it, and websocket/connection.ts
+// imports it too. Whenever that file loaded first the lease stayed 90 s, the
+// sleep expired nothing, and exactly these two tests failed — on Linux CI but
+// not on Windows, because the file order differs.
 
 const { getRedisClient, isRedisReady } = await import("@/redis/client");
 const {
@@ -15,6 +19,7 @@ const {
   sweepExpiredPresence,
   touchSocket,
 } = await import("@/redis/presence");
+const { presenceConfig } = await import("@/redis/presence/config");
 
 const client = getRedisClient();
 
@@ -28,7 +33,22 @@ async function redisReady(timeoutMs = 3000): Promise<boolean> {
 }
 
 const REDIS_AVAILABLE = await redisReady();
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Leaves `userId` exactly as a crashed server does: in the online index with a
+ * lease that ran out `agoMs` ago, and a socket whose own lease ran out with it.
+ * Both keys hold expiry timestamps, so this needs no waiting and no particular
+ * PRESENCE_SOCKET_TTL_MS. Returns the expiry it wrote.
+ */
+async function seedLapsedLease(
+  userId: string,
+  socketId: string,
+  agoMs = 1_000,
+): Promise<number> {
+  const expiry = Date.now() - agoMs;
+  await client.zadd(presenceKeys.online, expiry, userId);
+  await client.zadd(presenceKeys.userSockets(userId), expiry, socketId);
+  return expiry;
+}
 
 describe.skipIf(!REDIS_AVAILABLE)("Presence (Redis)", () => {
   const users: string[] = [];
@@ -77,22 +97,25 @@ describe.skipIf(!REDIS_AVAILABLE)("Presence (Redis)", () => {
     await touchSocket(alice, "socket-a1");
     expect(await onlineAmong([alice])).toEqual(new Set([alice]));
 
-    await sleep(LEASE_MS + 150);
+    // Drop the lease into the past instead of waiting it out.
+    await seedLapsedLease(alice, "socket-a1");
     expect(await onlineAmong([alice])).toEqual(new Set());
   });
 
   test("sweepExpiredPresence - returns a crashed user once, with their last heartbeat as last seen", async () => {
     const alice = newUser();
 
-    const heartbeatAt = Date.now();
-    await touchSocket(alice, "socket-a1");
-    await sleep(LEASE_MS + 150);
+    const expiry = await seedLapsedLease(alice, "socket-a1");
+    // Last seen is the heartbeat, not the moment the sweep noticed — and the
+    // heartbeat is the lease expiry minus the lease length, so this holds for
+    // whatever PRESENCE_SOCKET_TTL_MS happens to be. Seeded values make it
+    // exact rather than approximate.
+    const expectedLastSeen = expiry - presenceConfig.socketTtlMs;
 
     const swept = await sweepExpiredPresence();
     const entry = swept.find((e) => e.userId === alice);
     expect(entry).toBeDefined();
-    // Last seen is the heartbeat, not the moment the sweep noticed.
-    expect(Math.abs(entry!.lastSeenAt.getTime() - heartbeatAt)).toBeLessThan(100);
+    expect(entry!.lastSeenAt.getTime()).toBe(expectedLastSeen);
 
     // Removed from the index, and not handed out a second time.
     expect(await client.zscore(presenceKeys.online, alice)).toBeNull();

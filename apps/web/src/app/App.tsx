@@ -3,6 +3,9 @@ import { useAuth } from "@/features/auth/auth-context";
 import { SocketProvider } from "@/features/chat/socket-context";
 import { PresenceProvider } from "@/features/chat/presence-context";
 import { MessageToastBridge } from "@/features/chat/MessageToastBridge";
+import { CallProvider } from "@/features/calls/call-context";
+import { CallScreen } from "@/features/calls/components/CallScreen";
+import { IncomingCallModal } from "@/features/calls/components/IncomingCallModal";
 import {
   AccountDeletedPage,
   ForgotPasswordPage,
@@ -123,8 +126,15 @@ export function App() {
             <ProtectedRoute>
               <SocketProvider>
                 <PresenceProvider>
-                  <MessageToastBridge />
-                  <AppLayout />
+                  {/* Calls are app-wide: you can be rung from any screen, so
+                      the ringer and the call surface live above the router
+                      outlet rather than inside a page. */}
+                  <CallProvider>
+                    <MessageToastBridge />
+                    <AppLayout />
+                    <IncomingCallModal />
+                    <CallScreen />
+                  </CallProvider>
                 </PresenceProvider>
               </SocketProvider>
             </ProtectedRoute>

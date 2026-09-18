@@ -1,0 +1,51 @@
+enum CallType {
+    AUDIO
+    VIDEO
+}
+
+enum CallStatus {
+    // Offer sent, not yet answered. A row left in this state means the
+    // process died mid-call; the history list treats it as missed.
+    RINGING
+    ANSWERED
+    // Caller gave up (or timed out) before the callee picked up.
+    MISSED
+    // Callee actively rejected.
+    DECLINED
+    FAILED
+}
+
+// One place-to-place call. Direct chats only for now — the call buttons are
+// rendered only for DIRECT chats, so there is exactly one callee.
+//
+// The server owns this row, not the clients: a browser can't know it missed a
+// call it never received, so "missed" has to be decided where the signalling
+// happens. Duration is derived from answeredAt→endedAt rather than stored, so
+// it can never disagree with the timestamps.
+model Call {
+    id String @id @default(uuid()) @db.Uuid
+
+    chatId String @db.Uuid
+    chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+    callerId String @db.Uuid
+    caller   User   @relation("CallsMade", fields: [callerId], references: [id], onDelete: Cascade)
+
+    calleeId String @db.Uuid
+    callee   User   @relation("CallsReceived", fields: [calleeId], references: [id], onDelete: Cascade)
+
+    type   CallType   @default(AUDIO)
+    status CallStatus @default(RINGING)
+
+    startedAt  DateTime  @default(now())
+    answeredAt DateTime?
+    endedAt    DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // The history list is "my calls, newest first", from either side.
+    @@index([callerId, startedAt])
+    @@index([calleeId, startedAt])
+    @@index([chatId, startedAt])
+}
