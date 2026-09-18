@@ -1,15 +1,18 @@
 import "./setup";
 import { afterAll, describe, expect, test } from "bun:test";
 import { getRedisClient } from "@/redis/client";
-import {
-  cacheAside,
-  getJson,
-  invalidate,
-  isCacheUsable,
-  setJson,
-} from "@/redis/cache";
+import { makeCache } from "@/redis/cache";
 
-const client = getRedisClient();
+// A duplicate of the shared connection, driven by a cache instance of its own.
+// The outage these tests need is real — the reconnect clear is what's under
+// test — but it happens on this connection only, so no other test file ever
+// sees the shared client go down.
+const client = getRedisClient().duplicate();
+
+const { cacheAside, getJson, invalidate, isCacheUsable, setJson } = makeCache({
+  getRedisClient: () => client,
+  isRedisReady: () => client.status === "ready",
+});
 
 async function waitFor(check: () => boolean, timeoutMs = 5000) {
   const started = Date.now();
@@ -30,13 +33,18 @@ describe.skipIf(!REDIS_AVAILABLE)("Cache reconnect safety", () => {
   const key = `test:reconnect:${Date.now()}`;
 
   const reconnect = async () => {
-    await client.connect();
+    // ioredis retries on its own; `connect()` throws if it got there first.
+    if (client.status !== "ready" && client.status !== "connecting") {
+      await client.connect().catch(() => {});
+    }
     await waitFor(() => isCacheUsable());
   };
 
   afterAll(async () => {
     if (client.status !== "ready") await reconnect().catch(() => {});
     await invalidate(key);
+    // This connection belongs to this file alone; don't leave it open.
+    await client.quit().catch(() => client.disconnect());
   });
 
   test("an invalidation missed during an outage doesn't serve the old entry after reconnect", async () => {
@@ -80,5 +88,32 @@ describe.skipIf(!REDIS_AVAILABLE)("Cache reconnect safety", () => {
 
     expect(usableWhenReady).toBe(false);
     expect(await getJson(key)).toBeNull();
+  });
+});
+
+describe("Cache without a connection", () => {
+  // The store hands back nothing — what a read arriving after shutdown sees.
+  const gone = makeCache({
+    getRedisClient: () => null,
+    isRedisReady: () => false,
+  });
+
+  test("reports itself unusable instead of throwing", () => {
+    expect(gone.isCacheUsable()).toBe(false);
+  });
+
+  test("reads miss, writes and invalidations are no-ops, and loaders still run", async () => {
+    expect(await gone.getJson("anything")).toBeNull();
+    await gone.setJson("anything", { a: 1 }, 30);
+    await gone.invalidate("anything");
+    await gone.invalidatePattern("anything*");
+
+    let loads = 0;
+    const value = await gone.cacheAside("anything", 30, async () => {
+      loads += 1;
+      return "from source";
+    });
+    expect(value).toBe("from source");
+    expect(loads).toBe(1);
   });
 });
