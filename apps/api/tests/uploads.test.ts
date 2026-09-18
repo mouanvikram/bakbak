@@ -21,6 +21,7 @@ import {
   isDatabaseAvailable,
   isStorageAvailable,
 } from "./helpers";
+import { uploadsConfig } from "@/uploads/config";
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 const STORAGE_AVAILABLE = DB_AVAILABLE && (await isStorageAvailable());
@@ -247,6 +248,105 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
+  // â”€â”€ Size caps and quota â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  //
+  // Every limit is enforced before the bytes reach object storage, so these
+  // need no MinIO — a rejected upload never gets that far.
+
+  /** Real magic bytes followed by padding: sniffing only reads the header, so
+   *  this is a valid file of whatever size we ask for. */
+  const paddedTo = (header: Buffer, bytes: number) =>
+    Buffer.concat([header, Buffer.alloc(Math.max(0, bytes - header.length))]);
+
+  /** ISO-BMFF header: length, `ftyp` at offset 4, an accepted brand at 8. */
+  const mp4Header = () => Buffer.from("\x00\x00\x00\x18ftypisom", "latin1");
+
+  test("POST /uploads - rejects a non-video over the 3 MB attachment cap", async () => {
+    const res = await fetch(`${baseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers: await authHeader(userA.id, userA.username),
+      body: form(
+        "big.png",
+        paddedTo(pngBuffer(), uploadsConfig.maxFileSize + 1024),
+        "image/png",
+      ),
+    });
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as any).error.code).toBe("FILE_TOO_LARGE");
+  });
+
+  test("POST /uploads - a video of the same size clears the attachment cap", async () => {
+    // The distinguishing case: identical byte count, different kind. Video is
+    // allowed 20 MB, so this must not be refused for being too large.
+    const res = await fetch(`${baseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers: await authHeader(userA.id, userA.username),
+      body: form(
+        "clip.mp4",
+        paddedTo(mp4Header(), uploadsConfig.maxFileSize + 1024),
+        "video/mp4",
+      ),
+    });
+
+    if (res.status !== 201) {
+      // Without object storage the send fails later, on the store itself —
+      // never with the size error this test is about.
+      expect(((await res.json()) as any).error?.code).not.toBe(
+        "FILE_TOO_LARGE",
+      );
+    }
+  });
+
+  test("POST /uploads - rejects a video over the 20 MB video cap", async () => {
+    const res = await fetch(`${baseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers: await authHeader(userA.id, userA.username),
+      body: form(
+        "huge.mp4",
+        paddedTo(mp4Header(), uploadsConfig.maxVideoSize + 1024),
+        "video/mp4",
+      ),
+    });
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as any).error.code).toBe("FILE_TOO_LARGE");
+  });
+
+  test("POST /uploads - refuses an upload once the user is at their storage quota", async () => {
+    // Seeded rather than uploaded: the quota sums stored bytes, so a single
+    // row standing in for 100 MB exercises the check without moving 100 MB.
+    await prisma.attachment.create({
+      data: {
+        kind: "IMAGE",
+        ownerId: userA.id,
+        fileName: "already-stored.png",
+        filePath: `${userA.id}/${randomUUID()}.png`,
+        mimeType: "image/png",
+        fileSize: uploadsConfig.userQuotaBytes,
+      },
+    });
+
+    const res = await fetch(`${baseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers: await authHeader(userA.id, userA.username),
+      body: form("one-more.png", pngBuffer(), "image/png"),
+    });
+
+    expect(res.status).toBe(413);
+    expect(((await res.json()) as any).error.code).toBe(
+      "STORAGE_QUOTA_EXCEEDED",
+    );
+
+    // The quota is per account: userB is unaffected by userA filling theirs.
+    const other = await fetch(`${baseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers: await authHeader(userB.id, userB.username),
+      body: form("mine.png", pngBuffer(), "image/png"),
+    });
+    expect(other.status).not.toBe(413);
+  });
+
   // â”€â”€ Full round-trip (requires object storage) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   test.skipIf(!STORAGE_AVAILABLE)(
@@ -310,6 +410,34 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
       const body = (await res.json()) as any;
       expect(body.attachment.id).toBe(attachment.id);
       expect(typeof body.attachment.url).toBe("string");
+    },
+  );
+
+  test.skipIf(!STORAGE_AVAILABLE || Boolean(uploadsConfig.publicUrl))(
+    "objects are only reachable through a signed URL, never an anonymous GET",
+    async () => {
+      // (Skipped when STORAGE_PUBLIC_URL is configured: in that mode objects
+      // are served from a public CDN origin by design.)
+      const bytes = pngBuffer();
+      const upload = await fetch(`${baseUrl()}/api/v1/uploads`, {
+        method: "POST",
+        headers: await authHeader(userA.id, userA.username),
+        body: form("photo.png", bytes, "image/png"),
+      });
+      const { attachment } = (await upload.json()) as any;
+
+      // The plain object URL, exactly as a reader who knew the key would hit
+      // it without a signature. A private bucket must refuse it.
+      const plain = `http://${uploadsConfig.endpoint}:${uploadsConfig.port}/${uploadsConfig.bucket}/${attachment.filePath}`;
+      const unsigned = await fetch(plain);
+      expect(unsigned.status).toBe(403);
+
+      // The signed URL the API hands out still works and serves the bytes.
+      const signed = await fetch(attachment.url);
+      expect(signed.status).toBe(200);
+      expect(new Uint8Array(await signed.arrayBuffer())).toEqual(
+        new Uint8Array(bytes),
+      );
     },
   );
 
