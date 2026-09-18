@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { imageSize } from "image-size";
-import { AttachmentKind } from "@bakbak/db";
+import { AttachmentKind, Prisma } from "@bakbak/db";
 import type { AttachmentAccessDto, UploadDto } from "@bakbak/contracts";
 import logger from "@/lib/logger";
 import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
@@ -171,7 +171,21 @@ export class UploadService {
         continue;
       }
 
-      await this.uploadRepository.deleteById(candidate.id);
+      try {
+        await this.uploadRepository.deleteById(candidate.id);
+      } catch (error) {
+        // P2025 = row already gone: a concurrent instance (or the lock
+        // handover) deleted it between our listing and this delete. The object
+        // is gone either way — not a failure to retry.
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2025"
+        ) {
+          deleted += 1;
+          continue;
+        }
+        throw error;
+      }
       deleted += 1;
     }
 

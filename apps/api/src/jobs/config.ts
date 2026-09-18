@@ -18,4 +18,8 @@ export const jobsConfig = {
   // sent yet, or an avatar the profile might still be pointing at, is not an
   // orphan. A day is far longer than any open composer survives.
   orphanGraceMs: DAY_MS,
+  // A run that outlives its lock (e.g. a very full object store) lets a second
+  // instance take over — a clean batch rarely takes minutes, let alone an
+  // hour.
+  orphanLockTtlMs: 10 * 60 * 1000,
 };
