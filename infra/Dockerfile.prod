@@ -11,19 +11,27 @@ ENV APP_VERSION=$APP_VERSION \
     GIT_COMMIT=$GIT_COMMIT \
     BUILD_TIME=$BUILD_TIME
 
-# Install dependencies
+# Install the full dependency tree: the prisma CLI is a devDependency, so a
+# production install wouldn't give `prisma generate` anything to run (bunx then
+# falls back to whatever prisma is latest on npm, which may not even have that
+# command). Install everything, generate against the lockfile-pinned CLI, then
+# prune dev dependencies back out of the final image.
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/db/package.json ./packages/db/
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile
 
 # Copy source
 COPY . .
 
 # Generate Prisma client
 RUN cd packages/db && bunx prisma generate
+
+# Drop devDependencies (typescript, the prisma CLI, ...) from the runtime
+# image; the generated @prisma/client is a production dependency and survives.
+RUN bun install --frozen-lockfile --production
 
 EXPOSE 3000
 
