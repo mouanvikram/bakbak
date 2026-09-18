@@ -11,7 +11,7 @@ import {
   usernameSchema,
 } from "./shared";
 
-// ─── Login ─────────────────────────────────────────────────────────
+// ===== Login =======================================================
 
 export const loginRequestSchema = z.object({
   // identifier is either a username or an email — both are stored lowercase
@@ -34,7 +34,7 @@ export const loginResponseSchema = z.object({
 export type LoginRequestType = z.infer<typeof loginRequestSchema>;
 export type LoginResponseType = z.infer<typeof loginResponseSchema>;
 
-// ─── Two-factor authentication (email OTP) ─────────────────────────
+// ===== Two-factor authentication (email OTP) =======================
 
 /** A 6-digit one-time code, as typed by the user. */
 export const otpCodeSchema = z
@@ -134,7 +134,7 @@ export type DisableTwoFactorRequestType = z.infer<
   typeof disableTwoFactorRequestSchema
 >;
 
-// ─── Signup ────────────────────────────────────────────────────────
+// ===== Signup ======================================================
 
 export const signUpRequestSchema = z.object({
   username: usernameSchema,
@@ -152,7 +152,7 @@ export const signUpResponseSchema = okResponseSchema;
 export type SignUpRequestType = z.infer<typeof signUpRequestSchema>;
 export type SignUpResponseType = z.infer<typeof signUpResponseSchema>;
 
-// ─── Email verification ────────────────────────────────────────────
+// ===== Email verification ==========================================
 
 export const verifyEmailRequestSchema = z.object({
   token: tokenSchema("Verification token"),
@@ -176,7 +176,7 @@ export type ResendVerificationResponseType = z.infer<
   typeof resendVerificationResponseSchema
 >;
 
-// ─── Password operations ───────────────────────────────────────────
+// ===== Password operations =========================================
 
 export const changePasswordRequestSchema = z.object({
   currentPassword: safeString(128, 1),
@@ -264,7 +264,7 @@ export type VerifyRecoveryResponseType = z.infer<
   typeof verifyRecoveryResponseSchema
 >;
 
-// ─── Token operations ──────────────────────────────────────────────
+// ===== Token operations ============================================
 
 // `POST /auth/refresh-token` takes no body: the refresh token is the httpOnly
 // cookie, and the rotated one comes back the same way.
@@ -284,7 +284,7 @@ export const logoutResponseSchema = okResponseSchema;
 export type LogoutRequestType = z.infer<typeof logoutRequestSchema>;
 export type LogoutResponseType = z.infer<typeof logoutResponseSchema>;
 
-// ─── Active sessions (Devices page) ────────────────────────────────
+// ===== Active sessions (Devices page) ==============================
 
 // One live refresh-token session for the current user.
 export const sessionSchema = z.object({

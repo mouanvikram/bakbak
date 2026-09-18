@@ -329,7 +329,7 @@ export class AuthService {
     const refreshTokenValue = this.generateToken();
     const refreshTokenHash = this.hashToken(refreshTokenValue);
 
-    await this.refreshTokenRepository.create({
+    await this.refreshTokenRepository.createToken({
       tokenHash: refreshTokenHash,
       expiresAt,
       userId,
@@ -457,17 +457,18 @@ export class AuthService {
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
     const codeHash = this.hashToken(code);
 
-    await this.emailRepository.deleteAll({
+    await this.emailRepository.deleteAllOfType(
       userId,
-      type: VerificationTokenType.TWO_FACTOR,
-    });
-    await this.emailRepository.create({
+      VerificationTokenType.TWO_FACTOR,
+    );
+
+    await this.emailRepository.createToken({
+      userId,
       tokenHash: codeHash,
       type: VerificationTokenType.TWO_FACTOR,
       expiresAt: new Date(
         Date.now() + authConfig.twoFactor.codeTtlMinutes * 60 * 1000,
       ),
-      user: { connect: { id: userId } },
     });
 
     try {
@@ -498,12 +499,11 @@ export class AuthService {
 
     const codeHash = this.hashToken(code);
 
-    const record = await this.emailRepository.findBy({
+    const record = await this.emailRepository.findLiveTokenForUser(
       userId,
-      type: VerificationTokenType.TWO_FACTOR,
-      tokenHash: codeHash,
-      expiresAt: { gt: new Date() },
-    });
+      codeHash,
+      VerificationTokenType.TWO_FACTOR,
+    );
 
     if (!record) {
       // One trip: counter bump + conditional lockout in a single UPDATE,
@@ -522,10 +522,10 @@ export class AuthService {
     }
 
     await this.userRepository.resetTwoFactorFailures(userId);
-    await this.emailRepository.deleteAll({
+    await this.emailRepository.deleteAllOfType(
       userId,
-      type: VerificationTokenType.TWO_FACTOR,
-    });
+      VerificationTokenType.TWO_FACTOR,
+    );
   }
 
   private readChallenge(challengeId: string): string {
@@ -642,10 +642,10 @@ export class AuthService {
     }
 
     await this.settingsRepository.upsert(userId, { twoFactorEnabled: false });
-    await this.emailRepository.deleteAll({
+    await this.emailRepository.deleteAllOfType(
       userId,
-      type: VerificationTokenType.TWO_FACTOR,
-    });
+      VerificationTokenType.TWO_FACTOR,
+    );
 
     return {
       twoFactorEnabled: false,
@@ -659,13 +659,10 @@ export class AuthService {
     const token = dto.token;
     const hashedToken = this.hashToken(token);
 
-    const verification = await this.emailRepository.findBy({
-      tokenHash: hashedToken,
-      type: VerificationTokenType.EMAIL_VERIFICATION,
-      expiresAt: {
-        gt: new Date(),
-      },
-    });
+    const verification = await this.emailRepository.findLiveToken(
+      hashedToken,
+      VerificationTokenType.EMAIL_VERIFICATION,
+    );
 
     if (!verification) {
       throw new AppError(
@@ -702,23 +699,19 @@ export class AuthService {
       return genericResponse;
     }
 
-    await this.emailRepository.deleteAll({
-      userId: user.id,
-      type: VerificationTokenType.EMAIL_VERIFICATION,
-    });
+    await this.emailRepository.deleteAllOfType(
+      user.id,
+      VerificationTokenType.EMAIL_VERIFICATION,
+    );
 
     const token = this.generateToken();
     const hashedToken = this.hashToken(token);
 
-    await this.emailRepository.create({
+    await this.emailRepository.createToken({
+      userId: user.id,
       tokenHash: hashedToken,
       type: VerificationTokenType.EMAIL_VERIFICATION,
       expiresAt: new Date(Date.now() + authConfig.verificationTokenTtlMs),
-      user: {
-        connect: {
-          id: user.id,
-        },
-      },
     });
 
     await this.sendVerificationEmail(user, token);
@@ -803,9 +796,7 @@ export class AuthService {
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const tokenHash = this.hashToken(refreshToken);
 
-    const stored = await this.refreshTokenRepository.findFirst({
-      tokenHash,
-    });
+    const stored = await this.refreshTokenRepository.findByTokenHash(tokenHash);
 
     if (!stored) {
       throw new AppError(
@@ -909,23 +900,19 @@ export class AuthService {
       return genericResponse;
     }
 
-    await this.emailRepository.deleteAll({
-      userId: user.id,
-      type: VerificationTokenType.PASSWORD_RESET,
-    });
+    await this.emailRepository.deleteAllOfType(
+      user.id,
+      VerificationTokenType.PASSWORD_RESET,
+    );
 
     const token = this.generateToken();
     const tokenHash = this.hashToken(token);
 
-    await this.emailRepository.create({
+    await this.emailRepository.createToken({
+      userId: user.id,
       tokenHash,
       expiresAt: new Date(Date.now() + authConfig.passwordResetTokenTtlMs),
       type: VerificationTokenType.PASSWORD_RESET,
-      user: {
-        connect: {
-          id: user.id,
-        },
-      },
     });
 
     const url = `${authConfig.frontendUrl}/reset-password?token=${token}`;
@@ -951,13 +938,10 @@ export class AuthService {
   ): Promise<ResetPasswordResponseType> {
     const tokenHash = this.hashToken(dto.token);
 
-    const token = await this.emailRepository.findBy({
+    const token = await this.emailRepository.findLiveToken(
       tokenHash,
-      type: VerificationTokenType.PASSWORD_RESET,
-      expiresAt: {
-        gt: new Date(),
-      },
-    });
+      VerificationTokenType.PASSWORD_RESET,
+    );
 
     if (!token) {
       throw new AppError(
@@ -994,7 +978,7 @@ export class AuthService {
     };
   }
 
-  // ─── Account recovery (soft-delete undo window) ──────────────────
+  // ===== Account recovery (soft-delete undo window) ================
 
   /** Creates a fresh recovery token + email for a soft-deleted user, guarded
    * to the 30-day window anchored on `deletedAt` (resending never extends it).
@@ -1007,17 +991,17 @@ export class AuthService {
       user.deletedAt.getTime() + authConfig.accountRecoveryWindowMs;
     if (Date.now() > windowEnd) return;
 
-    await this.emailRepository.deleteAll({
-      userId: user.id,
-      type: VerificationTokenType.ACCOUNT_RECOVERY,
-    });
+    await this.emailRepository.deleteAllOfType(
+      user.id,
+      VerificationTokenType.ACCOUNT_RECOVERY,
+    );
 
     const token = this.generateToken();
-    await this.emailRepository.create({
+    await this.emailRepository.createToken({
+      userId: user.id,
       tokenHash: this.hashToken(token),
       type: VerificationTokenType.ACCOUNT_RECOVERY,
       expiresAt: new Date(windowEnd),
-      user: { connect: { id: user.id } },
     });
 
     const url = `${authConfig.frontendUrl}/verify-recovery?token=${token}`;
@@ -1059,11 +1043,10 @@ export class AuthService {
   async verifyRecovery(
     dto: VerifyRecoveryRequestType,
   ): Promise<VerifyRecoveryResponseType> {
-    const token = await this.emailRepository.findBy({
-      tokenHash: this.hashToken(dto.token),
-      type: VerificationTokenType.ACCOUNT_RECOVERY,
-      expiresAt: { gt: new Date() },
-    });
+    const token = await this.emailRepository.findLiveToken(
+      this.hashToken(dto.token),
+      VerificationTokenType.ACCOUNT_RECOVERY,
+    );
 
     if (!token) {
       throw new AppError(
@@ -1085,10 +1068,10 @@ export class AuthService {
     await this.userRepository.restoreDeleted(token.userId);
     // The account reappears in its friends' lists.
     await invalidateFriendsOf(token.userId);
-    await this.emailRepository.deleteAll({
-      userId: token.userId,
-      type: VerificationTokenType.ACCOUNT_RECOVERY,
-    });
+    await this.emailRepository.deleteAllOfType(
+      token.userId,
+      VerificationTokenType.ACCOUNT_RECOVERY,
+    );
 
     return { message: "Your account has been restored" };
   }

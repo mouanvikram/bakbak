@@ -109,7 +109,7 @@ describe.skipIf(!DB_AVAILABLE)("Push Endpoints & Delivery", () => {
       body: JSON.stringify({ type: "TEXT", text, clientId: crypto.randomUUID() }),
     });
 
-  // ── GET /push/config ─────────────────────────────────────────────────────
+  // ===== GET /push/config ==================================================
 
   test("GET /api/v1/push/config - is public and returns the VAPID key", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/push/config`);
@@ -118,7 +118,7 @@ describe.skipIf(!DB_AVAILABLE)("Push Endpoints & Delivery", () => {
     expect(data.publicKey).toBe(process.env.VAPID_PUBLIC_KEY);
   });
 
-  // ── POST /push/subscribe ─────────────────────────────────────────────────
+  // ===== POST /push/subscribe ==============================================
 
   test("POST /push/subscribe - requires auth", async () => {
     const res = await fetch(`${baseUrl()}/api/v1/push/subscribe`, {
@@ -186,7 +186,7 @@ describe.skipIf(!DB_AVAILABLE)("Push Endpoints & Delivery", () => {
     expect(rows).toHaveLength(0);
   });
 
-  // ── Delivery (message → web push) ───────────────────────────────────────
+  // ===== Delivery (message -> web push) ===================================
 
   test("sending a message pushes to subscribed recipients, not the sender", async () => {
     const chat = await createTestGroupChat(userA.id, [userB.id, userC.id], {

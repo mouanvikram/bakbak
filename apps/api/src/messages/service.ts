@@ -37,38 +37,6 @@ import {
   broadcastReadReceipt,
 } from "@/websocket/emitter";
 
-const messageUserSelect = {
-  id: true,
-  username: true,
-  profile: {
-    select: {
-      displayName: true,
-      firstName: true,
-      lastName: true,
-      avatar: true,
-    },
-  },
-} satisfies Prisma.UserSelect;
-
-const messageInclude = {
-  sender: {
-    select: messageUserSelect,
-  },
-  attachments: true,
-
-  replyTo: {
-    include: {
-      sender: {
-        select: messageUserSelect,
-      },
-      attachments: true,
-    },
-  },
-  reactions: {
-    orderBy: { createdAt: "asc" },
-  },
-} satisfies Prisma.MessageInclude;
-
 type SerializedMessage = {
   [key: string]: unknown;
   deleted: boolean;
@@ -235,13 +203,10 @@ export class MessageService {
   }
 
   private async requireActiveParticipant(chatId: string, userId: string) {
-    const participant = await this.messageRepository.findParticipant({
-      where: {
-        chatId,
-        userId,
-        leftAt: null,
-      },
-    });
+    const participant = await this.messageRepository.findActiveParticipant(
+      chatId,
+      userId,
+    );
 
     if (!participant) {
       throw new AppError(
@@ -255,12 +220,7 @@ export class MessageService {
   }
 
   private async requireVisibleMessage(messageId: string) {
-    const message = await this.messageRepository.findUnique({
-      where: {
-        id: messageId,
-      },
-      include: messageInclude,
-    });
+    const message = await this.messageRepository.findByIdWithDetail(messageId);
 
     if (!message || message.deletedAt) {
       throw new AppError(
@@ -281,10 +241,10 @@ export class MessageService {
     // pointing at a different chat is a client bug — reject it rather than
     // silently handing back the wrong chat's message.
     if (dto.clientId) {
-      const existing = await this.messageRepository.findFirst({
-        where: { senderId: dto.currentUserId, clientId: dto.clientId },
-        include: messageInclude,
-      });
+      const existing = await this.messageRepository.findByClientId(
+        dto.currentUserId,
+        dto.clientId,
+      );
       if (existing) {
         if (existing.chatId !== dto.chatId) {
           throw new AppError(
@@ -361,10 +321,8 @@ export class MessageService {
 
     // Re-read so the broadcast/response carries the linked attachments.
     const full = attachments.length
-      ? ((await this.messageRepository.findUnique({
-          where: { id: message.id },
-          include: messageInclude,
-        })) ?? message)
+      ? ((await this.messageRepository.findByIdWithDetail(message.id)) ??
+        message)
       : message;
 
     const serialized = await this.serializeMessage(full);
@@ -394,29 +352,17 @@ export class MessageService {
     replyToId?: string;
   }) {
     try {
-      return await this.messageRepository.createWithChatTouch({
-        data: {
-          type: row.type,
-          text: row.text,
-          clientId: row.clientId,
-          chat: { connect: { id: row.chatId } },
-          sender: { connect: { id: row.senderId } },
-          ...(row.replyToId
-            ? { replyTo: { connect: { id: row.replyToId } } }
-            : {}),
-        },
-        include: messageInclude,
-      });
+      return await this.messageRepository.createMessage(row);
     } catch (error) {
       if (
         row.clientId &&
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        const existing = await this.messageRepository.findFirst({
-          where: { senderId: row.senderId, clientId: row.clientId },
-          include: messageInclude,
-        });
+        const existing = await this.messageRepository.findByClientId(
+          row.senderId,
+          row.clientId,
+        );
         if (existing && existing.chatId === row.chatId) return existing;
         if (existing) {
           throw new AppError(
@@ -472,16 +418,10 @@ export class MessageService {
 
     const { cursor, skip, take } = cursorPaginationArgs(dto.cursor, dto.limit);
 
-    const messages = await this.messageRepository.findMany({
-      where: {
-        chatId: dto.chatId,
-        deletedAt: null,
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    const messages = await this.messageRepository.findChatMessages(dto.chatId, {
       cursor,
       skip,
       take,
-      include: messageInclude,
     });
 
     return Promise.all(
@@ -509,29 +449,24 @@ export class MessageService {
       );
     }
 
-    const existing = await this.messageRepository.findReaction({
-      where: {
-        messageId: dto.messageId,
-        userId: dto.currentUserId,
-        emoji: dto.emoji,
-      },
-    });
+    const existing = await this.messageRepository.findReaction(
+      dto.messageId,
+      dto.currentUserId,
+      dto.emoji,
+    );
     if (existing) {
       await this.messageRepository.deleteReaction(existing.id);
     } else {
-      await this.messageRepository.createReaction({
-        data: {
-          emoji: dto.emoji,
-          messageId: dto.messageId,
-          userId: dto.currentUserId,
-        },
-      });
+      await this.messageRepository.createReaction(
+        dto.messageId,
+        dto.currentUserId,
+        dto.emoji,
+      );
     }
 
-    const updated = await this.messageRepository.findUnique({
-      where: { id: dto.messageId },
-      include: messageInclude,
-    });
+    const updated = await this.messageRepository.findByIdWithDetail(
+      dto.messageId,
+    );
     const serialized = await this.serializeMessage(updated ?? message);
 
     try {
@@ -564,16 +499,10 @@ export class MessageService {
       );
     }
 
-    const updated = await this.messageRepository.update({
-      where: {
-        id: dto.messageId,
-      },
-      data: {
-        text,
-        // keep the original type: editing a caption must not turn media into TEXT
-      },
-      include: messageInclude,
-    });
+    const updated = await this.messageRepository.updateText(
+      dto.messageId,
+      text,
+    );
 
     const serialized = await this.serializeMessage(updated);
 
@@ -598,16 +527,7 @@ export class MessageService {
       );
     }
 
-    const deleted = await this.messageRepository.update({
-      where: {
-        id: dto.messageId,
-      },
-      data: {
-        deletedAt: new Date(),
-        text: null,
-      },
-      include: messageInclude,
-    });
+    const deleted = await this.messageRepository.markDeleted(dto.messageId);
 
     const serialized = await this.serializeMessage(deleted);
 
@@ -628,55 +548,25 @@ export class MessageService {
 
     const messageId =
       dto.messageId ??
-      (
-        await this.messageRepository.findFirst({
-          where: {
-            chatId: dto.chatId,
-            deletedAt: null,
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          select: {
-            id: true,
-          },
-        })
-      )?.id;
+      (await this.messageRepository.findLatestMessageId(dto.chatId));
 
     if (!messageId) {
-      const participant = await this.messageRepository.updateParticipant({
-        where: {
-          chatId_userId: {
-            chatId: dto.chatId,
-            userId: dto.currentUserId,
-          },
-        },
-        data: {
-          lastReadMessageId: null,
-        },
-        include: {
-          user: {
-            select: messageUserSelect,
-          },
-        },
-      });
+      const participant = await this.messageRepository.setLastReadMessage(
+        dto.chatId,
+        dto.currentUserId,
+        null,
+      );
 
       // Nothing to acknowledge in an empty chat — no receipt to broadcast.
       return await this.serializeParticipant(participant);
     }
 
-    const message = await this.messageRepository.findFirst({
-      where: {
-        id: messageId,
-        chatId: dto.chatId,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-      },
-    });
+    const exists = await this.messageRepository.messageExistsInChat(
+      messageId,
+      dto.chatId,
+    );
 
-    if (!message) {
+    if (!exists) {
       throw new AppError(
         HTTP_STATUS.NOT_FOUND,
         ERROR_CODES.MESSAGE_NOT_FOUND,
@@ -684,25 +574,14 @@ export class MessageService {
       );
     }
 
-    const participant = await this.messageRepository.updateParticipant({
-      where: {
-        chatId_userId: {
-          chatId: dto.chatId,
-          userId: dto.currentUserId,
-        },
-      },
-      data: {
-        lastReadMessageId: message.id,
-      },
-      include: {
-        user: {
-          select: messageUserSelect,
-        },
-      },
-    });
+    const participant = await this.messageRepository.setLastReadMessage(
+      dto.chatId,
+      dto.currentUserId,
+      messageId,
+    );
 
     try {
-      broadcastReadReceipt(dto.chatId, dto.currentUserId, message.id);
+      broadcastReadReceipt(dto.chatId, dto.currentUserId, messageId);
     } catch {
       // WebSocket may not be initialised in test runners.
     }
@@ -724,23 +603,11 @@ export class MessageService {
 
     const { cursor, skip, take } = cursorPaginationArgs(dto.cursor, dto.limit);
 
-    const messages = await this.messageRepository.findMany({
-      where: {
-        chatId: dto.chatId,
-        deletedAt: null,
-        text: {
-          contains: query,
-          mode: "insensitive",
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      cursor,
-      skip,
-      take,
-      include: messageInclude,
-    });
+    const messages = await this.messageRepository.searchChatMessages(
+      dto.chatId,
+      query,
+      { cursor, skip, take },
+    );
 
     return Promise.all(
       messages.map((message) => this.serializeMessage(message)),
@@ -753,31 +620,17 @@ export class MessageService {
       dto.currentUserId,
     );
 
-    const lastReadMessage = participant.lastReadMessageId
-      ? await this.messageRepository.findFirst({
-          where: {
-            id: participant.lastReadMessageId,
-            chatId: dto.chatId,
-          },
-          select: {
-            createdAt: true,
-          },
-        })
+    const since = participant.lastReadMessageId
+      ? await this.messageRepository.findMessageTimestamp(
+          participant.lastReadMessageId,
+          dto.chatId,
+        )
       : null;
 
-    return await this.messageRepository.count({
-      where: {
-        chatId: dto.chatId,
-        deletedAt: null,
-        senderId: {
-          not: dto.currentUserId,
-        },
-        createdAt: lastReadMessage
-          ? {
-              gt: lastReadMessage.createdAt,
-            }
-          : undefined,
-      },
-    });
+    return await this.messageRepository.countUnread(
+      dto.chatId,
+      dto.currentUserId,
+      since,
+    );
   }
 }

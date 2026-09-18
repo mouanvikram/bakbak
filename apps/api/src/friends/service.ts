@@ -82,11 +82,10 @@ export class FriendService {
       );
     }
 
-    const reverseRequest = await this.friendRepository.findRequest({
-      senderId: receiverId,
-      receiverId: senderId,
-      status: FriendRequestStatus.PENDING,
-    });
+    const reverseRequest = await this.friendRepository.findPendingBetween(
+      receiverId,
+      senderId,
+    );
 
     if (reverseRequest.length > 0) {
       throw new AppError(
@@ -97,18 +96,10 @@ export class FriendService {
     }
 
     try {
-      const request = await this.friendRepository.createRequest({
-        sender: {
-          connect: {
-            id: senderId,
-          },
-        },
-        receiver: {
-          connect: {
-            id: receiverId,
-          },
-        },
-      });
+      const request = await this.friendRepository.createRequest(
+        senderId,
+        receiverId,
+      );
 
       await invalidateSuggestions(senderId, receiverId);
       return await this.serializeRequest(request);
@@ -169,13 +160,9 @@ export class FriendService {
       );
     }
 
-    const request = await this.friendRepository.updateRequest(
-      {
-        id: requestId,
-      },
-      {
-        status: FriendRequestStatus.CANCELLED,
-      },
+    const request = await this.friendRepository.setRequestStatus(
+      requestId,
+      FriendRequestStatus.CANCELLED,
     );
 
     await invalidateSuggestions(existing.senderId, existing.receiverId);
@@ -255,13 +242,9 @@ export class FriendService {
       );
     }
 
-    const request = await this.friendRepository.updateRequest(
-      {
-        id: requestId,
-      },
-      {
-        status: FriendRequestStatus.REJECTED,
-      },
+    const request = await this.friendRepository.setRequestStatus(
+      requestId,
+      FriendRequestStatus.REJECTED,
     );
 
     await invalidateSuggestions(existing.senderId, existing.receiverId);
@@ -277,9 +260,7 @@ export class FriendService {
       friendsCacheKeys.list(dto.userId),
       friendsConfig.cache.listTtlSec,
       async () => {
-        const rows = await this.friendRepository.findFriends({
-          OR: [{ user1Id: dto.userId }, { user2Id: dto.userId }],
-        });
+        const rows = await this.friendRepository.findFriendshipsOf(dto.userId);
         return rows.map((friendship) => ({
           friendshipId: friendship.id,
           createdAt: friendship.createdAt.toISOString(),
@@ -315,9 +296,7 @@ export class FriendService {
   ): Promise<RemoveFriendResponseType> {
     const { requestId, userId } = dto;
 
-    const existing = await this.friendRepository.findFriendship({
-      id: requestId,
-    });
+    const existing = await this.friendRepository.findFriendshipById(requestId);
     if (!existing) {
       throw new AppError(
         HTTP_STATUS.NOT_FOUND,
@@ -334,9 +313,7 @@ export class FriendService {
       );
     }
 
-    await this.friendRepository.deleteFriendship({
-      id: requestId,
-    });
+    await this.friendRepository.deleteFriendshipById(requestId);
     await invalidateFriendship(existing.user1Id, existing.user2Id);
 
     return {
@@ -346,10 +323,7 @@ export class FriendService {
 
   // Requests — outgoing = I sent, incoming = I received
   async getIncomingRequests(id: string): Promise<FriendRequestResponseType[]> {
-    const requests = await this.friendRepository.findRequest({
-      receiverId: id,
-      status: FriendRequestStatus.PENDING,
-    });
+    const requests = await this.friendRepository.findPendingForReceiver(id);
 
     return Promise.all(
       requests.map((request) => this.serializeRequest(request)),
@@ -357,10 +331,7 @@ export class FriendService {
   }
 
   async getOutgoingRequests(id: string): Promise<FriendRequestResponseType[]> {
-    const requests = await this.friendRepository.findRequest({
-      senderId: id,
-      status: FriendRequestStatus.PENDING,
-    });
+    const requests = await this.friendRepository.findPendingForSender(id);
 
     return Promise.all(
       requests.map((request) => this.serializeRequest(request)),
@@ -371,19 +342,10 @@ export class FriendService {
     userId: string;
     otherUserId: string;
   }): Promise<Friendship | null> {
-    const status = await this.friendRepository.findFriendship({
-      OR: [
-        {
-          user1Id: dto.userId,
-          user2Id: dto.otherUserId,
-        },
-        {
-          user1Id: dto.otherUserId,
-          user2Id: dto.userId,
-        },
-      ],
-    });
-    return status;
+    return await this.friendRepository.findFriendshipBetween(
+      dto.userId,
+      dto.otherUserId,
+    );
   }
 
   async getSuggestions(dto: UserIdType): Promise<GetSuggestionsResponseType> {

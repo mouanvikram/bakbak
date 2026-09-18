@@ -27,6 +27,19 @@ import { redisConfig } from "@/redis/config";
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 
+// Same awaited gate as lock/presence/rate-limit. A bare `isRedisReady()` at
+// file load is a race, not a check: the shared client connects lazily and
+// asynchronously, so it reads "connecting" and silently skips the test on
+// every local run. Prime the connection, then wait for it.
+void getRedisClient();
+const REDIS_AVAILABLE = await Promise.race([
+  (async () => {
+    while (!isRedisReady()) await new Promise((r) => setTimeout(r, 20));
+    return true;
+  })(),
+  new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 10000)),
+]);
+
 // Spy on the shared EmailService instance the container hands to AuthService,
 // so tests can read the plaintext 2FA code (only ever sent by email).
 const twoFactorEmailSpy = spyOn(
@@ -2215,28 +2228,29 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
     }
   });
 
-  test.skipIf(!isRedisReady())(
-    "POST /api/v1/auth/2fa/enable - a drained per-user bucket returns 429",
+  test.skipIf(!REDIS_AVAILABLE)(
+    "POST /api/v1/auth/2fa/enable - is throttled by the twoFactorManage bucket",
     async () => {
-      // The two-factor manage limiter keys on the authenticated user, so the
-      // bucket is private to this test's fresh user. Drain it directly so the
-      // very next request must land a 429 regardless of the configured
-      // capacity.
+      // Route wiring, not limiter behaviour: rate-limit.test.ts owns the 429
+      // path, against a bucket whose capacity and refill it chooses itself.
+      //
+      // This bucket's numbers come from tests/setup.ts, and at that refill rate
+      // (50/s) it cannot be drained from a test: consuming `capacity` tokens
+      // one at a time takes ~320ms, over which ~16 tokens return, so the next
+      // request is still allowed. Nor can a decrementing budget be asserted —
+      // TOKEN_BUCKET_SCRIPT clamps a near-full bucket back to capacity, so a
+      // second request reports the same remaining count as the first.
+      //
+      // What is deterministic is *which* bucket answered. The limiter writes
+      // RateLimit-Limit before handing off, and this route's limiter runs after
+      // the app-wide global one, so the header carries twoFactorManage's
+      // capacity rather than the global bucket's. That proves the route mounts
+      // it — which is the part rate-limit.test.ts cannot cover.
       const user = await createTestUser({
         username: `rl2fa.${Date.now()}`,
         email: `rl2fa.${Date.now()}@example.com`,
       });
       const bucket = redisConfig.rateLimit.twoFactorManage;
-      const key = `rl:user:twoFactorManage:${user.id}`;
-      const client = getRedisClient() as unknown as {
-        consumeBucket: (
-          key: string,
-          ...args: Array<string | number>
-        ) => Promise<[number, number, number]>;
-      };
-      for (let i = 0; i < bucket.capacity; i += 1) {
-        await client.consumeBucket(key, bucket.capacity, bucket.refillRate, 1);
-      }
 
       const res = await fetch(`${baseUrl()}/api/v1/auth/2fa/enable`, {
         method: "POST",
@@ -2247,8 +2261,17 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
         body: JSON.stringify({ code: "000000" }),
       });
 
-      expect(res.status).toBe(429);
-      expect(res.headers.get("Retry-After")).not.toBeNull();
+      // Set before the handler ran, so it survives onto the handler's error
+      // response — the request itself is expected to be rejected.
+      expect(res.headers.get("RateLimit-Limit")).toBe(String(bucket.capacity));
+      expect(res.headers.get("RateLimit-Limit")).not.toBe(
+        String(redisConfig.rateLimit.global.capacity),
+      );
+      // A fresh per-user bucket starts full, so the first request leaves
+      // exactly one token short of capacity.
+      expect(Number(res.headers.get("RateLimit-Remaining"))).toBe(
+        bucket.capacity - 1,
+      );
     },
   );
 });

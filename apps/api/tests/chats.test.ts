@@ -717,7 +717,7 @@ describe("ChatService group size cap (creation)", () => {
   test("rejects a creation payload over the 32 KB-compatible cap before touching the repository", async () => {
     let createCalled = false;
     const repo = {
-      create: () => {
+      createGroup: () => {
         createCalled = true;
         throw new Error("repository must not be reached");
       },
@@ -740,7 +740,7 @@ describe("ChatService group size cap (creation)", () => {
   test("accepts a group exactly at the creation cap boundary", async () => {
     const sentinel = new Error("repository reached");
     const repo = {
-      create: () => {
+      createGroup: () => {
         throw sentinel;
       },
     } as unknown as ChatRepository;

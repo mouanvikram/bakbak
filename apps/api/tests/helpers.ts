@@ -52,10 +52,16 @@ export async function createTestUser(
   const username = overrides.username || `testuser.${timestamp}.${randomStr}`;
   const passwordHash =
     overrides.passwordHash ||
+    // Deliberately far weaker than production (`authConfig.passwordHashing`,
+    // which this does not share): the suite creates two or three users per
+    // test, and at production cost that is ~150ms each — minutes of the run
+    // spent proving Argon2id is slow, which is its job, not this suite's.
+    // `Bun.password.verify` reads the parameters back out of the encoded hash,
+    // so fixtures hashed cheaply still verify against the real verifier.
     (await Bun.password.hash("TestPass123!", {
       algorithm: "argon2id",
-      timeCost: 3,
-      memoryCost: 65536,
+      timeCost: 2,
+      memoryCost: 8192,
     }));
 
   const user = await prisma.user.create({

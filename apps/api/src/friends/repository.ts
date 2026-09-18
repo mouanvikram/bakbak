@@ -14,14 +14,35 @@ const friendUserSelect = {
   },
 } satisfies Prisma.UserSelect;
 
+const requestInclude = {
+  sender: { select: friendUserSelect },
+  receiver: { select: friendUserSelect },
+} satisfies Prisma.FriendRequestInclude;
+
 export class FriendRepository {
-  async findRequest(where: Prisma.FriendRequestWhereInput) {
+  /** Pending requests this user has sent to that one. */
+  async findPendingBetween(senderId: string, receiverId: string) {
     return await prisma.friendRequest.findMany({
-      where,
-      include: {
-        sender: { select: friendUserSelect },
-        receiver: { select: friendUserSelect },
-      },
+      where: { senderId, receiverId, status: FriendRequestStatus.PENDING },
+      include: requestInclude,
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /** Pending requests waiting for this user to answer. */
+  async findPendingForReceiver(receiverId: string) {
+    return await prisma.friendRequest.findMany({
+      where: { receiverId, status: FriendRequestStatus.PENDING },
+      include: requestInclude,
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /** Pending requests this user has sent and not yet had answered. */
+  async findPendingForSender(senderId: string) {
+    return await prisma.friendRequest.findMany({
+      where: { senderId, status: FriendRequestStatus.PENDING },
+      include: requestInclude,
       orderBy: { createdAt: "desc" },
     });
   }
@@ -50,27 +71,22 @@ export class FriendRepository {
     });
   }
 
-  async createRequest(data: Prisma.FriendRequestCreateInput) {
+  async createRequest(senderId: string, receiverId: string) {
     return await prisma.friendRequest.create({
-      data,
-      include: {
-        sender: { select: friendUserSelect },
-        receiver: { select: friendUserSelect },
+      data: {
+        sender: { connect: { id: senderId } },
+        receiver: { connect: { id: receiverId } },
       },
+      include: requestInclude,
     });
   }
 
-  async updateRequest(
-    where: Prisma.FriendRequestWhereUniqueInput,
-    data: Prisma.FriendRequestUpdateInput,
-  ) {
+  /** Cancel / reject: status is the only field a request ever updates. */
+  async setRequestStatus(id: string, status: FriendRequestStatus) {
     return await prisma.friendRequest.update({
-      where,
-      data,
-      include: {
-        sender: { select: friendUserSelect },
-        receiver: { select: friendUserSelect },
-      },
+      where: { id },
+      data: { status },
+      include: requestInclude,
     });
   }
 
@@ -116,16 +132,11 @@ export class FriendRepository {
     });
   }
 
-  async deleteRequest(where: Prisma.FriendRequestWhereUniqueInput) {
-    return await prisma.friendRequest.delete({
-      where,
-    });
-  }
-
-  async findFriends(where: Prisma.FriendshipWhereInput) {
+  /** Everyone this user is friends with. */
+  async findFriendshipsOf(userId: string) {
     return await prisma.friendship.findMany({
       where: {
-        ...where,
+        OR: [{ user1Id: userId }, { user2Id: userId }],
         // A soft-deleted account (or one already anonymized past its recovery
         // window) is not a friend — keep them out of the friends list.
         user1: { deletedAt: null },
@@ -150,26 +161,25 @@ export class FriendRepository {
     );
   }
 
-  async findFriendship(where: Prisma.FriendshipWhereInput) {
-    return await prisma.friendship.findFirst({
-      where,
-    });
+  async findFriendshipById(id: string) {
+    return await prisma.friendship.findUnique({ where: { id } });
   }
 
-  async createFriendship(data: Prisma.FriendshipCreateInput) {
-    return await prisma.friendship.create({
-      data,
-      include: {
-        user1: { select: friendUserSelect },
-        user2: { select: friendUserSelect },
+  /** The friendship between two people, whichever column order it's stored in
+   *  (pairs are normalised on write, but callers shouldn't have to know). */
+  async findFriendshipBetween(userId: string, otherUserId: string) {
+    return await prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { user1Id: userId, user2Id: otherUserId },
+          { user1Id: otherUserId, user2Id: userId },
+        ],
       },
     });
   }
 
-  async deleteFriendship(where: Prisma.FriendshipWhereUniqueInput) {
-    return await prisma.friendship.delete({
-      where,
-    });
+  async deleteFriendshipById(id: string) {
+    return await prisma.friendship.delete({ where: { id } });
   }
 
   async findSuggestions(currentUserId: string) {

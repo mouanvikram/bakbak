@@ -35,11 +35,78 @@ export class UserRepository {
     });
   }
 
-  async getProfile<T extends Prisma.UserFindUniqueArgs>(
-    args: Prisma.SelectSubset<T, Prisma.UserFindUniqueArgs>,
-  ) {
+  /** The signed-in user's own account, for `GET /users/me`. */
+  async findMeById(userId: string) {
     return prisma.user.findUnique({
-      ...args,
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        isEmailVerified: true,
+        createdAt: true,
+        profile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            bio: true,
+            displayName: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+  }
+
+  /** Just the stored avatar key — read before replacing it, so the old object
+   *  can be removed from storage. */
+  async findAvatarKey(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        profile: { select: { avatar: true } },
+      },
+    });
+  }
+
+  /**
+   * The fields needed to re-prove the owner before a destructive action: the
+   * password hash, and whether 2FA is on.
+   */
+  async findOwnerForReauth(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        isEmailVerified: true,
+        passwordHash: true,
+        settings: { select: { twoFactorEnabled: true } },
+      },
+    });
+  }
+
+  /** Someone else's public profile. Soft-deleted accounts don't exist here. */
+  async findPublicProfileByUsername(username: string) {
+    return prisma.user.findFirst({
+      where: { username, deletedAt: null },
+      select: {
+        id: true,
+        username: true,
+        isEmailVerified: true,
+        createdAt: true,
+        profile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            bio: true,
+            displayName: true,
+            avatar: true,
+          },
+        },
+      },
     });
   }
 
@@ -191,10 +258,35 @@ export class UserRepository {
     });
   }
 
-  async updateProfile<T extends Prisma.UserUpdateArgs>(
-    args: Prisma.SelectSubset<T, Prisma.UserUpdateArgs>,
+  /**
+   * Saves an edited profile: account-level fields and profile fields go in one
+   * update, so a username change and its cooldown stamp can't land apart. The
+   * caller handles the unique-username race (P2002).
+   */
+  async updateAccount(
+    userId: string,
+    account: { username?: string; usernameChangedAt?: Date },
+    profile: {
+      firstName?: string | null;
+      lastName?: string | null;
+      displayName?: string | null;
+      bio?: string | null;
+    },
   ) {
-    return prisma.user.update(args);
+    return prisma.user.update({
+      where: { id: userId },
+      data: { ...account, profile: { update: profile } },
+      include: { profile: true },
+    });
+  }
+
+  /** Points the profile at a new avatar key, returning the stored value. */
+  async setAvatar(userId: string, avatar: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { profile: { update: { avatar } } },
+      select: { profile: { select: { avatar: true } } },
+    });
   }
 
   /** "Last seen" on the profile, written when a user's last socket goes away.

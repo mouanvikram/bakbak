@@ -138,7 +138,7 @@ describe.skipIf(!DB_AVAILABLE)("WebSocket chat rooms", () => {
     expect(res.status).toBe(201);
   }
 
-  // ── Leaving a room ──────────────────────────────────────────────────────
+  // ===== Leaving a room ===================================================
 
   test("a member removed from a group is told, then stops receiving its messages", async () => {
     const groupId = await createChat(alice, {
@@ -236,7 +236,7 @@ describe.skipIf(!DB_AVAILABLE)("WebSocket chat rooms", () => {
     );
   });
 
-  // ── Joining a room ──────────────────────────────────────────────────────
+  // ===== Joining a room ===================================================
 
   test("a new direct chat delivers its first message live, without a reconnect", async () => {
     const bobSocket = await connect(bob);
@@ -288,7 +288,7 @@ describe.skipIf(!DB_AVAILABLE)("WebSocket chat rooms", () => {
     await waitFor(() => inRoom(bob.id, group.id));
   });
 
-  // ── Membership re-checks ────────────────────────────────────────────────
+  // ===== Membership re-checks =============================================
 
   test("typing from a non-member never reaches the chat room", async () => {
     const chatId = await createChat(alice, { type: "DIRECT", participantId: bob.id });

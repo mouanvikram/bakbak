@@ -1,12 +1,21 @@
-import { prisma, Prisma } from "@bakbak/db";
+import { prisma } from "@bakbak/db";
+
+/** The fields a refresh token is issued from. */
+export interface NewRefreshToken {
+  tokenHash: string;
+  expiresAt: Date;
+  userId: string;
+  sessionId: string;
+}
 
 export class RefreshTokenRepository {
-  async create(data: Prisma.RefreshTokenUncheckedCreateInput) {
-    return await prisma.refreshToken.create({ data });
+  async createToken(token: NewRefreshToken) {
+    return await prisma.refreshToken.create({ data: token });
   }
 
-  async findFirst(where: Prisma.RefreshTokenWhereInput) {
-    return await prisma.refreshToken.findFirst({ where });
+  /** Tokens are stored only as hashes, so this is the only way to find one. */
+  async findByTokenHash(tokenHash: string) {
+    return await prisma.refreshToken.findFirst({ where: { tokenHash } });
   }
 
   // Conditional flip: only one concurrent caller can move revokedAt off null,

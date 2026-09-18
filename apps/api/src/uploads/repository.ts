@@ -1,10 +1,24 @@
-import { prisma, type Prisma } from "@bakbak/db";
+import { prisma, type AttachmentKind } from "@bakbak/db";
+
+/**
+ * The fields an attachment row is created from. `ownerId` is absent for signup
+ * avatars, which are stored before the account row exists; width and height are
+ * only known for images whose header could be read.
+ */
+export interface NewAttachment {
+  kind: AttachmentKind;
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  ownerId?: string | null;
+  width?: number;
+  height?: number;
+}
 
 export class UploadRepository {
-  async create(data: Prisma.AttachmentUncheckedCreateInput) {
-    return await prisma.attachment.create({
-      data,
-    });
+  async create(attachment: NewAttachment) {
+    return await prisma.attachment.create({ data: attachment });
   }
 
   /** Attachment bytes this user is currently storing, for the quota check. */

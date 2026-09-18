@@ -60,25 +60,7 @@ export class UserService {
   ) {}
 
   async getMe(dto: UserIdType): Promise<GetMeResponseType> {
-    const user = await this.userRepository.getProfile({
-      where: { id: dto.userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        isEmailVerified: true,
-        createdAt: true,
-        profile: {
-          select: {
-            firstName: true,
-            lastName: true,
-            bio: true,
-            displayName: true,
-            avatar: true,
-          },
-        },
-      },
-    });
+    const user = await this.userRepository.findMeById(dto.userId);
 
     if (!user) {
       throw new AppError(
@@ -113,9 +95,12 @@ export class UserService {
   async updateMe(
     dto: UpdateProfileRequestType,
   ): Promise<UpdateProfileResponseType> {
-    const data:
-      Prisma.UserProfileUpdateInput | Prisma.UserProfileUncheckedUpdateInput =
-      {};
+    const data: {
+      firstName?: string | null;
+      lastName?: string | null;
+      displayName?: string | null;
+      bio?: string | null;
+    } = {};
 
     if (dto.firstName !== undefined)
       data.firstName = titleCaseName(dto.firstName);
@@ -125,7 +110,7 @@ export class UserService {
     }
     if (dto.bio !== undefined) data.bio = dto.bio;
 
-    const userData: Prisma.UserUpdateInput = {};
+    const userData: { username?: string; usernameChangedAt?: Date } = {};
     if (dto.username !== undefined) {
       const username = dto.username.trim();
       const current = await this.userRepository.findBy({ id: dto.userId });
@@ -170,14 +155,7 @@ export class UserService {
     }
 
     const user = await this.userRepository
-      .updateProfile({
-        where: { id: dto.userId },
-        data: {
-          ...userData,
-          profile: { update: data },
-        },
-        include: { profile: true },
-      })
+      .updateAccount(dto.userId, userData, data)
       .catch((error: unknown) => {
         // Lost a race for the same username between the check and write.
         if (
@@ -213,25 +191,7 @@ export class UserService {
   async updateAvatar(
     dto: UpdateAvatarRequestType,
   ): Promise<UpdateAvatarResponseType> {
-    const user = await this.userRepository.updateProfile({
-      where: {
-        id: dto.userId,
-      },
-      data: {
-        profile: {
-          update: {
-            avatar: dto.avatar,
-          },
-        },
-      },
-      select: {
-        profile: {
-          select: {
-            avatar: true,
-          },
-        },
-      },
-    });
+    const user = await this.userRepository.setAvatar(dto.userId, dto.avatar);
 
     await invalidateFriendsOf(dto.userId);
 
@@ -246,13 +206,7 @@ export class UserService {
   async uploadAvatar(
     dto: UserIdType & { file: UploadFile },
   ): Promise<UpdateAvatarResponseType> {
-    const current = await this.userRepository.getProfile({
-      where: { id: dto.userId },
-      select: {
-        id: true,
-        profile: { select: { avatar: true } },
-      },
-    });
+    const current = await this.userRepository.findAvatarKey(dto.userId);
     if (!current) {
       throw new AppError(
         HTTP_STATUS.NOT_FOUND,
@@ -272,14 +226,7 @@ export class UserService {
 
     await this.storageProvider.upload(key, dto.file.buffer, dto.file.mimetype);
 
-    await this.userRepository.updateProfile({
-      where: { id: dto.userId },
-      data: {
-        profile: {
-          update: { avatar: key },
-        },
-      },
-    });
+    await this.userRepository.setAvatar(dto.userId, key);
     await invalidateFriendsOf(dto.userId);
 
     // Best-effort removal of the previous avatar object.
@@ -301,17 +248,7 @@ export class UserService {
    * the challenge step and the delete itself re-check these.
    */
   private async findVerifiedOwner(userId: string) {
-    const user = await this.userRepository.getProfile({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        isEmailVerified: true,
-        passwordHash: true,
-        settings: { select: { twoFactorEnabled: true } },
-      },
-    });
+    const user = await this.userRepository.findOwnerForReauth(userId);
     if (!user) {
       throw new AppError(
         HTTP_STATUS.NOT_FOUND,
@@ -484,24 +421,9 @@ export class UserService {
   async getProfile(
     dto: GetProfileRequestType & { currentUserId: string },
   ): Promise<GetProfileResponseType> {
-    const otherUser = await this.userRepository.getProfile({
-      where: { username: dto.username, deletedAt: null },
-      select: {
-        id: true,
-        username: true,
-        isEmailVerified: true,
-        createdAt: true,
-        profile: {
-          select: {
-            firstName: true,
-            lastName: true,
-            bio: true,
-            displayName: true,
-            avatar: true,
-          },
-        },
-      },
-    });
+    const otherUser = await this.userRepository.findPublicProfileByUsername(
+      dto.username,
+    );
 
     if (!otherUser) {
       throw new AppError(
@@ -518,12 +440,10 @@ export class UserService {
     let pendingRequestId: string | null = null;
 
     if (!isSelf) {
-      const friendship = await this.friendRepository.findFriendship({
-        OR: [
-          { user1Id: dto.currentUserId, user2Id: otherUser.id },
-          { user1Id: otherUser.id, user2Id: dto.currentUserId },
-        ],
-      });
+      const friendship = await this.friendRepository.findFriendshipBetween(
+        dto.currentUserId,
+        otherUser.id,
+      );
 
       if (friendship) {
         friendshipStatus = "friends";

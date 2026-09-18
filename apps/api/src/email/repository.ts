@@ -1,21 +1,50 @@
-import { Prisma, VerificationTokenType, prisma } from "@bakbak/db";
+import { VerificationTokenType, prisma } from "@bakbak/db";
+
+/** The fields a verification token is minted from. */
+export interface NewVerificationToken {
+  userId: string;
+  tokenHash: string;
+  type: VerificationTokenType;
+  expiresAt: Date;
+}
 
 export class EmailRepository {
   constructor() {}
 
-  async create(data: Prisma.VerificationTokenCreateInput) {
+  async createToken(token: NewVerificationToken) {
     return await prisma.verificationToken.create({
-      data,
+      data: {
+        tokenHash: token.tokenHash,
+        type: token.type,
+        expiresAt: token.expiresAt,
+        user: { connect: { id: token.userId } },
+      },
     });
   }
 
-  async findBy(where: Prisma.VerificationTokenWhereInput) {
-    return await prisma.verificationToken.findFirst({ where });
+  /** An unexpired token of this type. Tokens are stored only as hashes, so the
+   *  hash is the lookup key. */
+  async findLiveToken(tokenHash: string, type: VerificationTokenType) {
+    return await prisma.verificationToken.findFirst({
+      where: { tokenHash, type, expiresAt: { gt: new Date() } },
+    });
   }
 
-  async deleteAll(where: Prisma.VerificationTokenWhereInput) {
+  /** Same, scoped to one account: a 2FA code is only valid for the user it was
+   *  issued to, so the lookup must not match another account's code. */
+  async findLiveTokenForUser(
+    userId: string,
+    tokenHash: string,
+    type: VerificationTokenType,
+  ) {
+    return await prisma.verificationToken.findFirst({
+      where: { userId, tokenHash, type, expiresAt: { gt: new Date() } },
+    });
+  }
+
+  async deleteAllOfType(userId: string, type: VerificationTokenType) {
     return await prisma.verificationToken.deleteMany({
-      where,
+      where: { userId, type },
     });
   }
 

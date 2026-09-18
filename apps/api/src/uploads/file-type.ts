@@ -70,7 +70,7 @@ export function extensionFrom(filename: string): string {
   return filename.slice(lastDot + 1);
 }
 
-// ── Content sniffing ────────────────────────────────────────────────────────
+// ===== Content sniffing =====================================================
 //
 // The client's `Content-Type` is only a claim: nothing stops an executable or
 // an HTML document from being posted as `image/png`. The multer filter rejects

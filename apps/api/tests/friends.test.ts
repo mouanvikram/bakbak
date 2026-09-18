@@ -500,7 +500,7 @@ describe.skipIf(!DB_AVAILABLE)("Friends Endpoints", () => {
     expect(res.status).toBe(401);
   });
 
-  // ── Cache freshness ───────────────────────────────────────────────────
+  // ===== Cache freshness ================================================
   // The friends list and suggestions are cached in Redis. Each test reads
   // first (warming the cache), changes data through the API, and expects the
   // next read to reflect it — i.e. the write invalidated the cached copy.
