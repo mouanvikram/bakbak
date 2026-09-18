@@ -28,8 +28,10 @@ services:
       timeout: 5s
       retries: 12
 
+  # MinIO pulled its Docker Hub repositories in Sept 2026; the Quay.io mirror
+  # still hosts the last frozen release (what quay's `latest` points to).
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -48,7 +50,7 @@ services:
   # One-shot: create the uploads bucket. Objects stay private — every read
   # goes through a pre-signed URL issued by the API, never an anonymous GET.
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     depends_on:
       minio:
         condition: service_healthy
@@ -70,6 +72,41 @@ services:
       timeout: 30s
       retries: 10
       start_period: 30s
+
+  # TURN/STUN for WebRTC calls. STUN lets a browser discover its own public
+  # address; TURN relays the media when the two NATs won't open a direct path
+  # between the peers (roughly one call in five, more on mobile networks).
+  #
+  # Credentials use coturn's REST-API scheme: the API mints short-lived
+  # username/password pairs from the same TURN_STATIC_AUTH_SECRET, so no
+  # long-term password is ever shipped to a browser. See apps/api/src/calls.
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    # Flags rather than a turnserver.conf: the conf format has no environment
+    # interpolation, and the secret has to come from .env.
+    command:
+      - -n
+      - --log-file=stdout
+      - --realm=${TURN_REALM:-bakbak.local}
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_STATIC_AUTH_SECRET:-dev-turn-secret}
+      - --listening-port=3478
+      # Relay range, kept small on purpose: every port here is published on the
+      # host, and coturn's default range is ~16k ports.
+      - --min-port=49160
+      - --max-port=49200
+      - --fingerprint
+      - --no-multicast-peers
+      - --no-cli
+      # No TLS locally — turns: needs a certificate. Nothing in this file is
+      # used in production, where TURN must be TLS-terminated.
+      - --no-tls
+      - --no-dtls
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "49160-49200:49160-49200/udp"
+    restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:${PROMETHEUS_VERSION:-latest}

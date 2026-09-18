@@ -57,8 +57,9 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+      # MinIO removed its Docker Hub repos in Sept 2026; use the frozen Quay image.
       minio:
-        image: minio/minio:latest
+        image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
         env:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
@@ -84,7 +85,7 @@ jobs:
         shell: bash
         run: |
           for attempt in $(seq 1 30); do
-            if docker run --rm --network host --entrypoint /bin/sh minio/mc:latest -c \
+            if docker run --rm --network host --entrypoint /bin/sh quay.io/minio/mc:latest -c \
               "mc alias set local http://127.0.0.1:9000 minioadmin minioadmin >/dev/null 2>&1 && mc mb --ignore-existing local/bakbak"; then
               exit 0
             fi
