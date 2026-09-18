@@ -1,5 +1,5 @@
 import type Redis from "ioredis";
-import { getRedisClient, isRedisReady } from "./client";
+import { getRedisClient, isRedisReady, isRedisUnavailable } from "./client";
 import type { NextFunction, Request, Response } from "express";
 import { redisConfig } from "./config";
 import type { RateLimitBucketName } from "./config";
@@ -47,52 +47,96 @@ async function consumeToken(
   };
 }
 
-function checkAndApplyLimit<R extends Request>(
-  build: (req: R) => TokenBucketOptions,
-) {
-  return async (req: R, res: Response, next: NextFunction) => {
-    const redis = getRedisClient();
-    if (!redis) return next(); // fail-open
-    const opts = build(req);
+// The seam the middleware reads limiter state through: the real store binds to
+// the shared client; tests inject a fake one (a null/dead client) to exercise
+// the fail-closed / fail-open branches without touching Redis or relying on
+// process-global module mocks.
+export type LimiterStore = {
+  getRedisClient: () => Redis | null;
+  isRedisReady: () => boolean;
+  // True when the store is in a *genuine* outage rather than merely still
+  // connecting for the first time (see client.ts) — only this state triggers
+  // fail-closed, so a cold start never 503s the security buckets.
+  isRedisUnavailable: () => boolean;
+};
 
-    res.setHeader("RateLimit-Limit", String(opts.capacity));
-    const resetIn = Math.ceil(opts.capacity / opts.refillRate);
-    res.setHeader(
-      "RateLimit-Reset",
-      String(Math.floor(Date.now() / 1000) + resetIn),
-    );
+// Builds a limiter bound to a store. Exported so tests can drive the exact
+// decision logic with a fake store; production uses the real client store.
+export function makeRateLimiter(store: LimiterStore) {
+  return function checkAndApplyLimit<R extends Request>(
+    build: (req: R) => TokenBucketOptions,
+    {
+      // Security-critical buckets (login, email) refuse to serve traffic while
+      // Redis is unusable instead of silently unthrottled; everything else
+      // fails open so one Redis hiccup can't take the whole API down.
+      failClosed = false,
+    }: { failClosed?: boolean } = {},
+  ) {
+    return async (req: R, res: Response, next: NextFunction) => {
+      const redis = store.getRedisClient();
+      if (!redis) {
+        if (failClosed) return void denyWhileLimitingUnavailable(res);
+        return next(); // fail-open
+      }
+      const opts = build(req);
 
-    if (!isRedisReady()) {
-      res.setHeader("RateLimit-Remaining", String(opts.capacity));
-      return next();
-    }
-
-    try {
-      const { allowed, remaining, retryAfter } = await consumeToken(
-        redis,
-        opts,
+      res.setHeader("RateLimit-Limit", String(opts.capacity));
+      const resetIn = Math.ceil(opts.capacity / opts.refillRate);
+      res.setHeader(
+        "RateLimit-Reset",
+        String(Math.floor(Date.now() / 1000) + resetIn),
       );
-      res.setHeader("RateLimit-Remaining", String(remaining));
 
-      // if limit is left. let the request go to the next stop.
-      if (allowed) return next();
+      if (!store.isRedisReady()) {
+        // Only a real outage fails closed; a cold-start process that has not
+        // finished its first connect yet is allowed through unthrottled so the
+        // first request of a freshly booted API never gets a spurious 503.
+        if (failClosed && store.isRedisUnavailable())
+          return void denyWhileLimitingUnavailable(res);
+        res.setHeader("RateLimit-Remaining", String(opts.capacity));
+        return next();
+      }
 
-      // if not set retry-after header.
-      res.setHeader("Retry-After", String(retryAfter));
-      throw new AppError(
-        HTTP_STATUS.TOO_MANY_REQUESTS,
-        ERROR_CODES.RATE_LIMIT_EXCEEDED,
-        "Too many requests. Please try again later.",
-      );
-    } catch (error) {
-      if (error instanceof AppError) throw error; // let the 429 ride
-      logger.warn(
-        { err: error, ip: req.ip, path: req.path },
-        "Rate-limit check failed; failing open",
-      );
-      return next();
-    }
+      try {
+        const { allowed, remaining, retryAfter } = await consumeToken(
+          redis,
+          opts,
+        );
+        res.setHeader("RateLimit-Remaining", String(remaining));
+
+        // if limit is left. let the request go to the next stop.
+        if (allowed) return next();
+
+        // if not set retry-after header.
+        res.setHeader("Retry-After", String(retryAfter));
+        throw new AppError(
+          HTTP_STATUS.TOO_MANY_REQUESTS,
+          ERROR_CODES.RATE_LIMIT_EXCEEDED,
+          "Too many requests. Please try again shortly.",
+        );
+      } catch (error) {
+        if (error instanceof AppError) throw error; // let the 429 ride
+        if (failClosed) return void denyWhileLimitingUnavailable(res);
+        logger.warn(
+          { err: error, ip: req.ip, path: req.path },
+          "Rate-limit check failed; failing open",
+        );
+        return next();
+      }
+    };
   };
+}
+
+// Refuse the request while the limiter itself is down: for a security bucket
+// a 503 is better than running unthrottled. Throwing lets the error handler
+// shape the response the same way a 429 would.
+function denyWhileLimitingUnavailable(res: Response): void {
+  res.setHeader("Retry-After", "60");
+  throw new AppError(
+    HTTP_STATUS.SERVICE_UNAVAILABLE,
+    ERROR_CODES.SERVICE_UNAVAILABLE,
+    "Rate limiting is temporarily unavailable. Please try again shortly.",
+  );
 }
 
 // Key shape: rl:<dimension>:<bucket>:<identity>. The dimension ("user" or "ip")
@@ -131,17 +175,34 @@ export function rateLimitAuthorized(bucket: RateLimitBucketName) {
 // signup, mail-sending routes, username checks) where the submitted email or
 // username is attacker-controlled — keying by it would let a loop of rotating
 // emails/usernames mint a fresh bucket every attempt.
-export function rateLimitIp(bucket: RateLimitBucketName) {
-  return checkAndApplyLimit((req: Request) => ({
-    key: bucketKey("ip", bucket, req.ip || "unknown"),
-    ...redisConfig.rateLimit[bucket],
-  }));
+export function rateLimitIp(
+  bucket: RateLimitBucketName,
+  options?: { failClosed?: boolean },
+) {
+  return checkAndApplyLimit(
+    (req: Request) => ({
+      key: bucketKey("ip", bucket, req.ip || "unknown"),
+      ...redisConfig.rateLimit[bucket],
+    }),
+    options,
+  );
 }
 
 // The mail-sending bucket (signup, resend-verification, forgot-password) —
-// per-IP, for the reasons above.
-export const rateLimitEmails = () => rateLimitIp("email");
+// per-IP, for the reasons above. Fails closed: a mail flood while Redis is
+// down is worse than a briefly-unavailable signup.
+export const rateLimitEmails = () =>
+  rateLimitIp("email", { failClosed: true });
 
 // The username-availability check — per-IP, because per-submitted-username
 // buckets don't stop enumeration.
 export const rateLimitUsernameCheck = () => rateLimitIp("usernameCheck");
+
+// The production limiter, bound to the real shared client store. Exported for
+// the rate-limit tests, which exercise the middleware against an isolated
+// bucket key instead of sharing a production one.
+export const checkAndApplyLimit = makeRateLimiter({
+  getRedisClient,
+  isRedisReady,
+  isRedisUnavailable,
+});

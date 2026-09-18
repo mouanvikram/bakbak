@@ -22,6 +22,8 @@ import {
 } from "./helpers";
 import { type AccessTokenPayload, JwtService } from "@/auth/jwt.service";
 import { servicesConfig } from "@/services/config";
+import { getRedisClient, isRedisReady } from "@/redis/client";
+import { redisConfig } from "@/redis/config";
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 
@@ -2212,4 +2214,41 @@ describe.skipIf(!DB_AVAILABLE)("Auth Endpoints", () => {
       expect([400, 401, 403, 413]).toContain(res.status);
     }
   });
+
+  test.skipIf(!isRedisReady())(
+    "POST /api/v1/auth/2fa/enable - a drained per-user bucket returns 429",
+    async () => {
+      // The two-factor manage limiter keys on the authenticated user, so the
+      // bucket is private to this test's fresh user. Drain it directly so the
+      // very next request must land a 429 regardless of the configured
+      // capacity.
+      const user = await createTestUser({
+        username: `rl2fa.${Date.now()}`,
+        email: `rl2fa.${Date.now()}@example.com`,
+      });
+      const bucket = redisConfig.rateLimit.twoFactorManage;
+      const key = `rl:user:twoFactorManage:${user.id}`;
+      const client = getRedisClient() as unknown as {
+        consumeBucket: (
+          key: string,
+          ...args: Array<string | number>
+        ) => Promise<[number, number, number]>;
+      };
+      for (let i = 0; i < bucket.capacity; i += 1) {
+        await client.consumeBucket(key, bucket.capacity, bucket.refillRate, 1);
+      }
+
+      const res = await fetch(`${baseUrl()}/api/v1/auth/2fa/enable`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader(user.id, user.username)),
+        },
+        body: JSON.stringify({ code: "000000" }),
+      });
+
+      expect(res.status).toBe(429);
+      expect(res.headers.get("Retry-After")).not.toBeNull();
+    },
+  );
 });

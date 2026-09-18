@@ -28,6 +28,9 @@ for (const bucket of [
   "FRIEND_REQUEST",
   "CHAT",
   "SETTINGS",
+  "PASSWORD_CHANGE",
+  "SESSIONS",
+  "TWO_FACTOR_MANAGE",
 ]) {
   process.env[`RATE_LIMIT_${bucket}_CAPACITY`] = "500";
   process.env[`RATE_LIMIT_${bucket}_REFILL_PER_SEC`] = "50";

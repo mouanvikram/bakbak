@@ -45,13 +45,13 @@ authRoutes.post(
 authRoutes.post(
   "/login",
   validate(loginRequestSchema),
-  rateLimitIp("login"),
+  rateLimitIp("login", { failClosed: true }),
   authController.login,
 );
 authRoutes.post(
   "/login/verify-2fa",
   validate(verifyTwoFactorLoginRequestSchema),
-  rateLimitIp("login"),
+  rateLimitIp("login", { failClosed: true }),
   authController.verifyTwoFactorLogin,
 );
 authRoutes.post(
@@ -74,6 +74,7 @@ authRoutes.post(
 authRoutes.post(
   "/change-password",
   authMiddleware,
+  rateLimitAuthorized("passwordChange"),
   validate(changePasswordRequestSchema),
   authController.changePassword,
 );
@@ -122,18 +123,20 @@ authRoutes.post(
 authRoutes.post(
   "/2fa/setup",
   authMiddleware,
-  rateLimitAuthorized("email"),
+  rateLimitAuthorized("twoFactorManage"),
   authController.setupTwoFactor,
 );
 authRoutes.post(
   "/2fa/enable",
   authMiddleware,
+  rateLimitAuthorized("twoFactorManage"),
   validate(enableTwoFactorRequestSchema),
   authController.enableTwoFactor,
 );
 authRoutes.post(
   "/2fa/disable",
   authMiddleware,
+  rateLimitAuthorized("twoFactorManage"),
   validate(disableTwoFactorRequestSchema),
   authController.disableTwoFactor,
 );
@@ -142,24 +145,28 @@ authRoutes.post(
 authRoutes.post(
   "/sessions",
   authMiddleware,
+  rateLimitAuthorized("sessions"),
   validate(listSessionsRequestSchema),
   authController.listSessions,
 );
 authRoutes.post(
   "/sessions/revoke",
   authMiddleware,
+  rateLimitAuthorized("sessions"),
   validate(revokeSessionRequestSchema),
   authController.revokeSession,
 );
 authRoutes.post(
   "/sessions/revoke-others",
   authMiddleware,
+  rateLimitAuthorized("sessions"),
   validate(revokeOtherSessionsRequestSchema),
   authController.revokeOtherSessions,
 );
 authRoutes.post(
   "/sessions/revoke-all",
   authMiddleware,
+  rateLimitAuthorized("sessions"),
   validate(revokeOtherSessionsRequestSchema),
   authController.revokeAllSessions,
 );

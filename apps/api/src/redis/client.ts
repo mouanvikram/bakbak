@@ -16,6 +16,23 @@ export function isRedisReady(): boolean {
   return redis?.status === "ready";
 }
 
+// When fail-closed limiters (login, mail) should treat Redis as *down*. The
+// first connection after boot takes a moment to reach "ready", and refusing
+// traffic during that window would 503 every cold-start request for no reason.
+// But a connection that was once ready and has since broken off (or one that
+// never came up within CONNECT_GRACE_MS) is a genuine outage worth tripping on.
+const CONNECT_GRACE_MS = 5000;
+let connectivity = { everReady: false, createdAt: Date.now() };
+
+export function isRedisUnavailable(): boolean {
+  const client = redis;
+  if (!client || client.status === "ready") return false;
+  return (
+    connectivity.everReady ||
+    Date.now() - connectivity.createdAt > CONNECT_GRACE_MS
+  );
+}
+
 export function getRedisClient(): Redis {
   if (redis) {
     return redis;
@@ -51,6 +68,7 @@ export function getRedisClient(): Redis {
   });
 
   redis.on("ready", () => {
+    connectivity = { everReady: true, createdAt: Date.now() };
     logger.info("[Redis] ready");
   });
 

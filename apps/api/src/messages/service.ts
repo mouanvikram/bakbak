@@ -19,6 +19,7 @@ import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import { cursorPaginationArgs } from "@/lib/pagination";
 import { toIso } from "@/lib/dates";
 import { messagesConfig } from "./config";
+import { uploadsConfig } from "@/uploads/config";
 
 // Non-TEXT message types, keyed by the attachment kind that implies them.
 const KIND_TO_MESSAGE_TYPE: Record<AttachmentKind, MessageType> = {
@@ -314,6 +315,21 @@ export class MessageService {
           dto.currentUserId,
         )
       : [];
+
+    // A send is unbounded otherwise: the per-upload caps bound one file, not
+    // the batch, so ten max-size videos could go out as a single 200MB message.
+    const totalBytes = attachments.reduce(
+      (sum, attachment) => sum + attachment.fileSize,
+      0,
+    );
+    if (totalBytes > uploadsConfig.maxMessageBytes) {
+      const limitMb = Math.round(uploadsConfig.maxMessageBytes / (1024 * 1024));
+      throw new AppError(
+        HTTP_STATUS.PAYLOAD_TOO_LARGE,
+        ERROR_CODES.PAYLOAD_TOO_LARGE,
+        `This message's attachments total more than ${limitMb} MB. Split the files across messages.`,
+      );
+    }
 
     const text = dto.text?.trim();
     // Attachment messages take their type from the first file.

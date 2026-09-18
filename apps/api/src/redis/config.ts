@@ -79,6 +79,40 @@ export const redisConfig = {
         1 / 4,
       ),
     },
+
+    // Password change attempts — an account-takeover knob worth throttling even
+    // though it requires a live session.
+    passwordChange: {
+      capacity: positiveNum(
+        process.env.RATE_LIMIT_PASSWORD_CHANGE_CAPACITY,
+        10,
+      ),
+      refillRate: positiveNum(
+        process.env.RATE_LIMIT_PASSWORD_CHANGE_REFILL_PER_SEC,
+        1 / 60,
+      ),
+    },
+
+    // Session listing / revocation.
+    sessions: {
+      capacity: positiveNum(process.env.RATE_LIMIT_SESSIONS_CAPACITY, 30),
+      refillRate: positiveNum(
+        process.env.RATE_LIMIT_SESSIONS_REFILL_PER_SEC,
+        1 / 10,
+      ),
+    },
+
+    // Two-factor enrolment management (setup / enable / disable).
+    twoFactorManage: {
+      capacity: positiveNum(
+        process.env.RATE_LIMIT_TWO_FACTOR_MANAGE_CAPACITY,
+        10,
+      ),
+      refillRate: positiveNum(
+        process.env.RATE_LIMIT_TWO_FACTOR_MANAGE_REFILL_PER_SEC,
+        1 / 60,
+      ),
+    },
   },
   cache: {
     defaultTtlSec: positiveNum(process.env.CACHE_DEFAULT_TTL_SEC, 300),
