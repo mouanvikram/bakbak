@@ -1,0 +1,32 @@
+# Alerting rules. Deliverables (e.g. email, Slack, Alertmanager) are not wired
+# up here — these rules just bake into the Prometheus UI / Grafana until then.
+groups:
+  - name: bakbak-api
+    rules:
+      - alert: BakbakApiDown
+        expr: up{job="bakbak-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BakBak API is not being scraped (or is down)"
+
+      - alert: BakbakApiHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="bakbak-api", status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="bakbak-api"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "5xx rate above 5% over the last 5 minutes"
+
+      - alert: BakbakApiHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="bakbak-api"}[5m])) by (le)) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "95th percentile request latency above 1s"

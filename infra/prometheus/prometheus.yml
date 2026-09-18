@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  # Scrape itself so `up{prometheus}` is available for alerting on the stack.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # The BakBak API, running on the host. `host.docker.internal` works on Docker
+  # Desktop (macOS/Windows) and via `extra_hosts` on Linux.
+  - job_name: bakbak-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:3000"]

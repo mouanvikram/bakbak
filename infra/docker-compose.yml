@@ -1,9 +1,11 @@
 name: bakbak
 
-# Local infrastructure: a Postgres with a dev DB and a throwaway test DB,
-# plus a MinIO bucket for uploads.
+# Local stack for development and testing: a Postgres with a dev DB and a
+# throwaway test DB, a MinIO bucket for uploads, Redis for rate limiting and
+# caching, and the Prometheus + Loki + Grafana observability stack (the API
+# exposes metrics at GET /metrics — see apps/api/src/system/metrics.ts).
 #
-#   docker compose -f infra/docker-compose.yml up -d            # just the infra
+#   docker compose -f infra/docker-compose.yml up -d            # the full stack
 #   docker compose -f infra/docker-compose.yml --profile test run --rm tests
 #
 # See infra/README.md.
@@ -43,7 +45,8 @@ services:
       timeout: 5s
       retries: 12
 
-  # One-shot: create the uploads bucket and make objects publicly readable.
+  # One-shot: create the uploads bucket. Objects stay private — every read
+  # goes through a pre-signed URL issued by the API, never an anonymous GET.
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -52,8 +55,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/bakbak &&
-      mc anonymous set download local/bakbak
+      mc mb --ignore-existing local/bakbak
       "
 
   redis:
@@ -68,6 +70,50 @@ services:
       timeout: 30s
       retries: 10
       start_period: 30s
+
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-latest}
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - promdata:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:${LOKI_VERSION:-latest}
+    ports:
+      # Push API for the API's pino-loki transport (http://localhost:3100)
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - lokidata:/loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-latest}
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3001}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
   # Runs the API integration suite against the containers above.
   # `--profile test` keeps it out of the default `up`.
   tests:
@@ -80,9 +126,12 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: test
       DEV_DB_TEST_URL: postgresql://bakbak:bakbak@postgres:5432/bakbak_test
+      REDIS_URL: redis://redis:6379
       JWT_SECRET: test-secret
       FRONTEND_URL: http://localhost:5173
       RESEND_API_KEY: re_test
@@ -98,3 +147,6 @@ volumes:
   pgdata:
   miniodata:
   redisdata:
+  promdata:
+  lokidata:
+  grafanadata:
