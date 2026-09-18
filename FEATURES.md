@@ -109,7 +109,7 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🤖 CI/CD
 
-- [x] **Continuous integration** — GitHub Actions runs on every PR and non-main push: frozen-lockfile install (Bun 1.3), Prisma generate/validate/`migrate:deploy`, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres + Redis + MinIO service containers (uploads bucket created and private), then a production web build.
+- [x] **Continuous integration** — GitHub Actions runs on every PR and non-main push: frozen-lockfile install (Bun 1.3), Prisma generate/validate/`migrate:deploy`, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres + Redis + SeaweedFS service containers (uploads bucket private — unsigned accesses denied), then a production web build.
 - [x] **Version-stamped builds** — every build is stamped with a commit-derived `APP_VERSION` (`pr-<n>-<sha>` / `<branch>-<sha>` / `<sha>`), injected as `VITE_APP_VERSION` for the web client so its stale-tab update check compares real versions.
 - [x] **Automated image publish** — pushing to `main` gates on CI, then builds `infra/Dockerfile.prod` and publishes the API image to GHCR (tagged `latest` + short SHA) with `APP_VERSION` / `GIT_COMMIT` / `BUILD_TIME` baked in; rolling that image out (ECS/Vercel) is the next step.
 

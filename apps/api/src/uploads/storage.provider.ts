@@ -1,5 +1,5 @@
 /**
- * StorageProvider abstracts the object-storage backend (MinIO, Amazon S3,
+ * StorageProvider abstracts the object-storage backend (SeaweedFS, Amazon S3,
  * Cloudinary, R2, etc.). The database only stores the object "key" (a plain
  * string path), and every URL is generated on demand via signed links.
  *

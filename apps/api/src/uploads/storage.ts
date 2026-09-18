@@ -5,7 +5,7 @@ import { S3StorageProvider } from "./storage-s3";
 /**
  * Factory that returns the configured storage provider.
  *
- * To switch backends (e.g. MinIO -> Cloudinary) implement StorageProvider in a
+ * To switch backends (e.g. S3 -> Cloudinary) implement StorageProvider in a
  * new file and return it here — everything downstream consumes the interface.
  */
 function createStorageProvider(): StorageProvider {

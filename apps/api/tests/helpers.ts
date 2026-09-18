@@ -237,9 +237,9 @@ export async function isDatabaseAvailable(): Promise<boolean> {
 }
 
 /**
- * True when object storage (MinIO/S3) is reachable and writable. Used to gate
- * the upload tests that need a real round-trip: they run in `test:docker`
- * (where the `minio` service is up) and are skipped on a bare host.
+ * True when object storage (SeaweedFS/S3) is reachable and writable. Used to
+ * gate the upload tests that need a real round-trip: they run in `test:docker`
+ * (where the `seaweedfs` service is up) and are skipped on a bare host.
  */
 export async function isStorageAvailable(): Promise<boolean> {
   const key = `__probe__/${randomUUID()}.txt`;

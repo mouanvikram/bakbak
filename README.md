@@ -14,7 +14,7 @@ A real-time social chat app — direct & group messaging, friends, media sharing
 | Backend       | Express 5 + TypeScript, Socket.IO (presence, typing, receipts, live delivery), Web Push (VAPID)                     |
 | Database      | PostgreSQL + Prisma ORM (driver adapter `@prisma/adapter-pg`)                                                       |
 | Redis         | ioredis — token-bucket rate limiting, Socket.IO adapter + presence, JSON cache                                      |
-| Storage       | S3-compatible object storage (MinIO locally)                                                                        |
+| Storage       | S3-compatible object storage (SeaweedFS locally)                                                                    |
 | Validation    | Shared Zod contracts (`@bakbak/contracts`) — validates requests **and** responses                                   |
 | Auth          | JWT access tokens + Argon2id password hashing; email verification, password reset & email-OTP two-factor via Resend |
 | Frontend      | React 19 + Vite + React Router, Tailwind CSS v4, React Compiler, `emoji-picker-react`, service worker for push      |
@@ -52,7 +52,7 @@ bakbak/
 ├── packages/
 │   ├── contracts/    # shared Zod schemas + inferred types (API ↔ client)
 │   └── db/           # Prisma schema, migrations, generated client
-└── infra/            # Postgres/MinIO/Redis + Prometheus/Loki/Grafana compose, Dockerfiles
+└── infra/            # Postgres/SeaweedFS/Redis + Prometheus/Loki/Grafana compose, Dockerfiles
 ```
 
 Each backend module follows the same layered flow:
@@ -65,7 +65,7 @@ Services own business rules and authorization; controllers only translate HTTP �
 
 ## 🚀 Getting Started
 
-**Prerequisites:** Bun ≥ 1.2, Docker (for the local stack: Postgres, MinIO, Redis, observability)
+**Prerequisites:** Bun ≥ 1.2, Docker (for the local stack: Postgres, SeaweedFS, Redis, observability)
 
 ```bash
 # 1. Install dependencies
@@ -75,7 +75,7 @@ bun install
 cp .env.example .env      # fill in JWT_SECRET, RESEND_API_KEY, PRODUCTION_DB_URL
                           # and VAPID_* keys for web push (`bunx web-push generate-vapid-keys`)
 
-# 3. Start the full local stack — Postgres + MinIO + Redis + Prometheus
+# 3. Start the full local stack — Postgres + SeaweedFS + Redis + Prometheus
 #    (:9090), Loki (:3100) and Grafana (:3001) — then migrate the dev DB.
 bun run infra:up
 bun run db:migrate
@@ -98,7 +98,7 @@ Logging is controlled by `LOG_LEVEL`, `LOG_PRETTY=true` (pretty terminal output 
 
 Continuous integration and a first deployment stage run on GitHub Actions (`.github/workflows`).
 
-- **CI (`ci.yml`)** — on every PR and non-main push: `bun install --frozen-lockfile` (Bun 1.3, the same major the `infra/` Dockerfiles ship), Prisma generate → validate → `migrate:deploy` on a throwaway test database, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres / Redis / MinIO service containers (the uploads bucket is created and stays private), then a production web build. Builds are stamped with a commit-derived `APP_VERSION` (injected as `VITE_APP_VERSION` for the web) so the in-app update check compares honest versions.
+- **CI (`ci.yml`)** — on every PR and non-main push: `bun install --frozen-lockfile` (Bun 1.3, the same major the `infra/` Dockerfiles ship), Prisma generate → validate → `migrate:deploy` on a throwaway test database, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres / Redis / SeaweedFS service containers (the uploads bucket stays private — unsigned and wrong-keyed accesses are denied), then a production web build. Builds are stamped with a commit-derived `APP_VERSION` (injected as `VITE_APP_VERSION` for the web) so the in-app update check compares honest versions.
 - **Deploy (`deploy.yml`)** — on push to `main` it runs CI first as a gate, then builds `infra/Dockerfile.prod` and publishes the API image to GHCR (`ghcr.io/<owner>/bakbak-api`, tagged `latest` and the short SHA) with `APP_VERSION` / `GIT_COMMIT` / `BUILD_TIME` baked in. Rolling that image out (ECS or Vercel) is the next step.
 
 ## 🚧 What's left

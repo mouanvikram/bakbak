@@ -1,7 +1,7 @@
 # infra
 
 Local infrastructure for development and testing: a Postgres instance with a
-**dev** database and a throwaway **test** database, a MinIO bucket for uploads,
+**dev** database and a throwaway **test** database, SeaweedFS for uploads,
 Redis for rate limiting and caching, and the Prometheus/Loki/Grafana
 observability stack. Nothing here is used in production.
 
@@ -21,7 +21,7 @@ inject one variable).
 ## Bring the stack up
 
 `bun run infra:up` starts the whole local stack — Postgres (dev + test DBs),
-MinIO, Redis, and the Prometheus/Loki/Grafana observability trio:
+SeaweedFS, Redis, and the Prometheus/Loki/Grafana observability trio:
 
 ```bash
 bun run infra:up
@@ -34,8 +34,8 @@ bun --cwd packages/db exec prisma migrate deploy          # migrate bakbak_dev
 bun run infra:down            # the whole stack (add -v to wipe data)
 ```
 
-Ports: Postgres `5432`, MinIO API `9000`, MinIO console `9001`
-(`minioadmin` / `minioadmin`), Redis `6379`, Prometheus `9090`, Loki `3100`,
+Ports: Postgres `5432`, SeaweedFS S3 `8333` (filer `8888`, master `9333`;
+creds `seaweedfs` / `seaweedfs`), Redis `6379`, Prometheus `9090`, Loki `3100`,
 Grafana `3001`.
 
 ## Run the tests in a container
@@ -49,7 +49,7 @@ This builds `infra/Dockerfile`, waits for Postgres, runs
 truncates every table between cases, so it must never point at `bakbak_dev`
 or `PRODUCTION_DB_URL` — `NODE_ENV=test` guarantees `DEV_DB_TEST_URL`.
 
-Inside the container the service hostnames are `postgres`, `minio` and
+Inside the container the service hostnames are `postgres`, `seaweedfs` and
 `redis` — never `localhost`, which resolves to the test container itself.
 The `tests` service sets each one explicitly; `REDIS_URL` in particular must
 be passed, because the config otherwise falls back to `REDIS_HOST=localhost`
@@ -58,7 +58,7 @@ and every connection retries against nothing.
 To run the suite on the host instead (against the same containers):
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d postgres minio minio-init redis
+docker compose -f infra/docker-compose.yml up -d postgres seaweedfs seaweedfs-init redis
 NODE_ENV=test bun --cwd packages/db exec prisma migrate deploy
 bun --cwd apps/api run test
 ```

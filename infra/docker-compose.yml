@@ -1,7 +1,7 @@
 name: bakbak
 
 # Local stack for development and testing: a Postgres with a dev DB and a
-# throwaway test DB, a MinIO bucket for uploads, Redis for rate limiting and
+# throwaway test DB, a SeaweedFS bucket for uploads, Redis for rate limiting and
 # caching, and the Prometheus + Loki + Grafana observability stack (the API
 # exposes metrics at GET /metrics — see apps/api/src/system/metrics.ts).
 #
@@ -28,36 +28,47 @@ services:
       timeout: 5s
       retries: 12
 
-  # MinIO pulled its Docker Hub repositories in Sept 2026; the Quay.io mirror
-  # still hosts the last frozen release (what quay's `latest` points to).
-  minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+  # SeaweedFS is the object store backing uploads. It runs as its S3-compatible
+  # gateway (spawned by `weed server -s3`); the API only talks S3 via
+  # @aws-sdk/client-s3 with path-style URLs, which this gateway implements.
+  # Ports: 8333 = S3 gateway, 8888 = filer (used by the auth-config init), 9333 = master.
+  # Pinned to 3.83: verified there that static-key identities load from the
+  # filer when the gateway live-reloads /etc/iam/identity.json (newer 4.x reads
+  # it too but also ships `-s3.iam`/STS assumptions that add noise).
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.83
+    command: server -dir=/data -s3
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "8333:8333"
+      - "8888:8888"
+      - "9333:9333"
     volumes:
-      - miniodata:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
+      - seaweedfsdata:/data
 
-  # One-shot: create the uploads bucket. Objects stay private — every read
-  # goes through a pre-signed URL issued by the API, never an anonymous GET.
-  minio-init:
-    image: quay.io/minio/mc:latest
+  # One-shot: deposit the S3 IAM config into the filer at /etc/iam/identity.json
+  # (the path the gateway watches). The gateway subscribes to /etc and
+  # live-reloads on change, so static creds (infra/seaweedfs/identity.json) are
+  # enforced from here on; the API then self-creates its bucket on first ping.
+  # Uses curlimages/curl rather than the SeaweedFS image because `curl` exists
+  # only in newer 4.x builds, and this image is pinned to 3.83. The retry loops
+  # double as readiness waits; the second push covers the cold-boot window when
+  # the /etc subscription is not established yet.
+  seaweedfs-init:
+    image: curlimages/curl:8.22.0
     depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
+      seaweedfs:
+        condition: service_started
+    volumes:
+      - ./seaweedfs/identity.json:/etc/seaweedfs/identity.json:ro
+    entrypoint: |
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/bakbak
+      set -e
+      curl -sf --retry 30 --retry-delay 2 --retry-connrefused http://seaweedfs:8888/ -o /dev/null
+      curl -sfX POST http://seaweedfs:8888/etc/iam/?op=mkdir -o /dev/null || true
+      curl -sf --retry 30 --retry-delay 2 --retry-connrefused http://seaweedfs:8333/ -o /dev/null
+      curl -sfX POST -F file=@/etc/seaweedfs/identity.json http://seaweedfs:8888/etc/iam/identity.json
+      sleep 2
+      curl -sfX POST -F file=@/etc/seaweedfs/identity.json http://seaweedfs:8888/etc/iam/identity.json
       "
 
   redis:
@@ -95,6 +106,13 @@ services:
       # host, and coturn's default range is ~16k ports.
       - --min-port=49160
       - --max-port=49200
+      # The address coturn advertises as the relay candidate. Left unset it
+      # discovers the container's Docker IP (172.x) — which no browser on the
+      # host can reach, so STUN works but TURN relaying silently doesn't.
+      # Uncomment with the address clients actually reach coturn on: the host's
+      # LAN IP locally, the public IP once deployed. It has no usable default,
+      # and an empty --external-ip= is rejected, so it stays commented.
+      # - --external-ip=${TURN_EXTERNAL_IP}
       - --fingerprint
       - --no-multicast-peers
       - --no-cli
@@ -161,7 +179,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio-init:
+      seaweedfs-init:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
@@ -172,17 +190,19 @@ services:
       JWT_SECRET: test-secret
       FRONTEND_URL: http://localhost:5173
       RESEND_API_KEY: re_test
-      STORAGE_ENDPOINT: minio
-      STORAGE_PORT: "9000"
+      STORAGE_ENDPOINT: seaweedfs
+      STORAGE_PORT: "8333"
       STORAGE_USE_SSL: "false"
       STORAGE_REGION: us-east-1
-      STORAGE_ACCESS_KEY: minioadmin
-      STORAGE_SECRET_KEY: minioadmin
+      # Must match infra/seaweedfs/identity.json, which seaweedfs-init deposits
+      # into the filer (the gateway denies anything unsigned or wrong-keyed).
+      STORAGE_ACCESS_KEY: seaweedfs
+      STORAGE_SECRET_KEY: seaweedfs
       STORAGE_BUCKET: bakbak
 
 volumes:
   pgdata:
-  miniodata:
+  seaweedfsdata:
   redisdata:
   promdata:
   lokidata:

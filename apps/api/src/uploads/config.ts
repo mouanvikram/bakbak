@@ -25,26 +25,26 @@ warnInProduction(
 );
 
 export const uploadsConfig = {
-  // The MinIO dev credentials are rejected outright in production: defaulting
-  // them there boots a healthy-looking server that 403s on the first upload —
-  // or, worse, succeeds against a store still running the published default.
+  // The dev credentials are rejected outright in production: defaulting them
+  // there boots a healthy-looking server that 403s on the first upload — or,
+  // worse, succeeds against a store still running the published default.
   endpoint: requiredInProduction(
     process.env.STORAGE_ENDPOINT,
     "STORAGE_ENDPOINT",
     { insecureDevDefault: "localhost" },
   ),
-  port: positiveNum(process.env.STORAGE_PORT, 9000),
+  port: positiveNum(process.env.STORAGE_PORT, 8333),
   useSsl,
   region: str(process.env.STORAGE_REGION, "us-east-1"),
   accessKeyId: requiredInProduction(
     process.env.STORAGE_ACCESS_KEY,
     "STORAGE_ACCESS_KEY",
-    { insecureDevDefault: "minioadmin" },
+    { insecureDevDefault: "seaweedfs" },
   ),
   secretAccessKey: requiredInProduction(
     process.env.STORAGE_SECRET_KEY,
     "STORAGE_SECRET_KEY",
-    { insecureDevDefault: "minioadmin" },
+    { insecureDevDefault: "seaweedfs" },
   ),
   bucket: requiredInProduction(process.env.STORAGE_BUCKET, "STORAGE_BUCKET", {
     devDefault: "bakbak",

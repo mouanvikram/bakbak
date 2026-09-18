@@ -251,7 +251,7 @@ describe.skipIf(!DB_AVAILABLE)("Uploads Endpoints", () => {
   // â”€â”€ Size caps and quota â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //
   // Every limit is enforced before the bytes reach object storage, so these
-  // need no MinIO — a rejected upload never gets that far.
+  // need no object storage — a rejected upload never gets that far.
 
   /** Real magic bytes followed by padding: sniffing only reads the header, so
    *  this is a valid file of whatever size we ask for. */
