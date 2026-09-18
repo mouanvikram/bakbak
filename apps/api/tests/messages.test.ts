@@ -20,6 +20,7 @@ import {
   authHeader,
   isDatabaseAvailable,
 } from "./helpers";
+import { uploadsConfig } from "@/uploads/config";
 
 const DB_AVAILABLE = await isDatabaseAvailable();
 
@@ -134,14 +135,20 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
 
   // The generic attachment endpoint (`/uploads`) needs object storage, so
   // these seed the Attachment row directly and exercise only the linking.
-  const seedAttachment = (ownerId: string, kind = "IMAGE", ext = "png") =>
+  const seedAttachment = (
+    ownerId: string,
+    kind = "IMAGE",
+    ext = "png",
+    fileSize = 1234,
+  ) =>
     prisma.attachment.create({
       data: {
         kind: kind as any,
+        ownerId,
         fileName: `file.${ext}`,
         filePath: `${ownerId}/${crypto.randomUUID()}.${ext}`,
         mimeType: kind === "IMAGE" ? "image/png" : "application/pdf",
-        fileSize: 1234,
+        fileSize,
       },
     });
 
@@ -173,6 +180,76 @@ describe.skipIf(!DB_AVAILABLE)("Messages Endpoints", () => {
       where: { id: attachment.id },
     });
     expect(row?.messageId).toBe(data.id);
+  });
+
+  test("POST /chats/:chatId/messages - rejects attachments whose total size exceeds the message cap", async () => {
+    // Each upload is individually allowed (30MB video each) but the pair
+    // together must trip the per-message total cap of 50MB.
+    const over = 30 * 1024 * 1024;
+    const attachments = await Promise.all(
+      [0, 1].map(() =>
+        prisma.attachment.create({
+          data: {
+            kind: "VIDEO",
+            fileName: "clip.mp4",
+            filePath: `${userA.id}/${crypto.randomUUID()}.mp4`,
+            mimeType: "video/mp4",
+            fileSize: over,
+          },
+        }),
+      ),
+    );
+
+    const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await authHeader(userA.id, userA.username)),
+      },
+      body: JSON.stringify({
+        attachmentIds: attachments.map((a) => a.id),
+        clientId: crypto.randomUUID(),
+      }),
+    });
+
+    expect(res.status).toBe(413);
+
+    // No message row may exist for the refused send.
+    const count = await prisma.message.count({
+      where: { chatId: chat.id },
+    });
+    expect(count).toBe(0);
+  });
+
+  test("POST /chats/:chatId/messages - refuses a message whose attachments exceed the per-message cap", async () => {
+    // Each file is under its own upload cap; together they are not. The limit
+    // is on the message, so this can only be caught when the send resolves
+    // the ids — never by the upload endpoint.
+    const half = Math.ceil(uploadsConfig.maxMessageBytes / 2) + 1024;
+    const first = await seedAttachment(userA.id, "IMAGE", "png", half);
+    const second = await seedAttachment(userA.id, "IMAGE", "png", half);
+
+    const res = await fetch(`${baseUrl()}/api/v1/chats/${chat.id}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await authHeader(userA.id, userA.username)),
+      },
+      body: JSON.stringify({
+        attachmentIds: [first.id, second.id],
+        clientId: crypto.randomUUID(),
+      }),
+    });
+
+    expect(res.status).toBe(413);
+    expect(((await res.json()) as any).error.code).toBe("PAYLOAD_TOO_LARGE");
+
+    // Nothing was linked: both attachments are still unattached.
+    const rows = await prisma.attachment.findMany({
+      where: { id: { in: [first.id, second.id] } },
+      select: { messageId: true },
+    });
+    expect(rows.every((row) => row.messageId === null)).toBe(true);
   });
 
   test("POST /chats/:chatId/messages - replyToId returns the answered message", async () => {

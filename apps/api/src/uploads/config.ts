@@ -14,6 +14,11 @@ const useSsl = bool(process.env.STORAGE_USE_SSL, false);
 const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
 
+// Cap on the combined size of every attachment in a single message. Without it
+// a message is unbounded even though each upload is not: ten max-size videos
+// would sail through as one 200MB send.
+const MAX_MESSAGE_BYTES = 50 * 1024 * 1024;
+
 warnInProduction(
   !useSsl,
   "STORAGE_USE_SSL is false — object-storage traffic, including the request signature, is unencrypted.",
@@ -64,6 +69,8 @@ export const uploadsConfig = {
   // Total attachment bytes one user may store. Past this, uploads are refused
   // and everything else — sending messages included — carries on working.
   userQuotaBytes: 100 * 1024 * 1024,
+  // Combined size of all attachments a single message may carry.
+  maxMessageBytes: MAX_MESSAGE_BYTES,
   allowedAvatarMime: [
     "image/jpeg",
     "image/png",
