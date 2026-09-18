@@ -1,0 +1,30 @@
+FROM oven/bun:1.3-slim AS base
+WORKDIR /app
+
+# Version stamps injected by CI (.github/workflows/deploy.yml); the API serves
+# them at GET /api/v1/version and the web client compares its VITE_APP_VERSION
+# against them to detect a stale tab.
+ARG APP_VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=
+ENV APP_VERSION=$APP_VERSION \
+    GIT_COMMIT=$GIT_COMMIT \
+    BUILD_TIME=$BUILD_TIME
+
+# Install dependencies
+COPY package.json bun.lock ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/db/package.json ./packages/db/
+RUN bun install --frozen-lockfile --production
+
+# Copy source
+COPY . .
+
+# Generate Prisma client
+RUN cd packages/db && bunx prisma generate
+
+EXPOSE 3000
+
+CMD ["bun", "apps/api/index.ts"]
