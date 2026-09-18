@@ -1,0 +1,60 @@
+name: Deploy
+
+# Publish the API container image on every main push. CI is run first via
+# workflow_call (the CI workflow's `push: branches-ignore: [main]` keeps main
+# from triggering it a second time). Extend this file to roll the image out
+# (ECS or a Vercel deploy of apps/web) once the target's secrets are added to
+# the Actions settings.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish-api:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version stamp
+        id: version
+        shell: bash
+        run: |
+          echo "VERSION=${GITHUB_SHA::8}" >> "$GITHUB_ENV"
+          echo "VERSION_GIT_COMMIT=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "VERSION_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Dockerfile.prod
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/bakbak-api:latest
+            ghcr.io/${{ github.repository }}/bakbak-api:${{ env.VERSION }}
+          build-args: |
+            APP_VERSION=${{ env.VERSION }}
+            GIT_COMMIT=${{ env.VERSION_GIT_COMMIT }}
+            BUILD_TIME=${{ env.VERSION_BUILD_TIME }}
