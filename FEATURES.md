@@ -1,6 +1,6 @@
 # ✅ BakBak — Implemented Features
 
-Everything marked below is **implemented, tested, and wired end-to-end** across the API, the Socket.IO realtime layer, and the web client. Items are grouped by area; each check is one self-contained capability. Remaining work is listed under [What's left](README.md#-whats-left) in the README, with module detail in `apps/api/src/websocket/checklist.md` and `apps/api/src/uploads/checklist.md`. New shipped capabilities are added here under their group heading as they land.
+Everything marked below is **implemented, tested, and wired end-to-end** across the API, the Socket.IO realtime layer, and the web client. Items are grouped by area; each check is one self-contained capability. Remaining work is listed under [What's left](README.md#-whats-left) in the README. New shipped capabilities are added here under their group heading as they land.
 
 ---
 
@@ -73,9 +73,14 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🖼 Media & Uploads
 
-- [x] **Scoped uploads** — authenticated, size + MIME limits, storage keys namespaced per uploader.
+- [x] **Scoped uploads** — authenticated, storage keys namespaced per uploader, and every row records its owner.
+- [x] **Size limits per kind** — 3 MB for attachments, 20 MB for video, 1 MB for avatars (signup and profile alike). Multer admits up to the largest allowance, then the buffered file is held to the cap that matches its kind; the multipart body cap is derived from the same number, so a large video is never refused before its own limit applies.
+- [x] **Per-user storage quota** — 100 MB of stored attachments per account, checked before anything reaches object storage so a refused upload leaves no orphaned object. Past the ceiling only uploads stop: sending, receiving and every other action carry on, and deleting an attachment frees the space.
+- [x] **Content sniffing** — the declared MIME is treated as a claim, not a fact: the bytes are checked against the kind they claim to be, so an executable posted as `image/png` is rejected. `image/svg+xml` and `text/*` are refused outright — both are script-bearing documents a browser would run in our origin.
 - [x] **Signed-URL access control** — active chat members (attached) or the owner (unattached); attachments on deleted messages are treated as gone; delete is owner-only.
 - [x] **S3-compatible storage** — vendor-neutral provider, configurable signed-URL TTLs and CDN public URL, legacy avatar URLs pass through.
+- [x] **Per-message byte cap** — the attachments on a single message may not total more than 50 MB, so a batch of individually-legal files can't piggyback through as one oversized message; a refused send leaves nothing linked.
+- [x] **Orphan cleanup** — a background job removes what nothing references any more: uploads never attached to a message, avatar rows no profile points at, and files belonging to soft-deleted messages. The object is deleted before its row, so a storage failure retries next run instead of leaking the file; the sweep runs under a Redis lock so competing API instances never select the same rows.
 
 ## ✉️ Email
 
@@ -97,11 +102,17 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 - [x] **Layered API** — routes → Zod validation → controller → service → repository; shared `@bakbak/contracts` validate every request and every response before it leaves the server.
 - [x] **Typed errors** — `AppError` with stable machine codes; a single error handler leaks no stack traces or Prisma internals.
 - [x] **Request hygiene** — pino structured logs with request/correlation IDs, token redaction, body-size cap, Helmet headers, CORS allowlist, gzip.
-- [x] **Redis token-bucket rate limiting** — a per-IP **global** ceiling (200/4s) in `app.ts` plus dedicated buckets per abuse surface (`login`, `emails`, `uploads`, `messageSend`, `usernameCheck`, `friendRequest`, `chat`, per-user 2FA email), one atomic Lua consume via `EVALSHA`, authoritative Redis-time refills, fail-open when Redis is down (the HTTP listener waits for Redis to be ready at startup, so boot never serves unthrottled traffic), and `RateLimit-Limit`/`Remaining`/`Reset` + `Retry-After` headers. The in-memory fixed-window limiter it replaced has been deleted.
+- [x] **Redis token-bucket rate limiting** — a per-IP **global** ceiling (200/4s) in `app.ts` plus dedicated buckets per abuse surface (`login`, `emails`, `uploads`, `messageSend`, `usernameCheck`, `friendRequest`, `chat`, per-user 2FA email, and per-user `passwordChange` / `sessions` / `twoFactorManage`), one atomic Lua consume via `EVALSHA`, authoritative Redis-time refills, and `RateLimit-Limit`/`Remaining`/`Reset` + `Retry-After` headers. Login and 2FA routes **fail closed** — `503` + `Retry-After` — only when Redis is genuinely down, while the brief cold-start window before the client has ever connected is allowed through unthrottled rather than refused, so boot never serves broken traffic. The in-memory fixed-window limiter it replaced has been deleted.
 - [x] **Redis readiness + cache module** — readiness-gated, fail-open JSON cache that clears its namespace after a Redis reconnect so invalidations missed during an outage never serve stale data (`getJson`/`setJson`/`invalidate`/`invalidatePattern`/`cacheAside` with a stampede guard) under a `cache:` prefix; wired into the friends list (5 min) and friend suggestions (60 s), invalidated on friendship changes and on friends' profile edits.
 - [x] **Graceful shutdown** — drains HTTP, closes Socket.IO, stops timers, disconnects Prisma, and quits Redis (`closeRedisClient()` → `quit()` then `disconnect()` fallback).
 - [x] **Soft-delete discipline** — `deletedAt`-filtered lookups across auth, refresh, verification, reset, WebSocket, and search.
 
+## 🤖 CI/CD
+
+- [x] **Continuous integration** — GitHub Actions runs on every PR and non-main push: frozen-lockfile install (Bun 1.3), Prisma generate/validate/`migrate:deploy`, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres + Redis + MinIO service containers (uploads bucket created and private), then a production web build.
+- [x] **Version-stamped builds** — every build is stamped with a commit-derived `APP_VERSION` (`pr-<n>-<sha>` / `<branch>-<sha>` / `<sha>`), injected as `VITE_APP_VERSION` for the web client so its stale-tab update check compares real versions.
+- [x] **Automated image publish** — pushing to `main` gates on CI, then builds `infra/Dockerfile.prod` and publishes the API image to GHCR (tagged `latest` + short SHA) with `APP_VERSION` / `GIT_COMMIT` / `BUILD_TIME` baked in; rolling that image out (ECS/Vercel) is the next step.
+
 ## 🧪 Testing
 
-- [x] **396-test API suite** — `bun:test` HTTP integration tests across 21 files (including real Socket.IO client tests for chat-room membership) against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends (including cache freshness), chats, messages, uploads, settings, and web push, plus cache behaviour across a Redis reconnect — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion — plus unit tests for config parsing, the logger, pagination/date helpers, health/readiness probes, Prometheus metrics, and the Prisma error mapping. Contract-level profiles/moderated-field rules are covered by 22 unit tests in `packages/contracts`.
+- [x] **421-test API suite** — `bun:test` HTTP integration tests across 25 files (including real Socket.IO client tests for chat-room membership) against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends (including cache freshness), chats, messages, uploads, settings, web push, rate limiting (throttled 429s, fail-closed outage responses, and the orphan-cleanup lock), and cache behaviour across a Redis reconnect — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion — plus unit tests for config parsing, the logger, pagination/date helpers, health/readiness probes, Prometheus metrics, and the Prisma error mapping. Contract-level profiles/moderated-field rules are covered by 22 unit tests in `packages/contracts`.
