@@ -47,8 +47,5 @@ audit-prompt.md
 # local security/review reports (not for the repo)
 reports/
 
-# deployment files
-infra/AWS_DEPLOYMENT.md
-
 # Local working notes, not part of the repo.
 remaining.md
