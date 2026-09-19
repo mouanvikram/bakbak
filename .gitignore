@@ -49,3 +49,5 @@ reports/
 
 # Local working notes, not part of the repo.
 remaining.md
+.prisma-composer/
+.alchemy/
