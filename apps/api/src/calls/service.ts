@@ -7,6 +7,8 @@ import type {
 import logger from "@/lib/logger";
 import { broadcastMessage } from "@/websocket/emitter";
 import type { MessageService } from "@/messages/service";
+import type { StorageProvider } from "@/uploads/storage.provider";
+import { resolveAvatarUrl } from "@/uploads/avatar-url";
 import { callsConfig } from "./config";
 import type { CallRow, CallsRepository } from "./repository";
 
@@ -18,6 +20,7 @@ export class CallsService {
   constructor(
     private readonly callsRepository: CallsRepository,
     private readonly messageService: MessageService,
+    private readonly storageProvider: StorageProvider,
   ) {}
 
   /**
@@ -164,7 +167,26 @@ export class CallsService {
       userId,
       HISTORY_LIMIT,
     );
-    return { calls: rows.map((row) => toRecord(row, userId)) };
+    // Avatars are stored as object keys, not URLs, so each one has to be
+    // signed before it leaves the API — exactly as users/chats/messages do.
+    // Without this the client receives a bare storage key and renders nothing.
+    return {
+      calls: await Promise.all(
+        rows.map(async (row) => {
+          const record = toRecord(row, userId);
+          return {
+            ...record,
+            peer: {
+              ...record.peer,
+              avatar: await resolveAvatarUrl(
+                record.peer.avatar,
+                this.storageProvider,
+              ),
+            },
+          };
+        }),
+      ),
+    };
   }
 }
 
