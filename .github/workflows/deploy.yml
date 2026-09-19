@@ -29,12 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Version stamp
-        id: version
+      # APP_VERSION is deliberately not stamped here: the version comes from the
+      # root package.json so the API and the web bundle derive it from the same
+      # commit. Stamping a SHA would override the semver and make every tab look
+      # stale against a web build that carries the package.json value.
+      - name: Build metadata
         shell: bash
-        run: |
-          echo "VERSION=${GITHUB_SHA::8}" >> "$GITHUB_ENV"
-          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+        run: echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
@@ -43,7 +44,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           # Forward the stamps computed above into the remote shell.
-          envs: VERSION,BUILD_TIME,GITHUB_SHA
+          envs: BUILD_TIME,GITHUB_SHA
           script_stop: true
           command_timeout: 15m
           script: |
@@ -69,8 +70,9 @@ jobs:
 
             # Version stamps for GET /api/v1/version, which the web client
             # compares against its own build to detect a stale tab.
+            # Provenance only. APP_VERSION is intentionally absent so the value
+            # from package.json wins — see the Build metadata step above.
             cat > .env.version <<STAMP
-            APP_VERSION=$VERSION
             GIT_COMMIT=$GITHUB_SHA
             BUILD_TIME=$BUILD_TIME
             STAMP

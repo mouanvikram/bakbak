@@ -44,6 +44,7 @@ import { MobilePage } from "@/components/layout/MobilePage";
 import { EmptyState } from "@/components/ui/States";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useIsDesktop } from "@/lib/use-media-query";
+import { UpdateCheck } from "@/lib/use-update-check";
 
 /**
  * Section landing routes: on desktop the sidebar lives in its own column, so
@@ -131,6 +132,7 @@ export function App() {
                       outlet rather than inside a page. */}
                   <CallProvider>
                     <MessageToastBridge />
+                    <UpdateCheck />
                     <AppLayout />
                     <IncomingCallModal />
                     <CallScreen />

@@ -3,6 +3,7 @@ import { type Express } from "express";
 import cors from "cors";
 import compression from "compression";
 import { env } from "@/config";
+import { AppError, ERROR_CODES, HTTP_STATUS } from "@/errors/app-error";
 import { errorHandler } from "@/middleware/error.middleware";
 import { securityMiddleware } from "@/middleware/security.middleware";
 import { formBodySizeLimit } from "@/middleware/body-size-limit.middleware";
@@ -70,7 +71,20 @@ app.use("/api/v1/settings", settingsRoutes);
 app.use("/api/v1/chats", chatRoutes);
 app.use("/api/v1/messages", messageRoutes);
 
-// 10. Error handler
+// 11. Unmatched routes. Without this Express falls back to its own HTML 404,
+// so a client that mistypes a path gets markup where every other response —
+// including every other error — is the JSON envelope.
+app.use((req, _res, next) => {
+  next(
+    new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      ERROR_CODES.NOT_FOUND,
+      `No route for ${req.method} ${req.path}`,
+    ),
+  );
+});
+
+// 12. Error handler
 app.use(errorHandler);
 
 export default app;
