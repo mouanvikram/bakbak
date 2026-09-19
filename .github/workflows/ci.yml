@@ -36,7 +36,9 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:17-alpine
+        # Matches the PostgreSQL 18 running on the deploy host, so CI exercises
+        # the same major version production does.
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: bakbak
           POSTGRES_PASSWORD: bakbak

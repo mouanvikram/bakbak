@@ -70,7 +70,17 @@ jobs:
             # skipping this after a schema change produces runtime errors that
             # look like database bugs.
             cd packages/db
-            export DATABASE_URL="$(grep -E '^PRODUCTION_DB_URL=' ~/bakbak/.env.prod | cut -d= -f2-)"
+
+            # Postgres runs on this host, so there is no connection pooler in
+            # front of it and Prisma Migrate can take its session advisory lock
+            # on the ordinary connection string.
+            export NODE_ENV=production
+            export PRODUCTION_DB_URL="$(grep -E '^PRODUCTION_DB_URL=' ~/bakbak/.env.prod | cut -d= -f2-)"
+            test -n "$PRODUCTION_DB_URL" || {
+              echo "PRODUCTION_DB_URL missing from ~/bakbak/.env.prod" >&2
+              exit 1
+            }
+
             bunx prisma generate
             bunx prisma migrate deploy
             cd ~/bakbak

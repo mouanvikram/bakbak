@@ -110,7 +110,7 @@ Calls need no configuration locally — the API defaults to the compose `coturn`
 Continuous integration and a first deployment stage run on GitHub Actions (`.github/workflows`).
 
 - **CI (`ci.yml`)** — on every PR and non-main push: `bun install --frozen-lockfile` (Bun 1.4, the same major the `infra/` Dockerfiles ship), Prisma generate → validate → `migrate:deploy` on a throwaway test database, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres / Redis / SeaweedFS service containers (the uploads bucket stays private — unsigned and wrong-keyed accesses are denied), then a production web build. Builds are stamped with a commit-derived `APP_VERSION` (injected as `VITE_APP_VERSION` for the web) so the in-app update check compares honest versions.
-- **Deploy (`deploy.yml`)** — on push to `main` it runs CI first as a gate, then deploys the API over SSH (`appleboy/ssh-action`): fetch the exact commit CI validated (`git reset --hard "$GITHUB_SHA"`), `bun install --frozen-lockfile`, Prisma generate + `migrate:deploy` against `PRODUCTION_DB_URL` (read from the box's `.env.prod`), stamp `.env.version` with `APP_VERSION` / `GIT_COMMIT` / `BUILD_TIME`, restart the systemd unit, and smoke-test `https://<API_DOMAIN>/readyz`. The API runs under **systemd via Bun** on the EC2 host — no container step. Full host setup in [`deploy/README.md`](deploy/README.md).
+- **Deploy (`deploy.yml`)** — on push to `main` it runs CI first as a gate, then deploys the API over SSH (`appleboy/ssh-action`): fetch the exact commit CI validated (`git reset --hard "$GITHUB_SHA"`), `bun install --frozen-lockfile`, Prisma generate + `migrate:deploy` against `PRODUCTION_DB_DIRECT_URL` — Neon's direct (unpooled) endpoint, because Prisma Migrate's advisory locks time out over the pooled one (P1002) — stamp `.env.version`, restart the systemd unit, and smoke-test `https://<API_DOMAIN>/readyz`. The API runs under **systemd via Bun** on the EC2 host — no container step. Full host setup in [`deploy/README.md`](deploy/README.md).
 
 ## ☁️ Deployment
 
@@ -120,17 +120,18 @@ A single **EC2 host** runs the API under systemd via Bun, with nginx terminating
 | ----------- | -------------------------------------- | -------------------------------------------------------------------- |
 | Web SPA     | Vercel                                 | static build of `apps/web`; `apps/web/vercel.json` has the SPA rewrites + CSP |
 | API         | EC2, systemd via Bun                   | nginx → `127.0.0.1:3000`; auto-deployed by [`deploy.yml`](#-cicd)     |
-| Postgres    | Neon (serverless)                      | `PRODUCTION_DB_URL`; pooled (`-pooler`) endpoint for the API            |
+| Postgres    | Neon (serverless)                      | `PRODUCTION_DB_URL` (pooled) for the API; `PRODUCTION_DB_DIRECT_URL` for Prisma Migrate |
 | Redis       | Upstash (managed)                      | `REDIS_URL` — rate limiting, cache, presence, Socket.IO adapter        |
 | Uploads     | Cloudflare R2 (S3-compatible)          | `STORAGE_*` env; the API speaks S3 via the AWS SDK                     |
 | TURN/STUN   | coturn on the same EC2 host            | media relays via TURN when a direct path can't be opened               |
 
 Full one-time host setup — Bun install, swap, `.env.prod`, systemd unit, nginx site, security group, and the rollback recipe — lives in [`deploy/README.md`](deploy/README.md).
 
-**Neon Postgres.** Copy the connection string (the **pooled** one from the Neon dashboard for anything long-running) into `PRODUCTION_DB_URL`; `@bakbak/db` picks it up when `NODE_ENV=production` (`src/resolve-db-url.ts`). Before first deploy, apply migrations once:
+**Neon Postgres.** Copy the connection strings from the Neon dashboard: the **pooled** one (`-pooler` host) into `PRODUCTION_DB_URL` for the API, and the **direct** (unpooled) one into `PRODUCTION_DB_DIRECT_URL` for Prisma CLI. `@bakbak/db` picks the pooled string at runtime when `NODE_ENV=production` (`src/resolve-db-url.ts`); Prisma Migrate uses the direct one (`resolveCliDatabaseUrl` in the same file) because advisory locks time out over the transaction pooler with error P1002. Before first deploy, apply migrations once:
 
 ```bash
-DATABASE_URL="postgresql://…pooler…neon.tech/neondb?sslmode=require" \
+PRODUCTION_DB_DIRECT_URL="postgresql://…ep-…neon.tech/neondb?sslmode=require" \
+NODE_ENV=production \
 bun --cwd packages/db exec prisma migrate deploy
 ```
 

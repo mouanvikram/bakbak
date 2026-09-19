@@ -11,7 +11,13 @@ observability stack. Nothing here is used in production.
 
 | `NODE_ENV`      | variable            | database                               |
 | --------------- | ------------------- | -------------------------------------- |
-| `production`    | `PRODUCTION_DB_URL` | your managed/hosted Postgres           |
+| `production`    | `PRODUCTION_DB_URL` | your managed/hosted Postgres (pooled endpoint) |
+
+Prisma CLI (`prisma migrate`, `db push`) uses `resolveCliDatabaseUrl()`
+(`packages/db/src/resolve-db-url.ts`): in production it prefers
+`PRODUCTION_DB_DIRECT_URL` — Neon's direct (unpooled) connection — because
+migrations take a session-level advisory lock and time out over the pooler
+(error P1002).
 | `test`          | `DEV_DB_TEST_URL`   | `bakbak_test` (truncated by the suite) |
 | _anything else_ | `DEV_DB_URL`        | `bakbak_dev`                           |
 

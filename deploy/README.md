@@ -27,10 +27,14 @@ git clone https://github.com/mouanvikram/bakbak.git ~/bakbak
 #      scp .env.prod bakbak-ec2:~/bakbak/.env.prod
 chmod 600 ~/bakbak/.env.prod
 
-# 5. First install + client generation
+# 5. First install + client generation. Migrations need Neon's direct
+#    (unpooled) connection: the pooled endpoint refuses Prisma Migrate's
+#    advisory locks (P1002). PRODUCTION_DB_DIRECT_URL is the direct string from
+#    the Neon dashboard ("Connection details" → Direct connection).
 cd ~/bakbak && bun install --frozen-lockfile
 cd packages/db
-export DATABASE_URL="$(grep -E '^PRODUCTION_DB_URL=' ~/bakbak/.env.prod | cut -d= -f2-)"
+export NODE_ENV=production
+export PRODUCTION_DB_DIRECT_URL="$(grep -E '^PRODUCTION_DB_DIRECT_URL=' ~/bakbak/.env.prod | cut -d= -f2-)"
 bunx prisma generate && bunx prisma migrate deploy
 
 # 6. systemd unit

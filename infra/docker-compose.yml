@@ -12,7 +12,8 @@ name: bakbak
 
 services:
   postgres:
-    image: postgres:17-alpine
+    # Matches the PostgreSQL 18 running on the deploy host and in CI.
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: bakbak
       POSTGRES_PASSWORD: bakbak
