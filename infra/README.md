@@ -9,20 +9,18 @@ observability stack. Nothing here is used in production.
 
 `@bakbak/db` chooses the connection string by `NODE_ENV`:
 
-| `NODE_ENV`      | variable            | database                               |
-| --------------- | ------------------- | -------------------------------------- |
-| `production`    | `PRODUCTION_DB_URL` | your managed/hosted Postgres (pooled endpoint) |
-
-Prisma CLI (`prisma migrate`, `db push`) uses `resolveCliDatabaseUrl()`
-(`packages/db/src/resolve-db-url.ts`): in production it prefers
-`PRODUCTION_DB_DIRECT_URL` — Neon's direct (unpooled) connection — because
-migrations take a session-level advisory lock and time out over the pooler
-(error P1002).
-| `test`          | `DEV_DB_TEST_URL`   | `bakbak_test` (truncated by the suite) |
-| _anything else_ | `DEV_DB_URL`        | `bakbak_dev`                           |
+| `NODE_ENV`      | variable            | database                                          |
+| --------------- | ------------------- | ------------------------------------------------- |
+| `production`    | `PRODUCTION_DB_URL` | the deploy host's own Postgres (`127.0.0.1:5432`) |
+| `test`          | `DEV_DB_TEST_URL`   | `bakbak_test` (truncated by the suite)            |
+| _anything else_ | `DEV_DB_URL`        | `bakbak_dev`                                      |
 
 Set `DATABASE_URL` to override all three (one-off scripts, hosts that only
-inject one variable).
+inject one variable). The Prisma CLI resolves the same way, which works because
+nothing sits in front of Postgres — if a transaction pooler (PgBouncer, RDS
+Proxy, Neon's `-pooler` host) is ever introduced, migrations will need a
+separate direct connection: Prisma Migrate takes a session-level advisory lock
+that a transaction pooler cannot hold, and fails with error P1002.
 
 ## Bring the stack up
 

@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "//version": "Single source of truth for the app version. The API serves it at GET /api/v1/version and the web bundles it at build time; a mismatch is what tells a stale tab to refresh. Bump with `bun pm version patch|minor|major`.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "scripts": {
     "dev": "bun run --parallel dev:frontend dev:backend dev:prisma",
     "dev:frontend": "bun --cwd apps/web dev",

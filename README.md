@@ -15,9 +15,9 @@ A real-time social chat app — direct & group messaging, friends, media sharing
 | Runtime       | [Bun](https://bun.sh) (monorepo workspaces)                                                                         |
 | Backend       | Express 5 + TypeScript, Socket.IO (presence, typing, receipts, live delivery), Web Push (VAPID)                     |
 | Calls         | WebRTC — media is peer-to-peer; the API only relays the SDP/ICE handshake and mints short-lived coturn TURN credentials |
-| Database      | PostgreSQL + Prisma ORM (driver adapter `@prisma/adapter-pg`)                                                       |
-| Redis         | ioredis — token-bucket rate limiting, Socket.IO adapter + presence, JSON cache                                      |
-| Storage       | S3-compatible object storage (SeaweedFS locally)                                                                    |
+| Database      | PostgreSQL 18 + Prisma ORM (driver adapter `@prisma/adapter-pg`)                                                    |
+| Redis         | Redis 8 via ioredis — token-bucket rate limiting, Socket.IO adapter + presence, JSON cache                          |
+| Storage       | S3-compatible object storage — SeaweedFS locally, Cloudflare R2 in production                                       |
 | Validation    | Shared Zod contracts (`@bakbak/contracts`) — validates requests **and** responses                                   |
 | Auth          | JWT access tokens + Argon2id password hashing; email verification, password reset & email-OTP two-factor via Resend |
 | Frontend      | React 19 + Vite + React Router, Tailwind CSS v4, React Compiler, `emoji-picker-react`, service worker for push      |
@@ -103,37 +103,44 @@ See [`infra/README.md`](infra/README.md).
 
 Logging is controlled by `LOG_LEVEL`, `LOG_PRETTY=true` (pretty terminal output for local dev), and `LOKI_URL` (+ optional `LOKI_USERNAME` / `LOKI_PASSWORD`) to ship structured logs to Loki.
 
-Calls need no configuration locally — the API defaults to the compose `coturn` and derives TURN credentials from `TURN_STATIC_AUTH_SECRET`. One caveat: coturn advertises its container IP as the relay address unless `TURN_EXTERNAL_IP` is set (and `--external-ip` uncommented in `infra/docker-compose.yml`), so **relayed** calls fail on a machine that needs them while direct (STUN) paths keep working.
+Calls need no configuration locally — the API defaults to the compose `coturn` and derives TURN credentials from `TURN_STATIC_AUTH_SECRET`. One caveat, local only: coturn advertises its container IP as the relay address unless `TURN_EXTERNAL_IP` is set (and `--external-ip` uncommented in `infra/docker-compose.yml`), so **relayed** calls fail on a machine that needs them while direct (STUN) paths keep working. In production coturn runs natively on the EC2 host with `external-ip` set to its Elastic IP, so relaying works there.
+
+## 🔖 Versioning
+
+The `version` field in the **root `package.json`** is the single source of truth, in `major.minor.patch`:
+
+```bash
+bun pm version patch   # or minor / major
+```
+
+The API reads it off disk at boot and serves it from `GET /api/v1/version`; Vite bakes the same value into the web bundle at build time (`apps/web/vite.config.ts`), so no `VITE_APP_VERSION` needs setting on the host. Because both derive from one file in one commit, they can only disagree when a tab is running an older build than the server — which is exactly the signal the update check looks for.
+
+A long-lived tab polls that endpoint on load, on window focus, and every 10 minutes (`apps/web/src/lib/use-update-check.ts`). On a mismatch it raises a persistent toast offering a reload rather than forcing one, since a refresh mid-conversation would discard an unsent message.
 
 ## 🤖 CI/CD
 
 Continuous integration and a first deployment stage run on GitHub Actions (`.github/workflows`).
 
-- **CI (`ci.yml`)** — on every PR and non-main push: `bun install --frozen-lockfile` (Bun 1.4, the same major the `infra/` Dockerfiles ship), Prisma generate → validate → `migrate:deploy` on a throwaway test database, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres / Redis / SeaweedFS service containers (the uploads bucket stays private — unsigned and wrong-keyed accesses are denied), then a production web build. Builds are stamped with a commit-derived `APP_VERSION` (injected as `VITE_APP_VERSION` for the web) so the in-app update check compares honest versions.
-- **Deploy (`deploy.yml`)** — on push to `main` it runs CI first as a gate, then deploys the API over SSH (`appleboy/ssh-action`): fetch the exact commit CI validated (`git reset --hard "$GITHUB_SHA"`), `bun install --frozen-lockfile`, Prisma generate + `migrate:deploy` against `PRODUCTION_DB_DIRECT_URL` — Neon's direct (unpooled) endpoint, because Prisma Migrate's advisory locks time out over the pooled one (P1002) — stamp `.env.version`, restart the systemd unit, and smoke-test `https://<API_DOMAIN>/readyz`. The API runs under **systemd via Bun** on the EC2 host — no container step. Full host setup in [`deploy/README.md`](deploy/README.md).
+- **CI (`ci.yml`)** — on every PR and non-main push: `bun install --frozen-lockfile` (Bun 1.4, the same major the `infra/` Dockerfiles ship), Prisma generate → validate → `migrate:deploy` on a throwaway test database, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres / Redis / SeaweedFS service containers (the uploads bucket stays private — unsigned and wrong-keyed accesses are denied), then a production web build. The app version is the `version` field in the root `package.json` — the API reads it at boot and Vite bakes it into the web bundle, so both sides of one commit always agree and a mismatch means a tab is running an older build (see [Versioning](#-versioning)).
+- **Deploy (`deploy.yml`)** — on push to `main` it runs CI first as a gate, then deploys the API over SSH (`appleboy/ssh-action`): fetch the exact commit CI validated (`git reset --hard "$GITHUB_SHA"`), `bun install --frozen-lockfile`, `prisma generate` + `migrate deploy`, stamp `.env.version` with the commit and build time, restart the systemd unit, and smoke-test `https://<API_DOMAIN>/readyz` until it returns 200. The API runs under **systemd via Bun** on the EC2 host — no container step. Full host setup in [`deploy/README.md`](deploy/README.md).
 
 ## ☁️ Deployment
 
-A single **EC2 host** runs the API under systemd via Bun, with nginx terminating TLS in front and coturn on the same box for WebRTC. Everything else is managed: **Vercel** serves the SPA (`apps/web`), **Neon** provides Postgres, **Upstash** provides Redis, **Cloudflare R2** provides S3-compatible object storage, and **Resend** sends email. `infra/` is the local dev stack only — none of it runs in production.
+A single **EC2 host** (t3.small, `ap-south-1`, Ubuntu 26.04) runs almost everything: the API under systemd via Bun, PostgreSQL, Redis and coturn, with nginx terminating TLS in front. Only three things are external — **Vercel** serves the SPA (`apps/web`), **Cloudflare R2** stores uploads, and **Resend** sends email. `infra/` is the local dev stack only; none of it runs in production.
 
-| Piece       | Where it runs                          | Notes                                                                |
-| ----------- | -------------------------------------- | -------------------------------------------------------------------- |
-| Web SPA     | Vercel                                 | static build of `apps/web`; `apps/web/vercel.json` has the SPA rewrites + CSP |
-| API         | EC2, systemd via Bun                   | nginx → `127.0.0.1:3000`; auto-deployed by [`deploy.yml`](#-cicd)     |
-| Postgres    | Neon (serverless)                      | `PRODUCTION_DB_URL` (pooled) for the API; `PRODUCTION_DB_DIRECT_URL` for Prisma Migrate |
-| Redis       | Upstash (managed)                      | `REDIS_URL` — rate limiting, cache, presence, Socket.IO adapter        |
-| Uploads     | Cloudflare R2 (S3-compatible)          | `STORAGE_*` env; the API speaks S3 via the AWS SDK                     |
-| TURN/STUN   | coturn on the same EC2 host            | media relays via TURN when a direct path can't be opened               |
+| Piece     | Where it runs                 | Notes                                                                        |
+| --------- | ----------------------------- | ---------------------------------------------------------------------------- |
+| Web SPA   | Vercel                        | static build of `apps/web`; `apps/web/vercel.json` holds the SPA rewrites, the `/api` proxy and the CSP |
+| API       | EC2, systemd via Bun          | nginx → `127.0.0.1:3000`; auto-deployed by [`deploy.yml`](#-cicd)             |
+| Postgres  | **PostgreSQL 18 on the EC2 host** | `PRODUCTION_DB_URL` → `127.0.0.1:5432`; loopback, so no pooler and no cross-region hop |
+| Redis     | **Redis 8 on the EC2 host**   | `REDIS_URL` → `127.0.0.1:6379`; rate limiting, cache, presence, Socket.IO adapter |
+| Uploads   | Cloudflare R2 (S3-compatible) | `STORAGE_*` env; the API speaks S3 via the AWS SDK                            |
+| Email     | Resend                        | `RESEND_API_KEY`; sends from a verified domain                               |
+| TURN/STUN | coturn on the same EC2 host   | installed natively (not in Docker); media relays when no direct path opens    |
 
-Full one-time host setup — Bun install, swap, `.env.prod`, systemd unit, nginx site, security group, and the rollback recipe — lives in [`deploy/README.md`](deploy/README.md).
+Co-locating Postgres and Redis with the API is deliberate. Every request consumes a Redis token-bucket in `rateLimitGlobal()` and most touch Postgres several times, so a managed database in another region put tens of milliseconds of network latency under *every* endpoint. On loopback that cost disappears. The trade is that this host now owns its own data — there are no managed backups, which is an accepted non-goal for this project (see [Scope](#-bakbak)).
 
-**Neon Postgres.** Copy the connection strings from the Neon dashboard: the **pooled** one (`-pooler` host) into `PRODUCTION_DB_URL` for the API, and the **direct** (unpooled) one into `PRODUCTION_DB_DIRECT_URL` for Prisma CLI. `@bakbak/db` picks the pooled string at runtime when `NODE_ENV=production` (`src/resolve-db-url.ts`); Prisma Migrate uses the direct one (`resolveCliDatabaseUrl` in the same file) because advisory locks time out over the transaction pooler with error P1002. Before first deploy, apply migrations once:
-
-```bash
-PRODUCTION_DB_DIRECT_URL="postgresql://…ep-…neon.tech/neondb?sslmode=require" \
-NODE_ENV=production \
-bun --cwd packages/db exec prisma migrate deploy
-```
+Full one-time host setup — Bun, swap, Postgres, Redis, coturn, `.env.prod`, the systemd unit, the nginx site, the security group and the rollback recipe — lives in [`deploy/README.md`](deploy/README.md).
 
 **EC2 (API).** The `deploy.yml` workflow handles every push to `main`: exact-commit fetch, install, Prisma generate + migrate, version stamp, systemd restart, `readyz` smoke test. The production env lives in the box's gitignored `.env.prod` (the same env surface as `.env.example`): `NODE_ENV=production`, `PRODUCTION_DB_URL`, `REDIS_URL`, `STORAGE_ENDPOINT` / `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` / `STORAGE_BUCKET`, `JWT_SECRET` (≥32 chars), `RESEND_API_KEY`, `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`, `TURN_STATIC_AUTH_SECRET`, `TURN_REALM`, `FRONTEND_URL`, `CORS_ORIGINS`, and the `AUTH_COOKIE_*` trio for the cross-origin SPA (`AUTH_COOKIE_SAMESITE=none`, `AUTH_COOKIE_SECURE=true`). Secrets come from the GitHub Actions secrets (SSH key, `API_DOMAIN`) plus the secrets in `.env.prod`, which never touches the repo. `TURN_STATIC_AUTH_SECRET` is rejected at boot if left at its dev value.
 
@@ -141,7 +148,9 @@ bun --cwd packages/db exec prisma migrate deploy
 - **Root directory:** `apps/web` (framework preset Vite, output `dist`)
 - **Install command:** `cd ../.. && bun install --frozen-lockfile` (resolves the `workspace:*` packages from the monorepo root)
 - **Build command:** `bun run build`
-- **Env:** `VITE_API_URL` → `https://api.<your-domain>` (and `VITE_APP_VERSION` from CI, so the stale-tab check compares real versions)
+- **Env:** `VITE_API_URL` → `https://api.<your-domain>`. This is used **only** to point Socket.IO at the API: REST calls stay relative and are proxied by the `/api/:path*` rewrite in `apps/web/vercel.json`, because Vercel rewrites cannot carry a WebSocket upgrade. `VITE_APP_VERSION` needs no setting — Vite bakes in the root `package.json` version.
+
+Note the CSP in `vercel.json` must list the API origin under `connect-src` for both `https:` and `wss:`. Socket.IO opens an HTTPS polling handshake before upgrading, and CSP treats the two schemes as separate sources — omit either and the connection is blocked before any request leaves the browser.
 
 **coturn (calls).** Media is peer-to-peer, but peers behind symmetric NAT need a relay, so coturn runs on the EC2 host (visible on port 3478 plus the relay range `49160–49200`) with `--use-auth-secret` and the **same** `TURN_STATIC_AUTH_SECRET` as the API, `--realm` matching `TURN_REALM`, and `--external-ip` set to its public address. Point the API at it with `STUN_URLS` / `TURN_URLS`. Without one the API still answers `/calls/ice-servers` with STUN only: calls connect wherever a direct path exists and fail where a relay was required.
 
