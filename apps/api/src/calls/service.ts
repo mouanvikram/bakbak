@@ -5,6 +5,8 @@ import type {
   IceServersResponseType,
 } from "@bakbak/contracts";
 import logger from "@/lib/logger";
+import { broadcastMessage } from "@/websocket/emitter";
+import type { MessageService } from "@/messages/service";
 import { callsConfig } from "./config";
 import type { CallRow, CallsRepository } from "./repository";
 
@@ -13,7 +15,10 @@ import type { CallRow, CallsRepository } from "./repository";
 const HISTORY_LIMIT = 100;
 
 export class CallsService {
-  constructor(private readonly callsRepository: CallsRepository) {}
+  constructor(
+    private readonly callsRepository: CallsRepository,
+    private readonly messageService: MessageService,
+  ) {}
 
   /**
    * ICE servers for an RTCPeerConnection, with TURN credentials valid for
@@ -120,8 +125,35 @@ export class CallsService {
                 : "MISSED";
 
       await this.callsRepository.markEnded(live.id, status);
+
+      // Post the call into the conversation. Returns null when the other peer
+      // already posted it (unique callId), so a two-sided hang-up still yields
+      // exactly one entry.
+      const messageId = await this.callsRepository.createCallMessage(live);
+      if (messageId) await this.broadcastCallMessage(chatId, messageId);
     } catch (err) {
       logger.warn({ err, chatId }, "Failed to record call end");
+    }
+  }
+
+  /**
+   * Pushes the new timeline entry to everyone in the chat.
+   *
+   * Separate from recordEnd's try/catch on purpose: a failed broadcast must not
+   * make it look like the call failed to record. The row is already written, so
+   * the entry appears on next load either way.
+   */
+  private async broadcastCallMessage(
+    chatId: string,
+    messageId: string,
+  ): Promise<void> {
+    try {
+      const message = await this.messageService.getMessageForBroadcast(
+        messageId,
+      );
+      if (message) broadcastMessage(chatId, message);
+    } catch (err) {
+      logger.warn({ err, chatId, messageId }, "Failed to broadcast call entry");
     }
   }
 

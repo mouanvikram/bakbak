@@ -21,7 +21,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # 18+ images store data under /var/lib/postgresql in major-version
+      # subdirectories rather than in /var/lib/postgresql/data, so the mount
+      # point moved with the image bump. Mounting the old path leaves the
+      # volume "unused" and the container refuses to start.
+      - pgdata:/var/lib/postgresql
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bakbak -d bakbak_dev"]

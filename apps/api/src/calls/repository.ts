@@ -1,4 +1,5 @@
-import { prisma } from "@bakbak/db";
+import { randomUUID } from "node:crypto";
+import { Prisma, prisma } from "@bakbak/db";
 
 export interface CallPeerRow {
   id: string;
@@ -106,6 +107,42 @@ export class CallsRepository {
       where: { id, endedAt: null },
       data: { status, endedAt: at },
     });
+  }
+
+  /**
+   * Creates the timeline entry for a finished call, returning its message id.
+   *
+   * The sender is the caller, so the entry sits on their side of the
+   * conversation the way "you called" reads naturally. `callId` is unique, so
+   * a duplicate `call:end` from the other peer hits the constraint instead of
+   * posting the same call twice — hence the swallowed P2002.
+   */
+  async createCallMessage(call: {
+    id: string;
+    chatId: string;
+    callerId: string;
+  }): Promise<string | null> {
+    try {
+      const message = await prisma.message.create({
+        data: {
+          type: "CALL",
+          chatId: call.chatId,
+          senderId: call.callerId,
+          clientId: randomUUID(),
+          callId: call.id,
+        },
+        select: { id: true },
+      });
+      return message.id;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /** Everything `userId` took part in, newest first, either direction. */

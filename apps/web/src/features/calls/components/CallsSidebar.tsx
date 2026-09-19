@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import {
   Phone,
   PhoneIncoming,
@@ -47,7 +48,11 @@ function CallRow({ call }: { call: CallRecordType }) {
             : "Missed";
 
   return (
-    <li className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-slate-50">
+    <li>
+      <Link
+        to={`/calls/${call.id}`}
+        className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-slate-50 aria-[current=page]:bg-slate-100"
+      >
       <Avatar name={call.peer.displayName ?? call.peer.username} src={call.peer.avatar} />
 
       <div className="min-w-0 flex-1">
@@ -75,6 +80,7 @@ function CallRow({ call }: { call: CallRecordType }) {
           <Phone className="size-3.5 text-slate-400" />
         )}
       </div>
+      </Link>
     </li>
   );
 }

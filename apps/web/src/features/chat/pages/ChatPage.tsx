@@ -44,6 +44,7 @@ import { useToast } from "@/components/ui/Toast";
 import { GroupInfoModal } from "@/features/chat/components/GroupInfoModal";
 import { DirectInfoModal } from "@/features/chat/components/DirectInfoModal";
 import { MessageBubble } from "@/features/chat/components/MessageBubble";
+import { CallEvent } from "@/features/chat/components/CallEvent";
 import { EmojiPopover } from "@/features/chat/components/EmojiPopover";
 import { EmptyState } from "@/components/ui/States";
 import { MessageThreadSkeleton } from "@/components/ui/Skeleton";
@@ -664,7 +665,20 @@ export function ChatPage() {
           <EmptyState text="No messages yet. Say hi!" />
         ) : (
           <div className="flex flex-col gap-1.5 p-4">
-            {messages.map((m) => (
+            {messages.map((m) =>
+              // A call is an event both sides took part in, not something one
+              // of them said, so it gets a centred entry instead of a bubble —
+              // and none of the bubble's affordances (reply, react, edit)
+              // apply to it.
+              m.type === "CALL" && m.call ? (
+                <CallEvent
+                  key={m.id}
+                  call={m.call}
+                  currentUserId={currentUserId ?? ""}
+                  createdAt={m.createdAt}
+                  animateIn={initialIds !== null && !initialIds.has(m.id)}
+                />
+              ) : (
               <MessageBubble
                 key={m.id}
                 message={m}
@@ -686,7 +700,8 @@ export function ChatPage() {
                   setMsgMenu({ x: e.clientX, y: e.clientY, message: m });
                 }}
               />
-            ))}
+              ),
+            )}
             {typingLabel && (
               <div className="flex items-center gap-2 px-1 py-1 text-xs text-gray-500 motion-safe:animate-[slide-up-in_180ms_var(--ease-emphasized)]">
                 <span

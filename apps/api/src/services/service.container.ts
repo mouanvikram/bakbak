@@ -99,5 +99,5 @@ export const uploadService = new UploadService(
 export const uploadController = new UploadController(uploadService);
 
 export const callsRepository = new CallsRepository();
-export const callsService = new CallsService(callsRepository);
+export const callsService = new CallsService(callsRepository, messageService);
 export const callsController = new CallsController(callsService);

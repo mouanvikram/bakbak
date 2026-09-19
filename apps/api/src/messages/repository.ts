@@ -32,6 +32,19 @@ const messageInclude = {
   reactions: {
     orderBy: { createdAt: "asc" },
   },
+  // Null for everything except a CALL entry; the call row carries the outcome
+  // so the message never holds a second copy of it.
+  call: {
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      callerId: true,
+      startedAt: true,
+      answeredAt: true,
+      endedAt: true,
+    },
+  },
 } satisfies Prisma.MessageInclude;
 
 const participantInclude = {

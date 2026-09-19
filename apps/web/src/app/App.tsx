@@ -39,6 +39,7 @@ import { ChatPage } from "@/features/chat/pages/ChatPage";
 import { FriendsSidebar } from "@/features/friends/components/FriendsSidebar";
 import { SettingsSidebar } from "@/features/settings/components/SettingsSidebar";
 import { CallsSidebar } from "@/features/calls/components/CallsSidebar";
+import { CallDetail } from "@/features/calls/components/CallDetail";
 import { ResponsivePage } from "@/components/layout/ResponsivePage";
 import { MobilePage } from "@/components/layout/MobilePage";
 import { EmptyState } from "@/components/ui/States";
@@ -260,6 +261,7 @@ export function App() {
                 />
               }
             />
+            <Route path=":callId" element={<CallDetail />} />
           </Route>
 
           {/* Friends */}

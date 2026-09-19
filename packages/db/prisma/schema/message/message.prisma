@@ -28,6 +28,13 @@ model Message {
   replyTo   Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: NoAction)
   replies   Message[] @relation("MessageReplies")
 
+  // Call timeline entry. Set only on type = CALL: the call itself owns the
+  // outcome and duration, so the message links to it rather than copying
+  // fields that would then be free to disagree. Cascade because a message
+  // describing a deleted call has nothing left to say.
+  callId String? @unique @db.Uuid
+  call   Call?   @relation(fields: [callId], references: [id], onDelete: Cascade)
+
   attachments Attachment[]
   reactions   MessageReaction[]
 

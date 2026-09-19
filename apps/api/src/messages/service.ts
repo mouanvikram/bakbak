@@ -142,6 +142,15 @@ export class MessageService {
         messageId: string;
         createdAt: Date;
       }>;
+      call?: {
+        id: string;
+        type: "AUDIO" | "VIDEO";
+        status: "RINGING" | "ANSWERED" | "MISSED" | "DECLINED" | "FAILED";
+        callerId: string;
+        startedAt: Date;
+        answeredAt: Date | null;
+        endedAt: Date | null;
+      } | null;
     },
   >(message: T): Promise<SerializedMessage> {
     const replyTo =
@@ -169,6 +178,32 @@ export class MessageService {
           createdAt: reaction.createdAt.toISOString(),
         })) ?? [],
       ...(replyTo !== undefined ? { replyTo } : {}),
+      // Duration is derived here rather than stored, so it can never disagree
+      // with the timestamps. Only a connected call has one: a missed call sat
+      // ringing but lasted no time at all.
+      ...(message.call
+        ? {
+            call: {
+              id: message.call.id,
+              type: message.call.type,
+              status: message.call.status,
+              callerId: message.call.callerId,
+              startedAt: message.call.startedAt.toISOString(),
+              answeredAt: message.call.answeredAt?.toISOString() ?? null,
+              endedAt: message.call.endedAt?.toISOString() ?? null,
+              durationSeconds:
+                message.call.answeredAt && message.call.endedAt
+                  ? Math.max(
+                      0,
+                      Math.round(
+                        (message.call.endedAt.getTime() -
+                          message.call.answeredAt.getTime()) / 1000,
+                      ),
+                    )
+                  : null,
+            },
+          }
+        : {}),
     };
     if (serialized.sender?.profile?.avatar !== undefined) {
       serialized.sender.profile.avatar = await resolveAvatarUrl(
@@ -434,6 +469,23 @@ export class MessageService {
     await this.requireActiveParticipant(message.chatId, dto.currentUserId);
 
     return await this.serializeMessage(message);
+  }
+
+  /**
+   * A serialized message for a server-initiated broadcast — currently the
+   * timeline entry the call service writes when a call ends.
+   *
+   * Unlike getMessage there is no requesting user to authorize against: the
+   * server wrote this row itself and is pushing it to a chat room whose
+   * membership the socket layer already enforces. Never reachable from a
+   * route, so it cannot be used to read another chat's message.
+   */
+  async getMessageForBroadcast(
+    messageId: string,
+  ): Promise<MessageResponseType | null> {
+    const message = await this.messageRepository.findByIdWithDetail(messageId);
+    if (!message) return null;
+    return (await this.serializeMessage(message)) as MessageResponseType;
   }
 
   /** Add a reaction, or remove it if the sender already used that emoji. */

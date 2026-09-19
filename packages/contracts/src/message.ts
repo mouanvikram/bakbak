@@ -10,6 +10,28 @@ import {
 } from "./shared";
 import { chatParticipantSchema } from "./chat";
 import { attachmentResponseSchema } from "./upload";
+import { callStatusSchema, callTypeSchema } from "./calls";
+
+/**
+ * The call a `type: "CALL"` message describes.
+ *
+ * Deliberately not a full CallRecord: direction is per-viewer ("incoming" for
+ * one participant is "outgoing" for the other), and a message is the same for
+ * everyone who reads it. The client derives direction by comparing `callerId`
+ * against the current user.
+ */
+export const messageCallSchema = z.object({
+  id: z.uuid(),
+  type: callTypeSchema,
+  status: callStatusSchema,
+  callerId: z.uuid(),
+  startedAt: z.string(),
+  answeredAt: z.string().nullish(),
+  endedAt: z.string().nullish(),
+  durationSeconds: z.number().int().nonnegative().nullish(),
+});
+
+export type MessageCallType = z.infer<typeof messageCallSchema>;
 
 export const messageSenderSchema = userSummarySchema.extend({
   profile: profileCoreSchema.nullish(),
@@ -70,6 +92,10 @@ export const messageResponseSchema = z.object({
   replyToId: z.uuid().nullish(),
   replyTo: repliedMessageSchema.nullish(),
   reactions: z.array(reactionResponseSchema).default([]),
+  // Present only on `type: "CALL"`. The outcome lives on the call row, not
+  // copied onto the message, so the timeline entry and the Calls tab can never
+  // disagree about what happened.
+  call: messageCallSchema.nullish(),
 });
 
 export type MessageResponseType = z.infer<typeof messageResponseSchema>;
