@@ -10,7 +10,8 @@ import { formBodySizeLimit } from "@/middleware/body-size-limit.middleware";
 import { uploadsConfig } from "@/uploads/config";
 import { requestIdMiddleware } from "@/middleware/request-id.middleware";
 import { requestLoggerMiddleware } from "@/middleware/request-logger.middleware";
-import { httpMetricsMiddleware } from "@/system/metrics";
+import { createHealthzRouter, createReadyzRouter } from "@/system/health";
+import { createMetricsRouter, httpMetricsMiddleware } from "@/system/metrics";
 import { rateLimitGlobal } from "@/redis/rate-limit";
 import { authRoutes } from "@/auth/routes";
 import { userRoutes } from "@/users/routes";
@@ -71,7 +72,20 @@ app.use("/api/v1/settings", settingsRoutes);
 app.use("/api/v1/chats", chatRoutes);
 app.use("/api/v1/messages", messageRoutes);
 
-// 11. Unmatched routes. Without this Express falls back to its own HTML 404,
+// 11. Operational endpoints, outside /api/v1.
+//
+// These must be registered here rather than in index.ts: the catch-all below
+// matches anything still unhandled, so a route added after it can never be
+// reached. /healthz is a static liveness probe, /readyz checks DB / Redis /
+// storage / Resend connectivity, /metrics is the Prometheus scrape endpoint.
+app.get("/", (_req, res) => {
+  res.status(200).json({ message: "Path is at '/' " });
+});
+app.use("/healthz", createHealthzRouter());
+app.use("/readyz", createReadyzRouter());
+app.use("/metrics", createMetricsRouter());
+
+// 12. Unmatched routes. Without this Express falls back to its own HTML 404,
 // so a client that mistypes a path gets markup where every other response —
 // including every other error — is the JSON envelope.
 app.use((req, _res, next) => {
