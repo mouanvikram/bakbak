@@ -1,7 +1,7 @@
 # Runs the API integration test suite. Build context is the repo root.
-# Match the host bun that wrote bun.lock (1.3); slim/Debian avoids the
+# Match the host bun that wrote bun.lock (1.4); slim/Debian avoids the
 # musl tarball-integrity quirks seen on the alpine image.
-FROM oven/bun:1.3-slim
+FROM oven/bun:1.4-slim
 
 WORKDIR /app
 

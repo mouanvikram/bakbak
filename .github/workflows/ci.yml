@@ -64,9 +64,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          # Match the Bun version that wrote bun.lock and that the
-          # infra Dockerfiles target (oven/bun:1.3-slim).
-          bun-version: "1.3"
+          # Match the Bun version that wrote bun.lock, that the infra
+          # Dockerfiles target (oven/bun:1.4-slim), and that runs on the
+          # deploy host — `bun install --frozen-lockfile` runs in all three.
+          bun-version: "1.4"
 
       # MinIO was removed from Docker Hub in Sept 2026 and its Quay.io mirror
       # was also deleted shortly after, so object storage runs as SeaweedFS:
