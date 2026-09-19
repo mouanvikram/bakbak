@@ -1,6 +1,8 @@
 # ✅ BakBak — Implemented Features
 
-Everything marked below is **implemented, tested, and wired end-to-end** across the API, the Socket.IO realtime layer, and the web client. Items are grouped by area; each check is one self-contained capability. Remaining work is listed under [What's left](README.md#-whats-left) in the README. New shipped capabilities are added here under their group heading as they land.
+Everything marked below is **implemented and wired end-to-end** across the API, the Socket.IO realtime layer, and the web client — and covered by the automated suite except where a section says otherwise (today: calls). Items are grouped by area; each check is one self-contained capability. Remaining work is listed under [What's left](README.md#-whats-left) in the README. New shipped capabilities are added here under their group heading as they land.
+
+**Scope:** a portfolio project. The bar here is demonstrating the engineering — correctness, security, and a realtime architecture that would scale — not operating a service that carries real users' data. Operational work that only earns its keep once real data is at stake (automated backups, restore drills, load testing) is deliberately out of scope.
 
 ---
 
@@ -61,8 +63,23 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 - [x] **Authenticated gateway** — JWT handshake (Bearer or `auth.token`) with live-session verification; auto-joins the user's active chats.
 - [x] **Presence & typing** — per-room presence snapshots on join, online/offline transitions persisted, throttled typing indicators.
-- [x] **Live delivery** — messages, edits, deletes, reactions, read receipts, and chat/metadata changes pushed to rooms; sockets are force-disconnected on logout, session revoke, and password change.
+- [x] **Live delivery** — messages, edits, deletes, reactions, read receipts, chat/metadata changes, and the call handshake pushed to rooms; sockets are force-disconnected on logout, session revoke, and password change.
 - [x] **Horizontal scaling** — Socket.IO Redis adapter, so events reach sockets on any API instance; presence is tracked in Redis with per-socket leases refreshed by a heartbeat, falling back to an in-process mirror while Redis is unavailable. A background sweep marks users whose leases expired without a clean disconnect (e.g. their API server crashed) offline — profile `lastSeenAt` set to their last heartbeat, and their chats notified.
+
+## 📞 Calls (WebRTC)
+
+> One-to-one audio and video. Group calls aren't supported. This is the one area with **no automated coverage** — it's manually verified only.
+
+- [x] **Peer-to-peer media** — the API relays the handshake (SDP offer/answer, then trickled ICE candidates) and nothing else; it never parses, stores, or forwards audio or video. Once the peers agree, media flows directly, or through TURN when a direct path can't be opened.
+- [x] **Authorized signalling** — every `call:offer` / `call:answer` / `call:ice-candidate` / `call:end` is schema-parsed and gated on the sender being an **active participant** of that chat, so a stranger holding a `chatId` can't ring its members or push SDP at them mid-call; the membership check fails closed and says so in the logs.
+- [x] **Ephemeral TURN credentials** — `GET /calls/ice-servers` is authenticated (unlike the public VAPID key: a TURN pair is working relay capacity) and mints coturn REST-API credentials — username `<unix-expiry>:<userId>`, password `base64(HMAC-SHA1(username, shared secret))`. coturn recomputes the same HMAC, so nothing is stored or synchronised between the two services and a leaked pair expires on its own. Long-term static credentials are deliberately unsupported. With no TURN secret configured the response degrades to STUN-only rather than failing.
+- [x] **Rings every device** — the offer is broadcast to the chat room, not one socket, so a callee signed in on several devices rings on all of them.
+- [x] **Busy handling** — an incoming call while already on one is refused with `BUSY` instead of ringing over the top; the caller is told they're on another call.
+- [x] **Ring-out on both ends** — 45 s, with the callee's timer running 5 s longer so the caller's `call:end` normally lands first and only one side reports the outcome; the callee's is the safety net for a caller whose tab died mid-ring. A timeout is recorded as **missed** whichever end noticed, so a callee who simply wasn't there is never logged as having declined.
+- [x] **Trickle-ICE candidate queueing** — candidates arriving before the remote description is set are held and flushed after, rather than thrown away — the classic cause of a call that rings, answers, then never connects.
+- [x] **In-call controls** — mute the mic, toggle the camera, and a duration counted from the moment media actually connected. A voice call never opens the camera at all: no hardware indicator, no track to forget to mute.
+- [x] **Call history** — a `Call` row per call (type, status, direction, peer, duration from answer to end) backing the Calls tab. Status is decided server-side rather than taken from the client, and a row left `RINGING` by a crash or lost socket reads as **missed**. History writes are best-effort throughout — a failed bookkeeping write is logged and the call carries on.
+- [x] **Clean teardown** — losing the socket mid-call, a failed peer connection, or a blocked microphone tears the call down and surfaces one toast (the call UI itself unmounts, so it can't host the message); tracks are stopped so the camera/mic indicator goes out.
 
 ## 🔔 Notifications
 
@@ -109,10 +126,10 @@ Everything marked below is **implemented, tested, and wired end-to-end** across 
 
 ## 🤖 CI/CD
 
-- [x] **Continuous integration** — GitHub Actions runs on every PR and non-main push: frozen-lockfile install (Bun 1.3), Prisma generate/validate/`migrate:deploy`, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres + Redis + SeaweedFS service containers (uploads bucket private — unsigned accesses denied), then a production web build.
+- [x] **Continuous integration** — GitHub Actions runs on every PR and non-main push: frozen-lockfile install (Bun 1.4), Prisma generate/validate/`migrate:deploy`, oxlint for API + web, API typecheck, the full HTTP + Socket.IO integration suite against Postgres + Redis + SeaweedFS service containers (uploads bucket private — unsigned accesses denied), then a production web build.
 - [x] **Version-stamped builds** — every build is stamped with a commit-derived `APP_VERSION` (`pr-<n>-<sha>` / `<branch>-<sha>` / `<sha>`), injected as `VITE_APP_VERSION` for the web client so its stale-tab update check compares real versions.
-- [x] **Automated image publish** — pushing to `main` gates on CI, then builds `infra/Dockerfile.prod` and publishes the API image to GHCR (tagged `latest` + short SHA) with `APP_VERSION` / `GIT_COMMIT` / `BUILD_TIME` baked in; rolling that image out (ECS/Vercel) is the next step.
+- [x] **Automated deploy** — pushing to `main` gates on CI, then deploys the API over SSH to the EC2 host: fetch the exact validated commit, `bun install --frozen-lockfile`, Prisma generate + `migrate:deploy` against production, write the `APP_VERSION` / `GIT_COMMIT` / `BUILD_TIME` stamp file, restart the systemd unit, and smoke-test `/readyz`. The API runs under systemd via Bun on the host — no container step (full setup in [`deploy/README.md`](README.md)).
 
 ## 🧪 Testing
 
-- [x] **421-test API suite** — `bun:test` HTTP integration tests across 25 files (including real Socket.IO client tests for chat-room membership) against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends (including cache freshness), chats, messages, uploads, settings, web push, rate limiting (throttled 429s, fail-closed outage responses, and the orphan-cleanup lock), and cache behaviour across a Redis reconnect — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion — plus unit tests for config parsing, the logger, pagination/date helpers, health/readiness probes, Prometheus metrics, and the Prisma error mapping. Contract-level profiles/moderated-field rules are covered by 22 unit tests in `packages/contracts`.
+- [x] **421-test API suite** — `bun:test` HTTP integration tests across 25 files (including real Socket.IO client tests for chat-room membership) against a throwaway Postgres (`DEV_DB_TEST_URL`), covering auth, sessions, 2FA, users, friends (including cache freshness), chats, messages, uploads, settings, web push, rate limiting (throttled 429s, fail-closed outage responses, and the orphan-cleanup lock), and cache behaviour across a Redis reconnect — including the negatives: revoked/stale tokens, idempotent resends, authorization failures, verification gates, username-change cooldown, the account-recovery round trip, and the password + 2FA re-auth that guards account deletion — plus unit tests for config parsing, the logger, pagination/date helpers, health/readiness probes, Prometheus metrics, and the Prisma error mapping. Contract-level profiles/moderated-field rules are covered by 22 unit tests in `packages/contracts`. The suite runs **serially** (`bun test --serial`) — it shares one test database, so two concurrent runs corrupt each other's fixtures and fail in ways that look like application bugs. Call signalling is the one shipped area with no automated coverage.
