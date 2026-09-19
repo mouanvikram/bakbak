@@ -52,7 +52,7 @@ export class EmailService {
 
     try {
       const { data, error } = await resend.emails.send({
-        from: "onboarding@resend.dev",
+        from: "onboarding@bakbak.mouan.in",
         to: recipient,
         subject: dto.subject,
         html: dto.html,

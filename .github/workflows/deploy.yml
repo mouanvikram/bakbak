@@ -1,10 +1,12 @@
 name: Deploy
 
-# Publish the API container image on every main push. CI is run first via
-# workflow_call (the CI workflow's `push: branches-ignore: [main]` keeps main
-# from triggering it a second time). Extend this file to roll the image out
-# (ECS or a Vercel deploy of apps/web) once the target's secrets are added to
-# the Actions settings.
+# Runs CI first as a gate, then deploys to the EC2 host over SSH: fetch the
+# exact commit CI validated, install, regenerate the Prisma client, apply
+# migrations, and restart the systemd unit.
+#
+# There is no container step. The API runs under systemd via Bun — on a
+# t3.micro the Docker daemon's ~100-150MB is a sixth of the box's RAM for no
+# benefit at a single instance. See deploy/bakbak-api.service.
 
 on:
   push:
@@ -17,44 +19,80 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
-  publish-api:
+  deploy:
     needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-
       - name: Version stamp
         id: version
         shell: bash
         run: |
           echo "VERSION=${GITHUB_SHA::8}" >> "$GITHUB_ENV"
-          echo "VERSION_GIT_COMMIT=${GITHUB_SHA}" >> "$GITHUB_ENV"
-          echo "VERSION_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          # Forward the stamps computed above into the remote shell.
+          envs: VERSION,BUILD_TIME,GITHUB_SHA
+          script_stop: true
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            cd ~/bakbak
 
-      - name: Build and push API image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: infra/Dockerfile.prod
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/bakbak-api:latest
-            ghcr.io/${{ github.repository }}/bakbak-api:${{ env.VERSION }}
-          build-args: |
-            APP_VERSION=${{ env.VERSION }}
-            GIT_COMMIT=${{ env.VERSION_GIT_COMMIT }}
-            BUILD_TIME=${{ env.VERSION_BUILD_TIME }}
+            # Deploy the exact commit CI validated, not whatever main points at
+            # by the time this runs. reset --hard also discards any drift that
+            # accumulated on the box.
+            git fetch --prune origin
+            git reset --hard "$GITHUB_SHA"
+
+            bun install --frozen-lockfile
+
+            # The Prisma client is generated code, not a published artifact —
+            # skipping this after a schema change produces runtime errors that
+            # look like database bugs.
+            cd packages/db
+            export DATABASE_URL="$(grep -E '^PRODUCTION_DB_URL=' ~/bakbak/.env.prod | cut -d= -f2-)"
+            bunx prisma generate
+            bunx prisma migrate deploy
+            cd ~/bakbak
+
+            # Version stamps for GET /api/v1/version, which the web client
+            # compares against its own build to detect a stale tab.
+            cat > .env.version <<STAMP
+            APP_VERSION=$VERSION
+            GIT_COMMIT=$GITHUB_SHA
+            BUILD_TIME=$BUILD_TIME
+            STAMP
+
+            sudo systemctl restart bakbak-api
+            # Fail the deploy here rather than letting the smoke test below
+            # time out ambiguously if the unit refuses to come back.
+            sudo systemctl is-active --quiet bakbak-api
+
+      - name: Smoke test the deployed API
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              "https://${{ secrets.API_DOMAIN }}/readyz" || true)
+            if [ "$code" = "200" ]; then
+              echo "readyz OK after ${i} attempt(s)"
+              exit 0
+            fi
+            echo "attempt ${i}: got ${code}, retrying"
+            sleep 6
+          done
+          echo "readyz never returned 200 — check: journalctl -u bakbak-api -n 50"
+          exit 1

@@ -1,0 +1,53 @@
+# Install on the EC2 host at /etc/systemd/system/bakbak-api.service, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now bakbak-api
+#
+# Assumes the repo is checked out at /home/ubuntu/bakbak and .env.prod has been
+# copied there by hand (it is gitignored, so it never arrives via git).
+[Unit]
+Description=bakbak API (Bun)
+Documentation=https://github.com/mouanvikram/bakbak
+# network-online rather than network: the process resolves Neon, Upstash and
+# R2 during boot and exits if DNS is not up yet.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/bakbak
+
+# Application config. The second file is written by the deploy workflow and
+# carries the version stamps; the leading "-" makes it optional so the service
+# still starts on a box that has never been deployed to.
+EnvironmentFile=/home/ubuntu/bakbak/.env.prod
+EnvironmentFile=-/home/ubuntu/bakbak/.env.version
+
+ExecStart=/home/ubuntu/.bun/bin/bun apps/api/index.ts
+
+Restart=always
+RestartSec=5
+
+# The app registers SIGTERM/SIGINT handlers (apps/api/src/shutdown/index.ts)
+# that drain HTTP, close sockets, and disconnect Redis and Prisma. Give that
+# sequence room to finish rather than killing connections mid-flight.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bakbak-api
+
+# This is a t3.micro with 908MB of RAM. Without a ceiling, a leak in the API
+# takes the whole host down — sshd included — instead of just restarting one
+# service. systemd kills and restarts the unit when it crosses this.
+MemoryMax=600M
+
+# Modest hardening: the service needs nothing outside its own directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/bakbak
+
+[Install]
+WantedBy=multi-user.target

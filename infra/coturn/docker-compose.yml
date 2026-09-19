@@ -1,0 +1,51 @@
+# coturn, for the dedicated EC2 host. Copy this file plus a .env to the box.
+#
+# Differs from the coturn service in infra/docker-compose.yml in two ways that
+# only matter once real browsers are involved:
+#
+#   host networking  — the dev file publishes 40 UDP ports through Docker's
+#                      userland proxy, which is slow and adds a second NAT hop
+#                      on top of EC2's. On Linux, host networking removes both,
+#                      and is the supported way to run coturn in Docker.
+#   --external-ip    — EC2 instances never see their public address; the NIC
+#                      only has the private one. Without this, coturn advertises
+#                      the private IP as the relay candidate and every relayed
+#                      call fails while direct ones keep working.
+#
+# Bring up with:  docker compose up -d
+services:
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - -n
+      - --log-file=stdout
+      - --realm=${TURN_REALM:?set TURN_REALM, and match it in the API}
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_STATIC_AUTH_SECRET:?must match the API exactly}
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      # The Elastic IP. Must be an address, not a hostname.
+      - --external-ip=${TURN_EXTERNAL_IP:?set to this box's Elastic IP}
+      - --fingerprint
+      - --no-multicast-peers
+      # Refuse to relay to loopback/private ranges. Without this the relay can be
+      # pointed at anything the instance can reach — including the EC2 metadata
+      # service and any other host in the VPC, which is an SSRF primitive.
+      - --no-loopback-peers
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      # Cap what one credential can consume, so a leaked pair can't be used to
+      # relay unbounded traffic on your bandwidth.
+      - --user-quota=12
+      - --total-quota=1200
+      - --no-cli
+      # Plain TURN for now: WebRTC media is DTLS-SRTP encrypted end-to-end
+      # regardless, so this exposes relay metadata and the (short-lived)
+      # credential, not call content. See the README note on adding turns:.
+      - --no-tls
+      - --no-dtls
