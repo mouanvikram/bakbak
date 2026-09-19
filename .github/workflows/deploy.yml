@@ -45,7 +45,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           # Forward the stamps computed above into the remote shell.
           envs: BUILD_TIME,GITHUB_SHA
-          script_stop: true
+          # No script_stop: v1 of this action dropped it. The script's own
+          # `set -euo pipefail` is what aborts on the first failing command.
           command_timeout: 15m
           script: |
             set -euo pipefail

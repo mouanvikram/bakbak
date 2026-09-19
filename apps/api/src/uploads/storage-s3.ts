@@ -16,6 +16,19 @@ import type { StorageProvider } from "./storage.provider";
  * configuration change.
  */
 
+/**
+ * How long a signed URL stays byte-identical, so browsers can cache the object
+ * behind it. Must stay comfortably below the shortest signed-URL TTL
+ * (SIGNED_URL_TTL_SECONDS, 1h by default): a URL minted at the end of a window
+ * has already spent that much of its life, so too large a window would hand
+ * out URLs that expire almost immediately.
+ */
+const SIGNING_WINDOW_SECONDS = 15 * 60;
+
+/** How long browsers may reuse a fetched object. Capped to the signing window
+ *  so a cached image can never outlive the URL that fetched it. */
+const OBJECT_CACHE_CONTROL = `private, max-age=${SIGNING_WINDOW_SECONDS}`;
+
 export class S3StorageProvider implements StorageProvider {
   private readonly client: S3Client;
   private readonly bucket: string;
@@ -80,6 +93,10 @@ export class S3StorageProvider implements StorageProvider {
         Key: key,
         Body: buffer,
         ContentType: contentType,
+        // Stored on the object, so it comes back on every GET. `private`
+        // because these URLs are per-recipient and must not be held by a
+        // shared cache; the browser's own cache is the one we want to hit.
+        CacheControl: OBJECT_CACHE_CONTROL,
       }),
     );
   }
@@ -99,6 +116,21 @@ export class S3StorageProvider implements StorageProvider {
     }
   }
 
+  /**
+   * A signed URL that is stable within a time window.
+   *
+   * The presigner stamps the current time, so signing the same object twice a
+   * second apart yields two different `X-Amz-Date`/`X-Amz-Signature` pairs —
+   * and therefore two different URLs. Avatars are re-signed on nearly every
+   * response, so the browser saw a brand-new URL each time and re-downloaded
+   * an image it already had; no cache header can fix a URL that never repeats.
+   *
+   * Flooring the signing time to a window makes the URL byte-identical for
+   * every caller inside it, so normal HTTP caching applies. Expiry and access
+   * control are unchanged: the signature still encodes the real TTL, and a URL
+   * signed at the start of a window simply has one window less life left —
+   * which is why the window must stay well under the shortest TTL used.
+   */
   async getSignedUrl(
     key: string,
     expiresInSeconds = this.defaultExpiresInSeconds,
@@ -107,13 +139,16 @@ export class S3StorageProvider implements StorageProvider {
       return `${this.publicUrl.replace(/\/+$/, "")}/${key}`;
     }
 
+    const windowMs = SIGNING_WINDOW_SECONDS * 1000;
+    const signingDate = new Date(Math.floor(Date.now() / windowMs) * windowMs);
+
     return await getSignedUrl(
       this.client,
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: key,
       }),
-      { expiresIn: expiresInSeconds },
+      { expiresIn: expiresInSeconds, signingDate },
     );
   }
 
