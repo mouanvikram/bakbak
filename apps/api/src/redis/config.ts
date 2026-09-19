@@ -38,14 +38,6 @@ export const redisConfig = {
       ),
     },
 
-    messageSend: {
-      capacity: positiveNum(process.env.RATE_LIMIT_MESSAGE_SEND_CAPACITY, 60),
-      refillRate: positiveNum(
-        process.env.RATE_LIMIT_MESSAGE_SEND_REFILL_PER_SEC,
-        2,
-      ),
-    },
-
     usernameCheck: {
       capacity: positiveNum(process.env.RATE_LIMIT_USERNAME_CHECK_CAPACITY, 20),
       refillRate: positiveNum(

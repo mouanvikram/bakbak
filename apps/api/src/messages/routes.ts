@@ -13,7 +13,6 @@ import {
   sendMessageRequestSchema,
   toggleReactionRequestSchema,
 } from "@bakbak/contracts";
-import { rateLimitAuthorized } from "@/redis/rate-limit";
 
 /**
  * Message routes nested under a chat: `/api/v1/chats/:chatId/messages/*`.
@@ -42,7 +41,6 @@ chatMessageRoutes.get(
 chatMessageRoutes.post(
   "/",
   validate(sendMessageRequestSchema),
-  rateLimitAuthorized("messageSend"),
   messageController.sendMessage,
 );
 chatMessageRoutes.put(

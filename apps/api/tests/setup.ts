@@ -23,7 +23,6 @@ for (const bucket of [
   "LOGIN",
   "EMAIL",
   "UPLOADS",
-  "MESSAGE_SEND",
   "USERNAME_CHECK",
   "FRIEND_REQUEST",
   "CHAT",
