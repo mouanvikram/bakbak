@@ -13,7 +13,12 @@ scrape_configs:
 
   # The BakBak API, running on the host. `host.docker.internal` works on Docker
   # Desktop (macOS/Windows) and via `extra_hosts` on Linux.
+  # If the API has METRICS_AUTH_TOKEN set, uncomment authorization and put the
+  # same token in /etc/prometheus/metrics-token (mounted from ./prometheus).
   - job_name: bakbak-api
     metrics_path: /metrics
+    # authorization:
+    #   type: Bearer
+    #   credentials_file: /etc/prometheus/metrics-token
     static_configs:
       - targets: ["host.docker.internal:3000"]

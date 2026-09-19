@@ -78,4 +78,41 @@ describe("Prometheus metrics", () => {
       );
     });
   });
+
+  test("GET /metrics is public when no token is configured", async () => {
+    await withServer(
+      express().use("/metrics", createMetricsRouter({ authToken: "" })),
+      async (base) => {
+        const res = await fetch(`${base}/metrics`);
+        expect(res.status).toBe(200);
+      },
+    );
+  });
+
+  test("GET /metrics requires the bearer token when one is configured", async () => {
+    const router = createMetricsRouter({ authToken: "s3cret-token" });
+    await withServer(express().use("/metrics", router), async (base) => {
+      const missing = await fetch(`${base}/metrics`);
+      expect(missing.status).toBe(401);
+      expect(missing.headers.get("www-authenticate")).toBe(
+        'Bearer realm="metrics"',
+      );
+
+      const wrongScheme = await fetch(`${base}/metrics`, {
+        headers: { authorization: "Basic c2VjcmV0" },
+      });
+      expect(wrongScheme.status).toBe(401);
+
+      const wrongToken = await fetch(`${base}/metrics`, {
+        headers: { authorization: "Bearer not-the-token" },
+      });
+      expect(wrongToken.status).toBe(401);
+
+      const correct = await fetch(`${base}/metrics`, {
+        headers: { authorization: "Bearer s3cret-token" },
+      });
+      expect(correct.status).toBe(200);
+      expect(await correct.text()).toContain("# HELP");
+    });
+  });
 });
